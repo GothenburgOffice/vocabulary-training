@@ -16,7 +16,56 @@ the application. No AI services or model keys are needed.
 - Responsive book/wordmark variants selected by the sidebar's available width.
 - Explicit saving/error states and optimistic concurrency checks across tabs.
 
-## Start with Docker
+## Test the published image
+
+The public package is [ghcr.io/hkarn/vocabulary-training](https://github.com/hkarn/vocabulary-training/pkgs/container/vocabulary-training).
+It is a Linux/amd64 image, suitable for Linux containers on x64 Docker Desktop
+or an x64 Linux host. GHCR distributes the image; it does not host a running website.
+Publishing an image does not deploy it to any existing server.
+
+Download `compose.images.yaml` and `.env.example` from this repository into a
+new folder, or clone the repository. No host Node installation is needed.
+In PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
+```
+
+Set a strong random URL-safe `POSTGRES_PASSWORD` and set `ALLOW_REGISTRATION=true`
+to create your first account. Then run:
+
+```powershell
+docker compose -f compose.images.yaml pull
+docker compose -f compose.images.yaml up -d --wait
+```
+
+Open [http://localhost:3000](http://localhost:3000). This creates your own empty
+database, not a copy of anyone else's account or data. The app listens on localhost
+only; PostgreSQL has no published port. After creating your account, set
+`ALLOW_REGISTRATION=false` and repeat the `up -d --wait` command.
+
+Stop without deleting your saved data:
+
+```powershell
+docker compose -f compose.images.yaml down
+```
+
+The named volume survives container replacement and `down`; do not add `-v`
+unless you intentionally want to delete the database. Back it up before updates.
+The source-built and image-only Compose files use the same project/volume name:
+using both in the same Docker context shares that database, rather than creating
+independent test environments. For isolation, use `-p vocabulary-training-test`
+consistently on every Compose command.
+
+`latest` follows passing `main` builds. For a reproducible version, set
+`VOCABULARY_IMAGE` in `.env` to a published `sha-<full-commit>` tag or image digest.
+To update, back up the database, run `pull`, then `up -d --wait` again.
+Schema changes can limit rollbacks; changing the image alone does not revert data.
+To use another port or hostname, also change `APP_ORIGIN` to exactly match your
+browser's origin.
+
+## Build from source with Docker
 
 Prerequisite: Docker with the Compose plugin. No host Node installation is required.
 
@@ -74,6 +123,19 @@ GitHub Actions runs unit/build checks and a separate real Docker Compose integra
 job. The integration job uses a disposable database and checks authentication,
 ownership isolation, persistence, stale revisions, CSRF rejection, payload limits
 and authentication throttling.
+
+Only passing `main` push/manual runs enter the package-publishing job. That job
+builds a release candidate, runs the image-only Compose stack against a fresh
+PostgreSQL database, repeats integration/restart tests, then publishes that exact
+image with `latest` and full-commit tags. It also checks an anonymous registry pull.
+Pull requests never publish. Package publishing uses the workflow's
+`GITHUB_TOKEN` with job-scoped `packages: write`, not a saved personal token.
+
+GitHub initially creates new container packages as private. The package owner
+must set this package's visibility to public once; the anonymous-pull check
+intentionally fails until that is done. Do not put secrets or database files into
+an image. The runtime image contains application code and migrations; it does
+not contain the `.env` file, CI accounts or the database volume.
 
 For a direct local test environment only, Node 22 and PostgreSQL can run the same
 source using `DATABASE_URL`, `APP_ORIGIN` and `ALLOW_REGISTRATION`. The supported

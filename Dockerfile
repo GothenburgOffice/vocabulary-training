@@ -21,6 +21,14 @@ ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 COPY --from=builder --chown=node:node /app/public ./public
+# The same release image can run the one-shot migration job.
+COPY --from=builder --chown=node:node /app/scripts/migrate.mjs ./scripts/migrate.mjs
+COPY --from=builder --chown=node:node /app/db ./db
+COPY --from=builder --chown=node:node /app/LICENSE ./LICENSE
+LABEL org.opencontainers.image.source="https://github.com/hkarn/vocabulary-training" \
+      org.opencontainers.image.title="vocabulary.training" \
+      org.opencontainers.image.description="Personal vocabulary lists and statistical practice" \
+      org.opencontainers.image.licenses="MIT"
 USER node
 EXPOSE 3000
 CMD ["node", "server.js"]
