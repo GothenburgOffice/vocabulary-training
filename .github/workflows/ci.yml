@@ -1,0 +1,56 @@
+name: Verify
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Start container stack
+        env:
+          POSTGRES_PASSWORD: ci-only-disposable-password
+          APP_PORT: 3013
+          APP_ORIGIN: http://127.0.0.1:3013
+          ALLOW_REGISTRATION: "true"
+        run: docker compose up --build -d --wait --wait-timeout 240
+      - run: npm run test:integration
+      - run: npx tsx tests/restart.mts prepare
+      - name: Check persistence across application restart
+        env:
+          POSTGRES_PASSWORD: ci-only-disposable-password
+          APP_PORT: 3013
+          APP_ORIGIN: http://127.0.0.1:3013
+          ALLOW_REGISTRATION: "true"
+        run: |
+          docker compose restart app
+          node scripts/wait-health.mjs http://127.0.0.1:3013/api/health
+          npx tsx tests/restart.mts verify
+      - name: Container logs on failure
+        if: failure()
+        env:
+          POSTGRES_PASSWORD: ci-only-disposable-password
+        run: docker compose logs --tail=100
+      - name: Cleanup disposable CI database
+        if: always()
+        env:
+          POSTGRES_PASSWORD: ci-only-disposable-password
+        run: docker compose down -v
