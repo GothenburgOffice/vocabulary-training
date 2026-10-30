@@ -91,7 +91,8 @@ project; it never copies account credentials or server environment files.
 
 This is an initial self-hostable version, not a claim of production launch readiness.
 Read [security and operations](docs/security.md), [architecture](docs/architecture.md)
-and [verification status](docs/verification.md). Configure HTTPS and an intentional
+and [verification status](docs/verification.md). The [source map](docs/code-map.md)
+records Graphify's structural pass and its limits. Configure HTTPS and an intentional
 registration policy, and test database backup and restore. This version has no
 email verification, password recovery, MFA or social login.
 

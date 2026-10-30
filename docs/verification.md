@@ -48,9 +48,16 @@ application restart. Its result must be checked separately from local tests.
   warning is retained intentionally to preserve the user's approved design.
   Detector results are not a comprehensive accessibility certification.
 
-Container execution remains separately verifiable through the Actions workflow.
-Its restart test prepares a disposable account and saved list before restart,
-then checks that same session and list afterward.
+## Container execution
+
+The initial [GitHub Actions run](https://github.com/hkarn/vocabulary-training/actions/runs/41125942344)
+passed both the unit/build job and the Docker Compose integration job.
+That job built the production image, started PostgreSQL 17, applied migrations,
+passed the HTTP integration suite and verified the same authenticated session
+and saved list after restarting the application.
+
+This verifies the CI container environment, not the user's device, a production
+host, or backup restoration. Inspect the latest Actions run for later revisions.
 
 ## Explicit limits
 
