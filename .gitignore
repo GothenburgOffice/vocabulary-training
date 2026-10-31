@@ -9,4 +9,5 @@ test-results/
 playwright-report/
 graphify-out/
 *.log
-.taste-skill/inspect/
+notes/
+.claude/settings.local.json

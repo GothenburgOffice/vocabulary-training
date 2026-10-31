@@ -1,8 +1,6 @@
 # Security and operations
 
-This first version is suitable for controlled self-hosted evaluation. Do not
-interpret a successful build as a security audit or permission to open public
-registration without an operational plan.
+Intended for controlled self-hosting. This is not a security audit.
 
 ## Implemented safeguards
 
@@ -36,7 +34,7 @@ No raw form passwords, cookies, email lists or production dumps belong in GitHub
 
 Review dependencies and base-image patches regularly. Password reset, MFA, account
 deletion, verified email, operational monitoring and a broader security review are
-future work. Existing sessions remain valid until sign-out or expiry; there is no
+future work (see GitHub issues). Existing sessions remain valid until sign-out or expiry; there is no
 UI to revoke all sessions.
 
 The database-backed global authentication bucket intentionally limits costly

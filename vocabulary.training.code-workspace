@@ -1,17 +1,16 @@
 {
-  "folders": [
-    { "name": "vocabulary.training", "path": "." }
-  ],
+  "folders": [{ "name": "vocabulary.training", "path": "." }],
   "settings": {
     "files.exclude": { "**/.next": true, "**/node_modules": true, "**/out": true },
-    "search.exclude": { "**/.next": true, "**/node_modules": true, "**/out": true }
+    "search.exclude": { "**/.next": true, "**/node_modules": true, "**/out": true },
   },
   "extensions": {
     "recommendations": [
       "anthropic.claude-code",
       "ms-azuretools.vscode-docker",
-      "github.vscode-github-actions"
-    ]
+      "ms-vscode-remote.remote-containers",
+      "github.vscode-github-actions",
+    ],
   },
   "tasks": {
     "version": "2.0.0",
@@ -21,21 +20,27 @@
         "type": "shell",
         "command": "docker compose -f compose.yaml -f compose.dev.yaml up --build",
         "isBackground": true,
-        "problemMatcher": []
+        "problemMatcher": [],
       },
       {
         "label": "Vocabulary: test in Docker",
         "type": "shell",
         "command": "docker compose -f compose.yaml -f compose.dev.yaml exec -T app npm test",
         "group": "test",
-        "problemMatcher": []
+        "problemMatcher": [],
       },
       {
         "label": "Vocabulary: typecheck in Docker",
         "type": "shell",
         "command": "docker compose -f compose.yaml -f compose.dev.yaml exec -T app npm run typecheck",
-        "problemMatcher": []
-      }
-    ]
-  }
+        "problemMatcher": [],
+      },
+      {
+        "label": "Vocabulary: lint in Docker",
+        "type": "shell",
+        "command": "docker compose -f compose.yaml -f compose.dev.yaml exec -T app npm run lint",
+        "problemMatcher": [],
+      },
+    ],
+  },
 }

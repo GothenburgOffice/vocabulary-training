@@ -15,8 +15,11 @@ export type FeedbackInput = {
 };
 
 export function shouldRequestFeedback(input: FeedbackInput): boolean {
-  return !input.correct && !!input.answer.trim() &&
-    !isCorrect(input.answer, input.reference, input.caseSensitive, input.requireAccents);
+  return (
+    !input.correct &&
+    !!input.answer.trim() &&
+    !isCorrect(input.answer, input.reference, input.caseSensitive, input.requireAccents)
+  );
 }
 
 // Commentary is not an alternative grading path.
@@ -45,11 +48,14 @@ export function feedbackMessages(input: FeedbackInput) {
 
 export function boundedComment(value: unknown): string {
   if (typeof value !== "string") throw new Error("Invalid comment");
-  const clean = value.replace(/[\u0000-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069]/g, " ").replace(/\s+/g, " ").trim();
+  const clean = value
+    .replace(/[\u0000-\u001F\u007F-\u009F\u202A-\u202E\u2066-\u2069]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!clean) throw new Error("Empty comment");
   const chars = Array.from(clean);
   if (chars.length <= COMMENT_LIMIT) return clean;
   const prefix = chars.slice(0, COMMENT_LIMIT - 1).join("");
   const boundary = prefix.lastIndexOf(" ");
-  return (boundary > prefix.length * .7 ? prefix.slice(0, boundary) : prefix).trimEnd() + "…";
+  return (boundary > prefix.length * 0.7 ? prefix.slice(0, boundary) : prefix).trimEnd() + "…";
 }

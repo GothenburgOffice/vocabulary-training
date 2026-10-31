@@ -1,0 +1,6 @@
+package-lock.json
+.next/
+out/
+graphify-out/
+next-env.d.ts
+notes/
