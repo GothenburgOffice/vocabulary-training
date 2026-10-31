@@ -1,0 +1,32 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+
+  # PostgreSQL is declared in Compose, not in the Dockerfile.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    allow:
+      - dependency-name: postgres
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
