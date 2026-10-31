@@ -1,0 +1,44 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Stay on Node 22 for broad hosting compatibility.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      # Stay on Node 22 for broad hosting compatibility.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
+
+  # PostgreSQL is declared in Compose, not in the Dockerfile.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    allow:
+      - dependency-name: postgres
+    ignore:
+      # A major PostgreSQL upgrade needs pg_upgrade or dump/restore of existing data.
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
