@@ -5,10 +5,9 @@
   "service": "app",
   "workspaceFolder": "/app",
   "runServices": ["db", "migrate", "app"],
-  // Keep the service command: the Next.js dev server starts with the container.
+  // Keep the service command: it installs dependencies if needed, then starts the dev server.
   "overrideCommand": false,
   "shutdownAction": "stopCompose",
-  "postCreateCommand": "npm ci",
   "customizations": {
     "vscode": {
       "extensions": [

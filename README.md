@@ -84,7 +84,11 @@ npm run test:integration  # HTTP + PostgreSQL against the running dev server
 ```
 
 Registration is enabled inside the dev container so the integration test can
-create throwaway accounts. On Windows, **Dev Containers: Clone Repository in
+create throwaway accounts. The dev container ignores `REQUESTY_API_KEY`, so tests
+never call the provider. To try the AI features there, set `DEV_REQUESTY_API_KEY`
+in `.env` (the integration test then fails, because it expects AI to be disabled).
+Dependencies are reinstalled automatically on start when `package-lock.json`
+changes. On Windows, **Dev Containers: Clone Repository in
 Container Volume** gives faster file watching than a folder on a Windows drive.
 
 **Plain Compose.** `docker compose -f compose.yaml -f compose.dev.yaml up --build`,

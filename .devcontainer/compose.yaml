@@ -1,8 +1,20 @@
 # Dev container additions to compose.yaml + compose.dev.yaml.
 services:
   app:
+    # Reinstall dependencies only when the lockfile changed, before the dev server starts,
+    # so the shared node_modules volume never goes stale and npm never races `next dev`.
+    command:
+      - sh
+      - -c
+      - >-
+        cmp -s package-lock.json node_modules/.installed-lock ||
+        (npm ci && cp package-lock.json node_modules/.installed-lock);
+        exec npm run dev
     environment:
       # Local development only: the integration tests register throwaway accounts.
       ALLOW_REGISTRATION: "true"
       TEST_BASE_URL: http://localhost:3000
       TEST_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+      # Keyless by default so tests never call Requesty (they expect AI to be disabled).
+      # Set DEV_REQUESTY_API_KEY in .env to try AI features here; integration tests then fail.
+      REQUESTY_API_KEY: ${DEV_REQUESTY_API_KEY:-}
