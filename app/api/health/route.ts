@@ -5,5 +5,7 @@ export async function GET() {
   try {
     await db.query("SELECT 1 FROM schema_migrations LIMIT 1");
     return json({ status: "ok" });
-  } catch { return json({ status: "unavailable" }, 503); }
+  } catch {
+    return json({ status: "unavailable" }, 503);
+  }
 }

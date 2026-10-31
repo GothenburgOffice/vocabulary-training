@@ -3,3 +3,4 @@ package-lock.json
 out/
 graphify-out/
 .taste-skill/
+next-env.d.ts
