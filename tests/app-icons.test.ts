@@ -13,7 +13,13 @@ test("favicon SVG reuses the book mark from the wordmark", () => {
 test("/favicon.ico is rewritten to the served icon route", async () => {
   const { default: config } = await import("../next.config.ts");
   const rewrites = await config.rewrites?.();
-  const list = Array.isArray(rewrites) ? rewrites : [...(rewrites?.beforeFiles ?? []), ...(rewrites?.afterFiles ?? []), ...(rewrites?.fallback ?? [])];
+  const list = Array.isArray(rewrites)
+    ? rewrites
+    : [
+        ...(rewrites?.beforeFiles ?? []),
+        ...(rewrites?.afterFiles ?? []),
+        ...(rewrites?.fallback ?? []),
+      ];
   const rule = list.find((r) => r.source === "/favicon.ico");
   assert.ok(rule, "/favicon.ico rewrite is missing from next.config.ts");
   assert.equal(rule.destination, "/icon.svg");
