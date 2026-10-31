@@ -1,47 +1,56 @@
-# Application architecture
+# Architecture
 
-The deployable application and sample-data preview reuse `components/Workspace.tsx`.
-The account-backed entry point wraps that UI with authentication, load, autosave,
-retry, concurrent-edit protection and sign-out controls.
+## Layout
 
-## Boundaries
+| Path                                              | Responsibility                                                                               |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `app/page.tsx`                                    | Renders `AccountApp`                                                                         |
+| `components/AccountApp.tsx`                       | Sign-in, loads the workspace, debounced and serialized saves, retry, unsaved-changes warning |
+| `components/Workspace.tsx`                        | The whole UI: library, editor, CSV, practice, results, history                               |
+| `components/LanguageNote.tsx`, `SpeechButton.tsx` | Optional AI note and audio controls                                                          |
+| `lib/learning.ts`                                 | Pure functions: answer matching, sampling, review scheduling, CSV                            |
+| `lib/validation.ts`                               | Zod schemas for saved data and credentials                                                   |
+| `lib/server/`                                     | Server-only: DB pool, sessions, password hashing, HTTP helpers, Requesty clients             |
+| `app/api/*/route.ts`                              | `auth`, `workspace`, `feedback`, `speech`, `health`                                          |
+| `db/migrations/`                                  | Append-only SQL migrations, applied by `scripts/migrate.mjs`                                 |
 
-- **UI:** `components/Workspace.tsx` owns language-pair filtering, editor, CSV,
-  testing, feedback, results and history. `lib/learning.ts` contains pure formulas.
-- **Account shell:** `components/AccountApp.tsx` loads account state, debounces
-  saves, serializes writes, exposes errors and warns before leaving unsaved data.
-- **API:** `app/api/auth` handles registration, sign-in, sign-out and session lookup.
-  `app/api/workspace` reads and updates only the authenticated user's workspace.
-  Request bodies and limits are validated with Zod.
-- **PostgreSQL:** normalized `users` and `sessions`, one versioned JSONB workspace
-  per user, migration ledger, database-backed authentication rate limits.
-- **Runtime:** Docker Compose runs PostgreSQL, a one-shot migration job and a
-  non-root standalone Next.js server. The database has no published host port.
+Only `lib/server/` and the migration script touch PostgreSQL or secrets.
 
-## Data and concurrency
+## Data model
 
-A workspace contains profile language settings, lists with word-level review
-history, and up to 200 completed sessions. Its JSONB boundary deliberately matches
-the first version's UI aggregate; this is not a claim of a normalized relational
-word schema. A future reporting feature can add normalized tables through
-non-destructive migrations.
+PostgreSQL holds `users`, `sessions` (token hashes), `auth_limits` (sign-in
+throttling), `schema_migrations`, and one `workspaces` row per user. That row
+is a versioned JSONB document with the profile languages, all lists (each word
+carries forward/reverse review history) and up to 200 completed sessions.
 
-Every save includes a revision. A single SQL update checks user ownership and the
-revision and increments it atomically. A stale tab receives HTTP 409 and retains
-its unsaved data; it does not overwrite another tab. Reload only after exporting
-any unsaved words. Retry resends the same revision and cannot override a conflict.
+Every save sends the whole document plus its `revision`. A single `UPDATE … WHERE
+revision = $n` checks ownership and revision and increments it. A stale tab gets
+HTTP 409 and keeps its unsaved data.
 
-Lists and progress are persisted after each checked answer. An unfinished quiz
-keeps its checked answers but does not enter completed-session history. An active
-question/queue is not resumable after reload. Review dates use device time in the
-account app and a fixed illustrative clock in the preview.
+Limits: 100 lists, 1,000 words per list, 200 sessions, 200 characters per word,
+500 per answer, and 2 MB per request (often reached before the count limits).
+CSV export contains word pairs only. Use database backups for full recovery.
 
-## Limits
+Moving to normalized tables with incremental saves is tracked as a GitHub issue.
 
-100 lists, 1,000 words per list, 200 completed sessions, 200 characters per word
-side, 500 characters per typed answer, and a 2 MB maximum workspace request.
-The aggregate 2 MB limit may be reached before the individual count limits.
-This first version is intended for small personal workspaces.
+## Learning formulas
 
-CSV export preserves word pairs, not the complete workspace or review history.
-Use PostgreSQL backups for durable full-account recovery.
+- **Matching** (`normalize`, `isCorrect`): trims, collapses whitespace, treats
+  typographic apostrophes alike, NFC-normalizes, and optionally ignores
+  case or accents. `|` separates accepted alternatives.
+- **Weighted order:** weighted random sampling. The weight is
+  `1 + 3 × errorRate + (due ? 2 : 0)`, with Laplace-smoothed error rate.
+- **Scheduling** (`reviewed`): correct answers double the interval, capped at
+  30 days. A wrong answer resets the streak and is due again in 10 minutes.
+
+## Runtime
+
+Docker Compose runs `db` (PostgreSQL 17), a one-shot `migrate` job, then `app`
+(a standalone Next.js server, non-root). `compose.dev.yaml` swaps in the dev target
+with the source mounted. `.devcontainer/` attaches VS Code to that dev container.
+
+## Design preview
+
+`scripts/sync-preview.mjs` copies the shared UI (`Workspace` with sample data
+from `lib/sample.ts`) into a separate, private static preview project. It never
+copies server code or secrets. The preview has no accounts or durable saves.

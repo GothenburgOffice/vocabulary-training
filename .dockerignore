@@ -7,3 +7,5 @@ out
 graphify-out
 test-results
 *.log
+notes
+.devcontainer
