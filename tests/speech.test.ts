@@ -145,14 +145,14 @@ test("speech cache replays and deduplicates per account, with no additional prov
     return wav();
   }) as typeof fetch;
   const service = new SpeechService();
-  const first = service.get("account-a", input, config, 200, transport);
-  const duplicate = service.get("account-a", input, config, 200, transport);
+  const first = service.get("account-a", input, config, transport);
+  const duplicate = service.get("account-a", input, config, transport);
   // Wait for a provider request, not elapsed wall-clock time.
   while (!complete) await new Promise((resolve) => setImmediate(resolve));
   complete();
   assert.equal((await first).cache, "miss");
   assert.equal((await duplicate).cache, "hit");
-  assert.equal((await service.get("account-a", input, config, 200, transport)).cache, "hit");
+  assert.equal((await service.get("account-a", input, config, transport)).cache, "hit");
   assert.equal(calls, 2);
 });
 
@@ -164,20 +164,20 @@ test("speech cache is account/model/voice/language scoped, expires and evicts", 
     return String(url).endsWith("/models/speech") ? json(catalog) : wav();
   }) as typeof fetch;
   const service = new SpeechService(() => now, 1);
-  await service.get("a", input, config, 200, transport);
-  assert.equal((await service.get("b", input, config, 200, transport)).cache, "miss");
+  await service.get("a", input, config, transport);
+  assert.equal((await service.get("b", input, config, transport)).cache, "miss");
   now += 1000;
-  assert.equal((await service.get("a", input, config, 200, transport)).cache, "miss");
+  assert.equal((await service.get("a", input, config, transport)).cache, "miss");
   now += 3_600_001;
-  assert.equal((await service.get("a", input, config, 200, transport)).cache, "miss");
+  assert.equal((await service.get("a", input, config, transport)).cache, "miss");
   now += 1000;
   assert.equal(
-    (await service.get("a", { ...input, language: "French" }, config, 200, transport)).cache,
+    (await service.get("a", { ...input, language: "French" }, config, transport)).cache,
     "miss",
   );
   now += 1000;
   assert.equal(
-    (await service.get("a", input, { ...config, voice: "Dean" }, 200, transport)).cache,
+    (await service.get("a", input, { ...config, voice: "Dean" }, transport)).cache,
     "miss",
   );
   now += 1000;
@@ -187,7 +187,6 @@ test("speech cache is account/model/voice/language scoped, expires and evicts", 
         "a",
         input,
         { ...config, model: "synthetic/other", allowPaid: true },
-        200,
         transport,
       )
     ).cache,
@@ -196,21 +195,23 @@ test("speech cache is account/model/voice/language scoped, expires and evicts", 
   assert.equal(calls, 13);
 });
 
-test("speech generation quotas do not count cache hits and reset the next UTC day", async () => {
+test("speech cooldown is per account and skips cache hits, with no global quota", async () => {
   let now = Date.UTC(2026, 9, 31, 10);
   const service = new SpeechService(() => now);
   const transport = (async (url) =>
     String(url).endsWith("/models/speech") ? json(catalog) : wav()) as typeof fetch;
-  await service.get("a", input, config, 1, transport);
-  assert.equal((await service.get("a", input, config, 1, transport)).cache, "hit");
-  await assert.rejects(service.get("b", input, config, 1, transport), FeedbackUnavailable);
-  now += 1000;
+  await service.get("a", input, config, transport);
+  assert.equal((await service.get("a", input, config, transport)).cache, "hit");
+  assert.equal((await service.get("b", input, config, transport)).cache, "miss");
   await assert.rejects(
-    service.get("a", { ...input, text: "Please" }, config, 1, transport),
+    service.get("a", { ...input, text: "Please" }, config, transport),
     FeedbackUnavailable,
   );
-  now += 86_400_000;
-  assert.equal((await service.get("a", input, config, 1, transport)).cache, "miss");
+  now += 500;
+  assert.equal(
+    (await service.get("a", { ...input, text: "Please" }, config, transport)).cache,
+    "miss",
+  );
 });
 
 test("failed speech is not cached, releases concurrency and respects the byte budget", async () => {
@@ -218,7 +219,7 @@ test("failed speech is not cached, releases concurrency and respects the byte bu
   let calls = 0;
   const service = new SpeechService(() => now, 128, 47);
   await assert.rejects(
-    service.get("a", input, config, 200, (async () => {
+    service.get("a", input, config, (async () => {
       throw new Error("private failure");
     }) as typeof fetch),
     FeedbackUnavailable,
@@ -228,8 +229,8 @@ test("failed speech is not cached, releases concurrency and respects the byte bu
     calls++;
     return String(url).endsWith("/models/speech") ? json(catalog) : wav();
   }) as typeof fetch;
-  assert.equal((await service.get("a", input, config, 200, transport)).cache, "miss");
+  assert.equal((await service.get("a", input, config, transport)).cache, "miss");
   now += 1000;
-  assert.equal((await service.get("a", input, config, 200, transport)).cache, "miss");
+  assert.equal((await service.get("a", input, config, transport)).cache, "miss");
   assert.equal(calls, 4);
 });

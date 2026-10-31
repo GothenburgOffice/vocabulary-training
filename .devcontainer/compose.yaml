@@ -16,5 +16,7 @@ services:
       TEST_BASE_URL: http://localhost:3000
       TEST_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
       # Keyless by default so tests never call Requesty (they expect AI to be disabled).
-      # Set DEV_REQUESTY_API_KEY in .env to try AI features here; integration tests then fail.
+      # Set DEV_REQUESTY_API_KEY / DEV_REQUESTY_PLUS_API_KEY in .env to try AI here;
+      # the integration tests then fail.
       REQUESTY_API_KEY: ${DEV_REQUESTY_API_KEY:-}
+      REQUESTY_PLUS_API_KEY: ${DEV_REQUESTY_PLUS_API_KEY:-}
