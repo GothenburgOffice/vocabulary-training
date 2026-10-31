@@ -101,7 +101,9 @@ and recreate the `node_modules` volume. Never remove the database volume to do i
 typecheck, unit tests and build, then a Docker Compose integration and restart test.
 Passing `main` pushes build, re-test and publish the image to GHCR.
 
-Contributor and agent conventions are in [CLAUDE.md](CLAUDE.md). Planned work and
+Before contributing, read [CONTRIBUTING.md](CONTRIBUTING.md): outside PRs are only
+reviewed for `help wanted` issues or for plans approved in an issue first.
+Code conventions are in [CLAUDE.md](CLAUDE.md). Planned work and
 open decisions are tracked in
 [GitHub issues](https://github.com/GothenburgOffice/vocabulary-training/issues).
 

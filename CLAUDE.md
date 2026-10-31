@@ -61,6 +61,8 @@ tests. Also run the integration test when API, auth or DB code changed.
   for open questions. Record the outcome in the issue before closing it, and link
   the PR that implements it. Don't add decision logs or dated verification
   reports to the repo.
+- Never label issues `good first issue` or `help wanted`. The owner applies
+  `help wanted` by hand when they want outside help (see [CONTRIBUTING.md](CONTRIBUTING.md)).
 - `notes/` is gitignored, for private scratch and session notes only. Nothing there is public.
 - Branch from `main`, open a PR, and let CI pass. Pushing to `main` publishes the
   GHCR image, so only push or merge with the owner's go-ahead.
