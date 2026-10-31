@@ -5,6 +5,10 @@ const config: NextConfig = {
   trailingSlash: false,
   poweredByHeader: false,
   allowedDevOrigins: ["127.0.0.1"],
+  // Browsers request /favicon.ico directly; serve the app/icon.svg route there.
+  async rewrites() {
+    return [{ source: "/favicon.ico", destination: "/icon.svg" }];
+  },
   async headers() {
     return [
       {
