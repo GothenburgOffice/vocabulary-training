@@ -6,8 +6,7 @@ import { SpeechService } from "../../../lib/server/speech-client";
 import { speechSchema } from "../../../lib/server/speech-input";
 
 export const runtime = "nodejs";
-// One cache and limiter per tier, so basic accounts can't use up the plus tier's quota.
-const speech = { basic: new SpeechService(), plus: new SpeechService() };
+const speech = new SpeechService();
 
 export async function POST(request: Request) {
   try {
@@ -17,21 +16,12 @@ export async function POST(request: Request) {
     if (!parsed.success) return json({ status: "invalid" }, 400);
     const config = aiConfig(user.ai_tier);
     if (!config.apiKey) return json({ status: "disabled" }, 503);
-    const dailyLimit = Math.min(
-      5000,
-      Math.max(1, Number(process.env.REQUESTY_SPEECH_DAILY_LIMIT) || 200),
-    );
-    const result = await speech[config.tier].get(
-      user.id,
-      parsed.data,
-      {
-        apiKey: config.apiKey,
-        model: config.speechModel,
-        voice: config.speechVoice,
-        allowPaid: config.allowPaid,
-      },
-      dailyLimit,
-    );
+    const result = await speech.get(user.id, parsed.data, {
+      apiKey: config.apiKey,
+      model: config.speechModel,
+      voice: config.speechVoice,
+      allowPaid: config.allowPaid,
+    });
     return new Response(new Uint8Array(result.bytes), {
       headers: {
         "Content-Type": result.contentType,

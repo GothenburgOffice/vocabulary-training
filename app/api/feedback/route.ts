@@ -12,8 +12,7 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// One limiter per tier, so basic accounts can't use up the plus tier's quota.
-const limits = { basic: new FeedbackLimiter(), plus: new FeedbackLimiter() };
+const limits = new FeedbackLimiter();
 
 export async function POST(request: Request) {
   let release: (() => void) | undefined;
@@ -26,10 +25,7 @@ export async function POST(request: Request) {
     const config = aiConfig(user.ai_tier);
     if (!config.apiKey)
       return json({ status: "disabled", message: "AI comments are not enabled on this server." });
-    const configured = Number(process.env.REQUESTY_DAILY_LIMIT || "200");
-    const dailyLimit =
-      Number.isInteger(configured) && configured >= 1 && configured <= 10_000 ? configured : 200;
-    release = limits[config.tier].acquire(user.id, dailyLimit);
+    release = limits.acquire(user.id);
     const comment = await requestLanguageComment(parsed.data, {
       apiKey: config.apiKey,
       model: config.model,

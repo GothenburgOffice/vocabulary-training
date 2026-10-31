@@ -370,21 +370,20 @@ test("provider errors and timeouts have no retry or raw error disclosure", async
   await assert.rejects(requestLanguageComment(input, config, timeout), FeedbackUnavailable);
 });
 
-test("limits cover concurrency, account cooldown, daily reset and minute quota", () => {
+test("limits are per account: cooldown and requests in flight, no global quota", () => {
   const limiter = new FeedbackLimiter(),
     now = Date.UTC(2026, 9, 31, 10);
-  const a = limiter.acquire("a", 3, now),
-    b = limiter.acquire("b", 3, now);
-  assert.throws(() => limiter.acquire("c", 3, now), FeedbackUnavailable);
+  const a = limiter.acquire("a", now);
+  // Other accounts are never blocked by a's traffic, however many there are.
+  for (let i = 0; i < 100; i++) limiter.acquire(`u${i}`, now)();
+  assert.throws(() => limiter.acquire("a", now + 5000), FeedbackUnavailable, "one in flight");
   a();
   a();
-  b();
-  assert.throws(() => limiter.acquire("a", 3, now + 1), FeedbackUnavailable);
-  limiter.acquire("a", 3, now + 3000)();
-  assert.throws(() => limiter.acquire("z", 3, now + 60_000), FeedbackUnavailable);
-  limiter.acquire("a", 3, now + 86_400_000)();
-  const burst = new FeedbackLimiter();
-  for (let i = 0; i < 20; i++) burst.acquire(`u${i}`, 100, now)();
-  assert.throws(() => burst.acquire("last", 100, now), FeedbackUnavailable);
-  burst.acquire("last", 100, now + 60_000)();
+  limiter.acquire("a", now + 5000)();
+  assert.throws(() => limiter.acquire("a", now + 5001), FeedbackUnavailable, "cooldown");
+  limiter.acquire("a", now + 8000)();
+  const pair = new FeedbackLimiter(0, 2);
+  pair.acquire("a", now);
+  pair.acquire("a", now);
+  assert.throws(() => pair.acquire("a", now), FeedbackUnavailable);
 });

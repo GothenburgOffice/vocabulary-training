@@ -199,45 +199,32 @@ export async function requestLanguageComment(
   }
 }
 
-// Per-process by design: this hobby deployment runs one Next.js process.
-// Provider-side key/model/spend restrictions are the final account-wide guard.
+// Per-account guards only: a cooldown between requests and a cap on requests in
+// flight. There are deliberately no server-wide quotas: each tier's Requesty key
+// policy decides what happens when it runs out, and load shows up as load.
 export class FeedbackLimiter {
-  constructor(private readonly userCooldownMs = 3_000) {}
-  private day = "";
-  private daily = 0;
-  private minute = -1;
-  private minuteCount = 0;
-  private users = new Map<string, number>();
-  private inFlight = 0;
-  acquire(user: string, dailyLimit: number, now = Date.now()): () => void {
-    const day = new Date(now).toISOString().slice(0, 10);
-    if (day !== this.day) {
-      this.day = day;
-      this.daily = 0;
-      this.users.clear();
-    }
-    const minute = Math.floor(now / 60_000);
-    if (minute !== this.minute) {
-      this.minute = minute;
-      this.minuteCount = 0;
-    }
-    if (
-      this.daily >= dailyLimit ||
-      this.minuteCount >= 20 ||
-      this.inFlight >= 2 ||
-      now < (this.users.get(user) ?? 0)
-    )
+  constructor(
+    private readonly userCooldownMs = 3_000,
+    private readonly maxInFlight = 1,
+  ) {}
+  private next = new Map<string, number>();
+  private inFlight = new Map<string, number>();
+  acquire(user: string, now = Date.now()): () => void {
+    const running = this.inFlight.get(user) ?? 0;
+    if (running >= this.maxInFlight || now < (this.next.get(user) ?? 0))
       throw new FeedbackUnavailable("limited");
-    this.users.set(user, now + this.userCooldownMs);
-    this.daily++;
-    this.minuteCount++;
-    this.inFlight++;
+    // Forget expired cooldowns so the map only holds recently active accounts.
+    if (this.next.size > 1_000)
+      for (const [id, until] of this.next) if (until <= now) this.next.delete(id);
+    this.next.set(user, now + this.userCooldownMs);
+    this.inFlight.set(user, running + 1);
     let released = false;
     return () => {
-      if (!released) {
-        released = true;
-        this.inFlight--;
-      }
+      if (released) return;
+      released = true;
+      const left = (this.inFlight.get(user) ?? 1) - 1;
+      if (left) this.inFlight.set(user, left);
+      else this.inFlight.delete(user);
     };
   }
 }

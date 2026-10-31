@@ -72,17 +72,18 @@ models and spending in Requesty itself, for example with a key-specific
 [Access List](https://docs.requesty.ai/features/access-lists). To use a paid
 model, change the model setting and set that tier's paid-models switch to `true`.
 
-## Rate limits
+## Per-account guards
 
-| Limit                | Language notes               | Audio                               |
-| -------------------- | ---------------------------- | ----------------------------------- |
-| Per account cooldown | 3 s                          | 500 ms                              |
-| Global               | 20/min, 2 concurrent         | 20/min, 2 concurrent                |
-| Daily (per UTC day)  | `REQUESTY_DAILY_LIMIT` (200) | `REQUESTY_SPEECH_DAILY_LIMIT` (200) |
-| Response cap         | 240 characters               | 4 MB WAV                            |
+| Guard              | Language notes | Audio    |
+| ------------------ | -------------- | -------- |
+| Cooldown           | 3 s            | 500 ms   |
+| Requests in flight | 1              | 2        |
+| Response cap       | 240 characters | 4 MB WAV |
 
-Each tier has its own counters. Failed attempts count. These limits are **in memory per process**: they reset on
-restart and aren't shared across replicas. Use provider-side limits if you scale.
+These protect against a runaway client or repeated clicks. Failed attempts count.
+They live in memory per process, so they reset on restart. There are no
+server-wide or daily quotas: spend limits and fallbacks belong to each tier's key
+in Requesty, and heavy load should show up as load rather than be hidden.
 
 ## Referral attribution
 

@@ -127,7 +127,7 @@ export class SpeechService {
   private entries = new Map<string, { audio: SpeechAudio; expires: number }>();
   private pending = new Map<string, Promise<SpeechAudio>>();
   private bytes = 0;
-  private limiter = new FeedbackLimiter(500);
+  private limiter = new FeedbackLimiter(500, 2);
   constructor(
     private readonly clock: () => number = Date.now,
     private readonly maxEntries = 128,
@@ -138,7 +138,6 @@ export class SpeechService {
     user: string,
     input: SpeechInput,
     config: SpeechConfig,
-    dailyLimit: number,
     transport: typeof fetch = fetch,
   ) {
     checkConfig(config);
@@ -160,7 +159,7 @@ export class SpeechService {
       this.bytes -= existing.audio.bytes.byteLength;
       this.entries.delete(key);
     }
-    const release = this.limiter.acquire(user, dailyLimit, now);
+    const release = this.limiter.acquire(user, now);
     const task = requestSpeech(input, config, transport)
       .then((audio) => {
         this.entries.set(key, { audio, expires: this.clock() + 60 * 60_000 });

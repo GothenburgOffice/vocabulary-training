@@ -52,21 +52,19 @@ real data.** Both Compose files share the same project and volume name. Use
 
 ## Configuration
 
-| Variable                      | Default                              | Purpose                                                                            |
-| ----------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------- |
-| `POSTGRES_PASSWORD`           | required                             | Database password                                                                  |
-| `APP_PORT`                    | `3000`                               | Host port (bound to 127.0.0.1)                                                     |
-| `APP_ORIGIN`                  | `http://localhost:3000`              | Must exactly match the browser origin; HTTPS enables Secure cookies                |
-| `ALLOW_REGISTRATION`          | `false`                              | Allow new accounts                                                                 |
-| `VOCABULARY_IMAGE`            | `…:latest`                           | Image for `compose.images.yaml`; pin a `sha-<commit>` tag                          |
-| `REQUESTY_API_KEY`            | empty                                | Server-only basic-tier key; empty disables AI notes and audio                      |
-| `REQUESTY_MODEL`              | `novita/ling-3.1-flash`              | Model or `policy/<name>` for language notes                                        |
-| `REQUESTY_SPEECH_MODEL`       | `deepinfra/XiaomiMiMo/MiMo-V2.5-tts` | Text-to-speech model                                                               |
-| `REQUESTY_SPEECH_VOICE`       | `Mia`                                | Text-to-speech voice                                                               |
-| `REQUESTY_ALLOW_PAID_MODELS`  | `false`                              | When false, refuses models without known zero pricing                              |
-| `REQUESTY_DAILY_LIMIT`        | `200`                                | Language notes per process per UTC day                                             |
-| `REQUESTY_SPEECH_DAILY_LIMIT` | `200`                                | Audio generations per process per UTC day                                          |
-| `REQUESTY_PLUS_*`             | basic value                          | Plus tier: `API_KEY`, `MODEL`, `SPEECH_MODEL`, `SPEECH_VOICE`, `ALLOW_PAID_MODELS` |
+| Variable                     | Default                              | Purpose                                                                            |
+| ---------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------- |
+| `POSTGRES_PASSWORD`          | required                             | Database password                                                                  |
+| `APP_PORT`                   | `3000`                               | Host port (bound to 127.0.0.1)                                                     |
+| `APP_ORIGIN`                 | `http://localhost:3000`              | Must exactly match the browser origin; HTTPS enables Secure cookies                |
+| `ALLOW_REGISTRATION`         | `false`                              | Allow new accounts                                                                 |
+| `VOCABULARY_IMAGE`           | `…:latest`                           | Image for `compose.images.yaml`; pin a `sha-<commit>` tag                          |
+| `REQUESTY_API_KEY`           | empty                                | Server-only basic-tier key; empty disables AI notes and audio                      |
+| `REQUESTY_MODEL`             | `novita/ling-3.1-flash`              | Model or `policy/<name>` for language notes                                        |
+| `REQUESTY_SPEECH_MODEL`      | `deepinfra/XiaomiMiMo/MiMo-V2.5-tts` | Text-to-speech model                                                               |
+| `REQUESTY_SPEECH_VOICE`      | `Mia`                                | Text-to-speech voice                                                               |
+| `REQUESTY_ALLOW_PAID_MODELS` | `false`                              | When false, refuses models without known zero pricing                              |
+| `REQUESTY_PLUS_*`            | basic value                          | Plus tier: `API_KEY`, `MODEL`, `SPEECH_MODEL`, `SPEECH_VOICE`, `ALLOW_PAID_MODELS` |
 
 ## Development
 
