@@ -7,7 +7,9 @@ export function makeWord(front = "", back = "", id = ""): Word {
   return { id: id || `w-${Math.random().toString(36).slice(2)}`, front, back, forward: freshHistory(), reverse: freshHistory() };
 }
 export function normalize(text: string, caseSensitive = false, accents = true) {
-  let value = text.trim().normalize("NFC").replace(/\s+/g, " ");
+  // Compare common keyboard/typographic apostrophes equally, without changing
+  // stored text, accents on letters, or distinct letter-like marks (e.g. ʻ).
+  let value = text.trim().normalize("NFC").replace(/[\u0060\u00B4\u2018\u2019]/g, "'").replace(/\s+/g, " ");
   if (!accents) value = value.normalize("NFD").replace(/\p{Diacritic}/gu, "");
   return caseSensitive ? value : value.toLocaleLowerCase();
 }

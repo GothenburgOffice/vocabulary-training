@@ -113,7 +113,7 @@ export default function AccountApp() {
         <button className="button primary" disabled={busy}>{busy ? "Please wait…" : action === "login" ? "Sign in" : "Create account"}<ArrowRight size={17}/></button>
       </form>
       <button className="text-button auth-switch" onClick={() => { setAction(action === "login" ? "register" : "login"); setError(""); }}>{action === "login" ? "New here? Create an account" : "Already have an account? Sign in"}</button>
-      <p className="auth-note">No AI. No public word lists. Your workspace belongs to your account.</p>
+      <p className="auth-note">No public word lists. Your workspace belongs to your account. Optional AI comments send the current exercise to Requesty and its provider; speaker buttons send only the clicked word.</p>
       <p className="auth-note">This first version has no email verification or password recovery. Keep your password safe.</p>
       {error && <button className="text-button" onClick={() => void load()}><RefreshCw size={15}/> Retry connection</button>}
     </div>

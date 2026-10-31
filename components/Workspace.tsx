@@ -4,6 +4,9 @@ import { ArrowLeft, ArrowRight, ArrowLeftRight, BookOpen, Check, ChevronDown, Ch
 import { DEMO_NOW, sampleLists } from "../lib/sample";
 import { encodeCSV, isCorrect, makeWord, parseCSV, randomOrder, reviewed, weightedOrder, type Direction, type List, type Word } from "../lib/learning";
 import type { WorkspaceData, Result, Run } from "../lib/workspace";
+import LanguageNote from "./LanguageNote";
+import RequestyAttribution from "./RequestyAttribution";
+import SpeechButton from "./SpeechButton";
 
 type View = "library" | "editor" | "test" | "results" | "history";
 const languages = ["Swedish", "French", "English", "Spanish", "German", "Italian", "Japanese", "Other"];
@@ -11,8 +14,9 @@ const codes: Record<string,string> = { sv:"Swedish", fr:"French", en:"English", 
 function Button({ children, onClick, primary = false, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { primary?: boolean }) {
   return <button className={primary ? "button primary" : "button"} onClick={onClick} {...props}>{children}</button>;
 }
-export default function Workspace({ demo = true, initial, onChange }: {
+export default function Workspace({ demo = true, initial, onChange, previewFeedback }: {
   demo?: boolean; initial?: WorkspaceData; onChange?: (data: WorkspaceData) => void;
+  previewFeedback?: { endpoint: string; timeoutMs: number };
 }) {
   const now = demo ? DEMO_NOW : Date.now();
   const [lists,setLists] = useState<List[]>(() => initial?.lists ?? structuredClone(sampleLists));
@@ -31,7 +35,7 @@ export default function Workspace({ demo = true, initial, onChange }: {
   const [queue,setQueue] = useState<string[]>([]);
   const [index,setIndex] = useState(0);
   const [answer,setAnswer] = useState("");
-  const [feedback,setFeedback] = useState<Result | null>(null);
+  const [feedback,setFeedback] = useState<(Result & { skipped?: boolean }) | null>(null);
   const [results,setResults] = useState<Result[]>([]);
   const [runs,setRuns] = useState<Run[]>(initial?.runs ?? []);
   const [draft,setDraft] = useState<List | null>(null);
@@ -71,7 +75,7 @@ export default function Workspace({ demo = true, initial, onChange }: {
   const finished = results.filter(r=>r.correct).length;
   useEffect(()=>{
     if(view==="test" && !feedback) answerRef.current?.focus();
-    if(view==="test" && feedback) feedbackRef.current?.querySelector("button")?.focus();
+    if(view==="test" && feedback) feedbackRef.current?.querySelector<HTMLButtonElement>("button[type=submit]")?.focus();
   },[view,index,feedback]);
   useEffect(()=>{
     if(modal && !modalRef.current?.open) modalRef.current?.showModal();
@@ -154,7 +158,7 @@ export default function Workspace({ demo = true, initial, onChange }: {
     const expected=direction==="forward"?current.back:current.front;
     const correct=!skip&&isCorrect(answer,expected,caseSensitive,accents);
     const result={word:structuredClone(current),answer:skip?"Skipped":answer.trim(),correct,direction};
-    setFeedback(result);setResults(r=>[...r,result]);
+    setFeedback({...result,skipped:skip});setResults(r=>[...r,result]);
     setLists(ls=>ls.map(l=>l.id!==list.id?l:{...l,words:l.words.map(w=>w.id!==current.id?w:{...w,[direction]:reviewed(w[direction],correct,now)})}));
   }
   function next() {
@@ -207,7 +211,7 @@ export default function Workspace({ demo = true, initial, onChange }: {
     </aside>
     <header className="mobile-bar"><span className="mobile-wordmark"><BookOpen size={20} aria-hidden="true"/><strong>vocabulary<span>.training</span></strong></span><button className="button" onClick={()=>setNav(!nav)} aria-expanded={nav}>Menu <ChevronDown size={16}/></button></header>
     <main id="content">
-      {demo && <div className="preview-strip"><span><span className="tiny-dot"/> Interactive design preview</span><span>Sample data · changes reset when you reload</span></div>}
+      {demo && <div className="preview-strip"><span><span className="tiny-dot"/> {previewFeedback ? "Live AI preview · answers sent to Requesty" : "Interactive design preview"}</span><span>Sample data · changes reset when you reload</span></div>}
       {view==="library" && <>
         <header className="page-heading"><div><h1>Your {learningLanguage} workspace.</h1><p>Make room for a few new words.</p></div><Button primary onClick={()=>edit()}><Plus size={17}/> New word list</Button></header>
         <div className="summary-grid">
@@ -234,7 +238,7 @@ export default function Workspace({ demo = true, initial, onChange }: {
           {list&&<section className="word-preview">
             <div className="section-top"><div><h2>Inside {list.title}</h2><p>{list.description}</p></div><div className="inline-actions"><button className="text-button" onClick={exportList}><Download size={15}/> Export</button><button className="text-button" onClick={()=>edit(list)}>Edit list <ArrowRight size={15}/></button></div></div>
             <div className="word-head"><span>{list.from}</span><span>{list.to}</span><span>Practice state</span></div>
-            {list.words.slice(0,5).map(w=><div className="word-row" key={w.id}><span lang={list.from==="Swedish"?"sv":"en"}>{w.front}</span><span>{w.back.split("|")[0].trim()}</span><span className={`state ${w[direction].streak>=3?"established":""}`}>{w[direction].streak>=3?"Established":w[direction].correct+w[direction].wrong===0?"New word":"Learning"}</span></div>)}
+            {list.words.slice(0,5).map(w=><div className="word-row" key={w.id}><span className="word-with-audio"><span>{w.front}</span><SpeechButton text={w.front} language={list.from} demo={demo} previewEndpoint={previewFeedback?.endpoint}/></span><span className="word-with-audio"><span>{w.back.split("|")[0].trim()}</span><SpeechButton text={w.back} language={list.to} demo={demo} previewEndpoint={previewFeedback?.endpoint}/></span><span className={`state ${w[direction].streak>=3?"established":""}`}>{w[direction].streak>=3?"Established":w[direction].correct+w[direction].wrong===0?"New word":"Learning"}</span></div>)}
             {list.words.length>5&&<button className="text-button all-words" onClick={()=>edit(list)}>View all {list.words.length} words <ChevronRight size={14}/></button>}
           </section>}
           </div>
@@ -246,7 +250,7 @@ export default function Workspace({ demo = true, initial, onChange }: {
             <label className="field">Practice mode<select aria-label="Practice mode" value={mode} onChange={e=>setMode(e.target.value)}><option value="adaptive">Smart mix</option><option value="random">Random order</option></select></label>
             <p className="field-help">{mode==="adaptive"?"A weighted sample: weaker and due words are more likely to appear.":"Every word gets the same chance to appear."}</p>
             <label className="field">Session size<select aria-label="Session size" value={length} onChange={e=>setLength(Number(e.target.value))}><option value={5}>5 words · a quick round</option><option value={8}>8 words · a little practice</option><option value={1000}>All {list.words.length} words</option></select></label>
-            <details className="answer-settings"><summary><Settings2 size={15}/> Answer settings <ChevronDown size={14}/></summary><label><input type="checkbox" checked={caseSensitive} onChange={e=>setCaseSensitive(e.target.checked)}/> Case-sensitive answers</label><label><input type="checkbox" checked={accents} onChange={e=>setAccents(e.target.checked)}/> Require accents</label><small>Spaces are normalized. Separate accepted answers with | in your list.</small></details>
+            <details className="answer-settings"><summary><Settings2 size={15}/> Answer settings <ChevronDown size={14}/></summary><label><input type="checkbox" checked={caseSensitive} onChange={e=>setCaseSensitive(e.target.checked)}/> Case-sensitive answers</label><label><input type="checkbox" checked={accents} onChange={e=>setAccents(e.target.checked)}/> Require accents</label><small>Spaces and apostrophe styles are normalized. Accents are required by default. Separate accepted answers with | in your list.</small></details>
             <Button primary onClick={()=>startTest()}>Start practice <ArrowRight size={17}/></Button>
             <small className="no-timer">No timer. Just you and the words.</small>
             </>:<div className="practice-empty"><BookOpen size={28}/><h3>A new language, a clean page.</h3><p>Add a {learningLanguage} list to start practising. Words from your other language pairs stay separate.</p><Button primary onClick={()=>edit()}>Add your first words <Plus size={16}/></Button></div>}
@@ -270,11 +274,19 @@ export default function Workspace({ demo = true, initial, onChange }: {
         <section className="test-panel">
           <div className="test-meta"><span>Word {index+1} of {queue.length}</span><span>{results.filter(r=>r.correct).length} correct</span></div>
           <div className="session-track"><i style={{width:`${index/queue.length*100}%`}}/></div>
-          <div className="prompt"><span>Translate into {direction==="forward"?list.to:list.from}</span><h2>{direction==="forward"?current.front:current.back.split("|")[0].trim()}</h2></div>
+          <div className="prompt"><span>Translate into {direction==="forward"?list.to:list.from}</span><h2 className="prompt-word"><span>{direction==="forward"?current.front:current.back.split("|")[0].trim()}</span><SpeechButton key={`${current.id}-${direction}`} text={direction==="forward"?current.front:current.back} language={direction==="forward"?list.from:list.to} label="Play question word" demo={demo} previewEndpoint={previewFeedback?.endpoint}/></h2></div>
           <form onSubmit={e=>feedback?(e.preventDefault(),next()):submitAnswer(e)}>
             <label className="field">Your answer<input maxLength={500} ref={answerRef} autoComplete="off" autoCapitalize="off" spellCheck={false} value={answer} disabled={!!feedback} onChange={e=>setAnswer(e.target.value)} placeholder="Type the translation"/></label>
-            {feedback?<div ref={feedbackRef} role="status" className={`feedback ${feedback.correct?"correct":"incorrect"}`}><strong>{feedback.correct?"That's right.":"Not quite. Let's keep this one in practice."}</strong><p>{feedback.correct?"Next review: "+(Math.min(30,2**(current[direction].streak-1)))+" day(s).":"Correct answer: "+(direction==="forward"?current.back:current.front).split("|").map(s=>s.trim()).join(" / ")}</p><Button primary type="submit">{index+1===queue.length?"See results":"Next word"} <ArrowRight size={16}/></Button></div>:<div className="test-actions"><button type="button" className="text-button" onClick={e=>submitAnswer(e,true)}>I don’t know yet</button><Button primary type="submit" disabled={!answer.trim()}>Check answer <ArrowRight size={16}/></Button></div>}
+            {feedback?<div ref={feedbackRef} role="status" className={`feedback ${feedback.correct?"correct":"incorrect"}`}><strong>{feedback.correct?"That's right.":"Not quite. Let's keep this one in practice."}</strong><p className="answer-pronunciation"><span>{feedback.correct?"Answer: ":"Correct answer: "}{(direction==="forward"?current.back:current.front).split("|").map(s=>s.trim()).join(" / ")}</span><SpeechButton key={`${current.id}-${direction}-answer`} text={direction==="forward"?current.back:current.front} language={direction==="forward"?list.to:list.from} label="Play answer word" demo={demo} previewEndpoint={previewFeedback?.endpoint}/></p>{feedback.correct&&<p>Next review: {Math.min(30,2**(current[direction].streak-1))} day(s).</p>}<Button primary type="submit">{index+1===queue.length?"See results":"Next word"} <ArrowRight size={16}/></Button></div>:<div className="test-actions"><button type="button" className="text-button" onClick={e=>submitAnswer(e,true)}>I don’t know yet</button><Button primary type="submit" disabled={!answer.trim()}>Check answer <ArrowRight size={16}/></Button></div>}
           </form>
+          {feedback && <LanguageNote demo={demo} previewFeedback={previewFeedback} skipped={!!feedback.skipped} input={{
+            sourceLanguage: direction==="forward"?list.from:list.to,
+            targetLanguage: direction==="forward"?list.to:list.from,
+            explanationLanguage: baseLanguage,
+            source: direction==="forward"?current.front:current.back.split("|")[0].trim(),
+            reference: direction==="forward"?current.back:current.front,
+            answer: feedback.answer, correct: feedback.correct, requireAccents: accents, caseSensitive,
+          }}/>}
           <p className="test-tip">Press Enter to check, then Enter again for the next word.</p>
         </section>
       </>}
@@ -288,14 +300,17 @@ export default function Workspace({ demo = true, initial, onChange }: {
         <section className="history-panel">{pairRuns.length?pairRuns.map((r,i)=><article className="history-row" key={r.id??i}><HistoryIcon size={20}/><div><h2>{r.title}</h2><p>{r.results.length} questions · {r.results[0]?.direction==="forward"?"Forward":"Reverse"} direction{r.completedAt&&<> · <time dateTime={new Date(r.completedAt).toISOString()}>{new Date(r.completedAt).toLocaleDateString()}</time></>}</p></div><strong>{r.results.filter(x=>x.correct).length}/{r.results.length} correct</strong></article>):<div className="empty"><HistoryIcon size={30}/><h2>A fresh start.</h2><p>Finish a {learningLanguage} practice session and your results will appear here.</p><Button onClick={()=>navigate("library")}>Choose a word list <ArrowRight size={16}/></Button></div>}</section>
       </>}
       {notice&&<div role="status" className="notice"><Check size={16}/><span>{notice}</span><button className="icon-button" aria-label="Dismiss notice" onClick={()=>setNotice("")}><X size={16}/></button></div>}
-      <footer><span>Built around your words.</span><button onClick={()=>setModal("help")}>Simple statistics. No AI. <CircleHelp size={13}/></button></footer>
+      <footer className="workspace-footer">
+        <div className="footer-overview"><span>Built around your words.</span><button onClick={()=>setModal("help")}>Simple review statistics. <CircleHelp size={13}/></button></div>
+        <RequestyAttribution />
+      </footer>
     </main>
     <dialog ref={modalRef} onCancel={()=>{setModal(null);setError("");}} onClick={e=>{if(e.target===e.currentTarget){setModal(null);setError("");}}}>
       <div className="dialog-head"><h2>{modal==="account"?"Your profile":modal==="language"?"Make room for another language.":modal==="import"?"Bring your words along.":modal==="exit"?"Leave this practice session?":"A smarter mix, not a black box."}</h2><button className="icon-button" aria-label="Close dialog" onClick={()=>{setModal(null);setError("");}}><X size={20}/></button></div>
       {modal==="account"&&<><p>Set the native or base language you use for your word lists.</p><label className="field">Native / base language<select aria-label="Native / base language" value={profileBase} disabled={view==="test"} onChange={e=>setProfileBase(e.target.value)}>{languages.map(l=><option key={l}>{l}</option>)}</select></label><p>Your dashboard shows lists and progress for this base language and the learning language you select. Changing your base language does not translate, relabel or delete existing lists.</p><div className="account-future"><UserRound size={24}/><div><strong>{demo ? "Preview account · session-only" : "Your personal workspace"}</strong><p>{demo ? "There is no sign-in or server storage in this preview. Profile settings, lists and progress reset on reload. Export CSV to keep your words." : "Lists, profile settings, review progress and completed sessions are saved to your account. Check the account bar for save status. CSV exports contain words, not your review history."}</p></div></div>{view==="test"&&<p className="error">End your practice session before changing your base language.</p>}{error&&<p className="error" role="alert">{error}</p>}<Button primary onClick={saveProfile} disabled={view==="test"}>Save profile <Check size={16}/></Button></>}
       {modal==="language"&&<><p>Choose a language to learn from {baseLanguage}. It stays in your menu once you save your first list for this pair.</p><label className="field">New learning language<select aria-label="New learning language" value={newLanguage} onChange={e=>setNewLanguage(e.target.value)}>{languages.filter(l=>l!==baseLanguage&&!savedLanguages.includes(l)).map(l=><option key={l}>{l}</option>)}</select></label><p>No list is created yet, and your other language pairs stay unchanged.</p><div className="inline-actions"><Button onClick={()=>setModal(null)}>Cancel</Button><Button primary onClick={()=>{changeLearningLanguage(newLanguage);setModal(null);}}>Open language workspace <ArrowRight size={16}/></Button></div></>}
       {modal==="import"&&<><p>Paste a two-column CSV. The first row contains language names or old-style codes such as sv,fr. Following rows contain word pairs.</p><label className="field">CSV contents<textarea rows={7} value={csv} onChange={e=>setCsv(e.target.value)} placeholder={"sv,fr\nhej,bonjour\ntack,merci"}/></label><label className="file-input">Or choose a .csv file<input type="file" accept=".csv,text/csv" onChange={async e=>{const f=e.target.files?.[0];if(f){setCsv(await f.text());setError("");}}}/></label>{error&&<p className="error" role="alert">{error}</p>}<Button primary onClick={importList} disabled={!csv.trim()}><FilePlus2 size={16}/> Preview imported words</Button></>}
-      {modal==="help"&&<><p>Smart mix samples without replacement. Each word appears at most once per round. Weaker and due words receive a larger sampling weight.</p><div className="formula">Weight = 1 + 3 × smoothed error rate + due bonus</div><p>The error rate is (mistakes + 1) / (attempts + 2). The due bonus is 2 when a word is new or its review date has arrived.</p><p>A correct answer schedules review in 1, 2, 4, 8, 16, then at most 30 days, based on the current correct streak. A wrong answer resets the streak and schedules a review in 10 minutes.</p><p>These are tunable rules, not validated memory estimates. {demo ? "Sample dates use a fixed 30 October 2026 clock." : "Review dates use your current device time."} Each direction has its own history.</p><Button primary onClick={()=>setModal(null)}>Back to my words <ArrowRight size={16}/></Button></>}
+      {modal==="help"&&<><p>Smart mix samples without replacement. Each word appears at most once per round. Weaker and due words receive a larger sampling weight.</p><div className="formula">Weight = 1 + 3 × smoothed error rate + due bonus</div><p>The error rate is (mistakes + 1) / (attempts + 2). The due bonus is 2 when a word is new or its review date has arrived.</p><p>A correct answer schedules review in 1, 2, 4, 8, 16, then at most 30 days, based on the current correct streak. A wrong answer resets the streak and schedules a review in 10 minutes.</p><p>These are tunable rules, not validated memory estimates. {demo ? "Sample dates use a fixed 30 October 2026 clock." : "Review dates use your current device time."} Each direction has its own history.</p><p>Speaker buttons play only when clicked. The demo voice is best for English and can mispronounce other languages. The first saved alternative is spoken; answer audio appears after grading or skipping. Audio never changes your grade.</p><Button primary onClick={()=>setModal(null)}>Back to my words <ArrowRight size={16}/></Button></>}
       {modal==="exit"&&<><p>Answers already checked remain in your word statistics, but this unfinished session will not appear in session history.</p><div className="inline-actions"><Button onClick={()=>setModal(null)}>Keep practising</Button><Button primary onClick={()=>{setModal(null);setView("library");setNav(false);}}>End session</Button></div></>}
     </dialog>
   </div>;

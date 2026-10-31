@@ -25,7 +25,7 @@ COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/scripts/migrate.mjs ./scripts/migrate.mjs
 COPY --from=builder --chown=node:node /app/db ./db
 COPY --from=builder --chown=node:node /app/LICENSE ./LICENSE
-LABEL org.opencontainers.image.source="https://github.com/hkarn/vocabulary-training" \
+LABEL org.opencontainers.image.source="https://github.com/GothenburgOffice/vocabulary-training" \
       org.opencontainers.image.title="vocabulary.training" \
       org.opencontainers.image.description="Personal vocabulary lists and statistical practice" \
       org.opencontainers.image.licenses="MIT"

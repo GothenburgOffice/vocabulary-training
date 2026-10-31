@@ -3,7 +3,8 @@
 Personal word lists and focused vocabulary practice, modernized from the
 [original vocabulary tester](https://github.com/hkarn/vocabulary-tester-site).
 Next.js, TypeScript and PostgreSQL, with Docker Compose for development and running
-the application. No AI services or model keys are needed.
+the application. Core practice needs no AI service; optional Requesty comments
+use an operator-owned server-side key.
 
 ## Features
 
@@ -15,10 +16,129 @@ the application. No AI services or model keys are needed.
   accepted alternatives, mistakes retry and keyboard-friendly answering.
 - Responsive book/wordmark variants selected by the sidebar's available width.
 - Explicit saving/error states and optimistic concurrency checks across tabs.
+- Optional short AI language notes for wrong answers, separate from grading.
+- Click-to-play pronunciation for questions, revealed answers and displayed words.
+
+## Optional Requesty language notes
+
+This source version adds a small AI comment below right/wrong feedback. It does
+not change grades, statistics, accepted answers or saved words, and does not block
+the next question. Comments use the profile's base language, are requested as one
+or two sentences, and are bounded to 240 characters as plain text. They are not
+stored in the workspace or sent for skipped answers.
+
+Only rejected, non-skipped answers request an AI comment. Correct answers,
+including normalized apostrophe/case/accent variants and accepted alternatives,
+make no feedback request. Both HTTP backends and the provider adapter repeat
+that check before acquiring quota or contacting Requesty.
+
+Configure `REQUESTY_API_KEY` in your local `.env` and recreate the app container.
+Never use a `NEXT_PUBLIC_` variable for the key. `REQUESTY_MODEL` selects the model
+or policy; the demo default is `novita/ling-3.1-flash`. The existing ZDR-restricted
+key exposed this model with zero chat pricing and `data_retention:false` during
+the 31 October 2026 check. This is a dated observation, not a promise of ongoing
+availability or pricing. The app does not alter key permissions, ZDR settings,
+Access Lists or account budgets.
+
+With `REQUESTY_ALLOW_PAID_MODELS=false`, the server fetches the authenticated
+key-visible chat catalog before generation. For a policy, every concrete visible model
+must have known zero pricing; an empty, unknown or mixed paid/free catalog is
+refused. Unpriced `policy/` aliases in that catalog are routing metadata, not
+models or proof of free pricing. Direct-model configuration
+instead checks that exact model's pricing. See [the optional policy setup and
+historical tests](docs/requesty-policy.md). There are no app-level retries, tools
+or automatic model fallbacks; an explicitly configured policy can manage its
+own fallbacks.
+
+Requesty documents its OpenAI-compatible API at
+[Quickstart](https://docs.requesty.ai/quickstart), its current free-model limits at
+[Free Models](https://docs.requesty.ai/features/free-models), and current model
+pricing at [List Models](https://docs.requesty.ai/api-reference/endpoint/models-chat-list).
+Pricing can change. Restrict approved models and spending in Requesty itself;
+application checks do not replace provider-side account controls.
+The price check and inference are not atomic: do not edit key permissions or
+model pricing assumptions during an in-flight request.
+
+Later, choosing a paid model requires changing `REQUESTY_MODEL` and explicitly
+setting `REQUESTY_ALLOW_PAID_MODELS=true`; no UI or prompt rewrite is needed.
+No paid calls are authorized merely by building this integration.
+
+The single-process guard permits 20 requests/minute, two concurrent requests, one
+request per account every three seconds, and `REQUESTY_DAILY_LIMIT` (default 200)
+app requests per UTC day. Policy fallbacks can consume additional provider
+attempts. App attempts that fail still count. These in-memory limits reset
+on restart and are not shared across replicas; use provider limits if scaling.
+Requests and provider response bodies are bounded, with a 30-second provider
+deadline across the catalog check and generation. This also bounds how long a
+fallback chain may take; it does not promise every fallback will be reached.
+The generation cap is 768 tokens (including any provider reasoning), while the
+display cap remains 240 characters. The prompt requests plain text; the adapter
+also accepts a strict JSON object containing only `comment`, never grading fields.
+Missing configuration, provider errors and malformed output show a
+quiet unavailable state while normal practice continues.
+
+Only the current phrase, language names, reference, attempted answer and comparison
+settings are sent to Requesty and the selected provider, not account identifiers
+or complete lists. Provider retention/training policies vary; inspect the model
+metadata and [Requesty's data-policy guidance](https://www.requesty.ai/guides/eu-ai-data-residency-sovereign-ai).
+Avoid sensitive material in exercises. The private Computer design preview can
+connect to a separate private feedback backend using the owner's saved test
+credential. Its banner explicitly labels live AI; sample lists and progress
+remain session-only. A disconnected preview shows a clearly labelled
+non-live state rather than inventing comments.
+
+## Optional word audio
+
+Text feedback and audio share the one server-only `REQUESTY_API_KEY`. The demo
+defaults to `REQUESTY_SPEECH_MODEL=deepinfra/XiaomiMiMo/MiMo-V2.5-tts` and
+`REQUESTY_SPEECH_VOICE=Mia`. Both are environment settings so they can be changed
+without editing the UI. There is no automatic paid fallback. The server checks
+the authenticated speech catalog for known zero pricing before each uncached
+generation when `REQUESTY_ALLOW_PAID_MODELS=false`.
+
+Use the speaker icon beside a question, a revealed reference answer, or either
+displayed library word. The answer button appears only after grading or skipping.
+Nothing plays or generates automatically; the first saved `|` alternative is
+spoken. Starting another word, changing the view, or advancing stops playback.
+The selected demo voice is best for English and is not a reliable pronunciation
+teacher for every language. MiMo documents English/Chinese support on its
+[model page](https://deepinfra.com/XiaomiMiMo/MiMo-V2.5-tts).
+
+Audio is private, never written to disk, and cached in memory per account,
+model, voice, language and exact phrase for one hour, subject to 128 entries
+and a 16 MB process-wide budget. Cache replay and concurrent identical requests
+do not generate again. Restart, expiry or eviction requires regeneration.
+`REQUESTY_SPEECH_DAILY_LIMIT` defaults to 200 attempts per process per UTC day;
+the separate single-process guard also applies a 500 ms account cooldown,
+20 requests/minute and two concurrent requests. Failures still count. These
+limits are not durable or shared across replicas. Each generation has a 30-second
+deadline, a 200-character phrase cap and a 4 MB WAV-response cap.
+
+Clicking sends only the selected phrase to the speech provider, not your profile,
+list, attempted answer or account ID. Audio is a separate, explicitly clicked
+request; the rule of no text-feedback calls for correct answers still applies.
+If either service is unavailable, normal practice continues.
+
+## VS Code workspace
+
+Open `vocabulary.training.code-workspace`. It recommends `anthropic.claude-code`,
+`ms-azuretools.vscode-docker` and `github.vscode-github-actions`, and includes
+Docker development, unit-test and typecheck tasks. Create `.env` first, then
+start the Docker development task before running its test/typecheck tasks.
+No additional extension is required: TypeScript support is built into VS Code.
+The editor uses its bundled TypeScript when host dependencies are absent;
+the container runs the project's locked toolchain. No host Node install is needed.
+
+The previously published image does not gain these features until a new release
+is explicitly approved, built and published.
 
 ## Test the published image
 
-The public package is [ghcr.io/hkarn/vocabulary-training](https://github.com/hkarn/vocabulary-training/pkgs/container/vocabulary-training).
+The repository is [GothenburgOffice/vocabulary-training](https://github.com/GothenburgOffice/vocabulary-training).
+The image-only configuration targets `ghcr.io/gothenburgoffice/vocabulary-training`.
+Confirm that namespace has an approved, successful publication after the transfer;
+do not assume a prior personal-namespace package transferred or that a new package
+is anonymously pullable. Verify package visibility and CI results before using it.
 It is a Linux/amd64 image, suitable for Linux containers on x64 Docker Desktop
 or an x64 Linux host. GHCR distributes the image; it does not host a running website.
 Publishing an image does not deploy it to any existing server.
@@ -148,6 +268,16 @@ lists and a fixed sample clock. It deliberately has no real sign-in, database or
 durable saves. The deployable account app starts with an empty workspace.
 `scripts/sync-preview.mjs` copies only shared UI source into the separate preview
 project; it never copies account credentials or server environment files.
+The explicitly enabled live-preview variant uses a private, visitor-bound
+feedback bridge with a server-held test credential, a three-minute background
+deadline and the same free-only policy/input/output guards. This is preview
+infrastructure, not production hosting or account persistence. Credential
+renewal and unattended long-term availability are not established by an
+immediate successful test.
+
+Neither test nor production keys belong in source control or image layers.
+Production operators supply a separate key through hosting secrets/runtime
+environment; the preview's saved credential is not a production default.
 
 ## Before internet deployment
 

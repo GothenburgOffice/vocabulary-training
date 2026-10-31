@@ -1,0 +1,41 @@
+{
+  "folders": [
+    { "name": "vocabulary.training", "path": "." }
+  ],
+  "settings": {
+    "files.exclude": { "**/.next": true, "**/node_modules": true, "**/out": true },
+    "search.exclude": { "**/.next": true, "**/node_modules": true, "**/out": true }
+  },
+  "extensions": {
+    "recommendations": [
+      "anthropic.claude-code",
+      "ms-azuretools.vscode-docker",
+      "github.vscode-github-actions"
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Vocabulary: start Docker development",
+        "type": "shell",
+        "command": "docker compose -f compose.yaml -f compose.dev.yaml up --build",
+        "isBackground": true,
+        "problemMatcher": []
+      },
+      {
+        "label": "Vocabulary: test in Docker",
+        "type": "shell",
+        "command": "docker compose -f compose.yaml -f compose.dev.yaml exec -T app npm test",
+        "group": "test",
+        "problemMatcher": []
+      },
+      {
+        "label": "Vocabulary: typecheck in Docker",
+        "type": "shell",
+        "command": "docker compose -f compose.yaml -f compose.dev.yaml exec -T app npm run typecheck",
+        "problemMatcher": []
+      }
+    ]
+  }
+}

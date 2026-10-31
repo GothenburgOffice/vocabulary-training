@@ -9,6 +9,33 @@ test("answer policies and alternatives",()=>{
   assert.ok(!isCorrect("Hello","hello",true));
   assert.ok(isCorrect("e\u0301","é"));
 });
+test("apostrophe styles compare equally in answers and saved alternatives",()=>{
+  const styles = ["'", "`", "´", "‘", "’"];
+  for (const answer of styles) for (const expected of styles) {
+    for (const [prefix,suffix] of [["s","il vous plaît"],["don","t"],["п","ять"]]) {
+      assert.ok(isCorrect(`${prefix}${answer}${suffix}`,`${prefix}${expected}${suffix}`));
+      assert.ok(isCorrect(`${prefix}${answer}${suffix}`,`other | ${prefix}${expected}${suffix}`,true));
+      assert.ok(isCorrect(`${prefix}${answer}${suffix}`,`${prefix}${expected}${suffix}`,false,false));
+    }
+  }
+});
+test("apostrophe normalization preserves strict accents and other distinctions",()=>{
+  for (const mark of ["'", "`", "´", "‘", "’"]) {
+    assert.ok(isCorrect(`s${mark}il vous plaît`,"s'il vous plaît"));
+    assert.ok(!isCorrect(`s${mark}il vous plait`,"s'il vous plaît"));
+    assert.ok(!isCorrect(`l${mark}ile`,"l'île"));
+    assert.ok(isCorrect(`l${mark}i\u0302le`,"l'île"));
+    assert.ok(!isCorrect(`l${mark}école`,"l'ècole"));
+  }
+  assert.ok(!isCorrect("i","î"));
+  assert.ok(!isCorrect("e","é"));
+  assert.ok(!isCorrect("sil","s'il"));
+  assert.ok(!isCorrect("s-il","s'il"));
+  assert.ok(!isCorrect("s\"il","s'il"));
+  assert.ok(!isCorrect("a\u02BBa","a'a"));
+  assert.ok(!isCorrect("a\u02BCa","a'a"));
+  assert.ok(!isCorrect("à plus tard","à bientôt"));
+});
 test("weighted order includes each word exactly once",()=>{
   const words=[makeWord("a","b","a"),makeWord("c","d","b"),makeWord("e","f","c")];
   const ids=weightedOrder(words,"forward",100,()=>.5);

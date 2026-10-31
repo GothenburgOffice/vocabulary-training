@@ -35,6 +35,13 @@ services:
       DATABASE_URL: postgresql://vocabulary:${POSTGRES_PASSWORD}@db:5432/vocabulary
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
+      REQUESTY_API_KEY: ${REQUESTY_API_KEY:-}
+      REQUESTY_MODEL: ${REQUESTY_MODEL:-novita/ling-3.1-flash}
+      REQUESTY_ALLOW_PAID_MODELS: ${REQUESTY_ALLOW_PAID_MODELS:-false}
+      REQUESTY_DAILY_LIMIT: ${REQUESTY_DAILY_LIMIT:-200}
+      REQUESTY_SPEECH_MODEL: ${REQUESTY_SPEECH_MODEL:-deepinfra/XiaomiMiMo/MiMo-V2.5-tts}
+      REQUESTY_SPEECH_VOICE: ${REQUESTY_SPEECH_VOICE:-Mia}
+      REQUESTY_SPEECH_DAILY_LIMIT: ${REQUESTY_SPEECH_DAILY_LIMIT:-200}
     depends_on:
       migrate:
         condition: service_completed_successfully
