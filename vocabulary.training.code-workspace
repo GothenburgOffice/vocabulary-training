@@ -10,6 +10,7 @@
     "recommendations": [
       "anthropic.claude-code",
       "ms-azuretools.vscode-docker",
+      "ms-vscode-remote.remote-containers",
       "github.vscode-github-actions"
     ]
   },
@@ -34,6 +35,12 @@
         "label": "Vocabulary: typecheck in Docker",
         "type": "shell",
         "command": "docker compose -f compose.yaml -f compose.dev.yaml exec -T app npm run typecheck",
+        "problemMatcher": []
+      },
+      {
+        "label": "Vocabulary: lint in Docker",
+        "type": "shell",
+        "command": "docker compose -f compose.yaml -f compose.dev.yaml exec -T app npm run lint",
         "problemMatcher": []
       }
     ]

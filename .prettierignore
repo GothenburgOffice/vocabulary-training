@@ -1,0 +1,5 @@
+package-lock.json
+.next/
+out/
+graphify-out/
+.taste-skill/

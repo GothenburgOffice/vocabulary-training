@@ -1,6 +1,6 @@
 // Build the same workspace UI as a static, explicitly sample-data preview.
 // Set PREVIEW_PROJECT to the existing preview source directory, not its output.
-import { cp, mkdir, writeFile, readFile } from "node:fs/promises";
+import { cp, mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../", import.meta.url));

@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, ArrowLeftRight, BookOpen, Check, ChevronDown, ChevronRight, CircleHelp, Download, FilePlus2, FolderOpen, History as HistoryIcon, ListChecks, Plus, Search, Settings2, Upload, UserRound, X } from "lucide-react";
 import { DEMO_NOW, sampleLists } from "../lib/sample";
-import { encodeCSV, isCorrect, makeWord, parseCSV, randomOrder, reviewed, weightedOrder, type Direction, type List, type Word } from "../lib/learning";
+import { encodeCSV, isCorrect, makeWord, parseCSV, randomOrder, reviewed, weightedOrder, type Direction, type List } from "../lib/learning";
 import type { WorkspaceData, Result, Run } from "../lib/workspace";
 import LanguageNote from "./LanguageNote";
 import RequestyAttribution from "./RequestyAttribution";

@@ -122,8 +122,10 @@ If either service is unavailable, normal practice continues.
 ## VS Code workspace
 
 Open `vocabulary.training.code-workspace`. It recommends `anthropic.claude-code`,
-`ms-azuretools.vscode-docker` and `github.vscode-github-actions`, and includes
-Docker development, unit-test and typecheck tasks. Create `.env` first, then
+`ms-azuretools.vscode-docker`, `ms-vscode-remote.remote-containers` and
+`github.vscode-github-actions`, and includes
+Docker development, unit-test, typecheck and lint tasks. For a full in-editor
+toolchain, use the Dev Container described under Container-first development. Create `.env` first, then
 start the Docker development task before running its test/typecheck tasks.
 No additional extension is required: TypeScript support is built into VS Code.
 The editor uses its bundled TypeScript when host dependencies are absent;
@@ -224,6 +226,30 @@ The named PostgreSQL volume survives `down`. Do not use `down -v` for real data.
 
 ## Container-first development
 
+### VS Code Dev Container (recommended)
+
+Install the Dev Containers extension, copy `.env.example` to `.env` and set
+`POSTGRES_PASSWORD`, then run **Dev Containers: Reopen in Container**. VS Code
+starts PostgreSQL, the migration job and the Next.js dev server
+(<http://localhost:3000>), and attaches to the `app` container. The editor then
+uses the container's `node_modules`, so TypeScript, ESLint and Prettier work fully.
+Run checks from the integrated terminal:
+
+```sh
+npm run lint          # ESLint
+npm run format:check  # Prettier (npm run format to fix)
+npm run typecheck
+npm test              # unit tests
+npm run test:integration  # real HTTP + PostgreSQL against the running dev server
+```
+
+Inside the dev container registration is enabled so the integration test can
+create throwaway accounts in the local database. On Windows, file watching is
+faster if you use **Dev Containers: Clone Repository in Container Volume**
+instead of opening a folder on a Windows drive.
+
+### Plain Docker Compose
+
 ```sh
 docker compose -f compose.yaml -f compose.dev.yaml up --build
 ```
@@ -237,9 +263,10 @@ the dependency/cache volumes; never remove the database volume to fix dependenci
 ```sh
 docker compose -f compose.yaml -f compose.dev.yaml exec app npm test
 docker compose -f compose.yaml -f compose.dev.yaml exec app npm run typecheck
+docker compose -f compose.yaml -f compose.dev.yaml exec app npm run lint
 ```
 
-GitHub Actions runs unit/build checks and a separate real Docker Compose integration
+GitHub Actions runs format, lint, typecheck, unit and build checks and a separate real Docker Compose integration
 job. The integration job uses a disposable database and checks authentication,
 ownership isolation, persistence, stale revisions, CSRF rejection, payload limits
 and authentication throttling.

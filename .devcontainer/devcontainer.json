@@ -1,0 +1,28 @@
+{
+  "name": "vocabulary.training",
+  // Reuses the Docker development stack; the extra file adds container-only settings.
+  "dockerComposeFile": ["../compose.yaml", "../compose.dev.yaml", "compose.yaml"],
+  "service": "app",
+  "workspaceFolder": "/app",
+  "runServices": ["db", "migrate", "app"],
+  // Keep the service command: the Next.js dev server starts with the container.
+  "overrideCommand": false,
+  "shutdownAction": "stopCompose",
+  "postCreateCommand": "npm ci",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "github.vscode-github-actions"
+      ],
+      "settings": {
+        "typescript.tsdk": "node_modules/typescript/lib",
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        "eslint.useFlatConfig": true
+      }
+    }
+  }
+}
