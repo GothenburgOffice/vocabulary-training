@@ -31,7 +31,7 @@ Limits: 100 lists, 1,000 words per list, 200 sessions, 200 characters per word,
 500 per answer, and 2 MB per request (often reached before the count limits).
 CSV export contains word pairs only. Use database backups for full recovery.
 
-Moving to normalized tables with incremental saves is tracked as a GitHub issue.
+Moving to normalized tables with incremental saves: [#1](https://github.com/GothenburgOffice/vocabulary-training/issues/1).
 
 ## Learning formulas
 
