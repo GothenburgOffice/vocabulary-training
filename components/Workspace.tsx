@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowLeftRight,
-  BookOpen,
   Check,
   ChevronDown,
   ChevronRight,
@@ -21,6 +20,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
+import { BookMark } from "../lib/brand";
 import { DEMO_NOW, sampleLists } from "../lib/sample";
 import {
   encodeCSV,
@@ -442,7 +442,7 @@ export default function Workspace({
       </a>
       <aside className={`sidebar ${nav ? "open" : ""}`}>
         <div className="brand">
-          <BookOpen size={23} aria-hidden="true" />
+          <BookMark size={23} aria-hidden="true" />
           <span className="wordmark">
             vocabulary<strong>.training</strong>
           </span>
@@ -534,7 +534,7 @@ export default function Workspace({
       </aside>
       <header className="mobile-bar">
         <span className="mobile-wordmark">
-          <BookOpen size={20} aria-hidden="true" />
+          <BookMark size={20} aria-hidden="true" />
           <strong>
             vocabulary<span>.training</span>
           </strong>
@@ -666,7 +666,7 @@ export default function Workspace({
                         </>
                       ) : (
                         <>
-                          <BookOpen size={26} />
+                          <BookMark size={26} />
                           <h3>Your first {learningLanguage} words start here.</h3>
                           <p>
                             Create a {baseLanguage} → {learningLanguage} list. This language joins
@@ -823,7 +823,7 @@ export default function Workspace({
                   </>
                 ) : (
                   <div className="practice-empty">
-                    <BookOpen size={28} />
+                    <BookMark size={28} />
                     <h3>A new language, a clean page.</h3>
                     <p>
                       Add a {learningLanguage} list to start practising. Words from your other

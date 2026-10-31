@@ -19,6 +19,7 @@ for (const file of [
   "components/RequestyAttribution.tsx",
   "public/requesty-logo.png",
   "app/style.css",
+  "lib/brand.tsx",
   "lib/feedback.ts",
   "lib/speech.ts",
   "lib/learning.ts",
