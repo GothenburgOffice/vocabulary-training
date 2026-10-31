@@ -1,8 +1,8 @@
 # AI features (optional)
 
 Two optional features use [Requesty](https://docs.requesty.ai/quickstart)'s
-OpenAI-compatible API through one server-only `REQUESTY_API_KEY`. With no key,
-both are hidden or show a quiet "unavailable" state, and practice works normally.
+OpenAI-compatible API through server-only keys, one per [tier](#tiers). With no
+key, both are hidden or show a quiet "unavailable" state, and practice works normally.
 **Grading, statistics and scheduling never use AI.**
 
 Never expose the key through a `NEXT_PUBLIC_` variable, source, image layers or docs.
@@ -36,9 +36,30 @@ For alternatives (`a|b`) only the first is spoken.
 - The default MiMo/Mia voice is best for English and is not a reliable
   pronunciation teacher for other languages.
 
+## Tiers
+
+Each account has an `ai_tier`, `basic` (default) or `plus`. Each tier has its own
+Requesty key and models, so spend limits and fallback policies for each tier are
+set on its key in Requesty.
+
+| Setting           | Basic                         | Plus                               |
+| ----------------- | ----------------------------- | ---------------------------------- |
+| Key               | `REQUESTY_API_KEY`            | `REQUESTY_PLUS_API_KEY`            |
+| Language notes    | `REQUESTY_MODEL`              | `REQUESTY_PLUS_MODEL`              |
+| Audio model/voice | `REQUESTY_SPEECH_MODEL/VOICE` | `REQUESTY_PLUS_SPEECH_MODEL/VOICE` |
+| Paid models       | `REQUESTY_ALLOW_PAID_MODELS`  | `REQUESTY_PLUS_ALLOW_PAID_MODELS`  |
+
+A blank plus model or voice uses the basic value. Without a plus key, plus
+accounts use the basic tier. The paid-models switch is never inherited. There is
+no admin UI yet; set a tier in the database:
+
+```sh
+docker compose exec db psql -U vocabulary -c   "UPDATE users SET ai_tier='plus' WHERE email='you@example.com'"
+```
+
 ## Free-only guard
 
-With `REQUESTY_ALLOW_PAID_MODELS=false` (default), the server checks the key's
+With paid models off (the default for both tiers), the server checks the key's
 authenticated model catalog before each uncached generation:
 
 - **Direct model:** that model must have known zero pricing.
@@ -49,7 +70,7 @@ authenticated model catalog before each uncached generation:
 The check and the generation are not atomic, and pricing can change. Also restrict
 models and spending in Requesty itself, for example with a key-specific
 [Access List](https://docs.requesty.ai/features/access-lists). To use a paid
-model, change the model setting and set `REQUESTY_ALLOW_PAID_MODELS=true`.
+model, change the model setting and set that tier's paid-models switch to `true`.
 
 ## Rate limits
 
@@ -60,7 +81,7 @@ model, change the model setting and set `REQUESTY_ALLOW_PAID_MODELS=true`.
 | Daily (per UTC day)  | `REQUESTY_DAILY_LIMIT` (200) | `REQUESTY_SPEECH_DAILY_LIMIT` (200) |
 | Response cap         | 240 characters               | 4 MB WAV                            |
 
-Failed attempts count. These limits are **in memory per process**: they reset on
+Each tier has its own counters. Failed attempts count. These limits are **in memory per process**: they reset on
 restart and aren't shared across replicas. Use provider-side limits if you scale.
 
 ## Referral attribution

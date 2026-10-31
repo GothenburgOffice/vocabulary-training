@@ -2,8 +2,8 @@ import { feedbackSchema } from "../../../lib/server/feedback-input";
 import { shouldRequestFeedback } from "../../../lib/feedback";
 import { requireUser } from "../../../lib/server/auth";
 import { body, fail, HttpError, json, requireOrigin } from "../../../lib/server/http";
+import { aiConfig } from "../../../lib/server/ai-config";
 import {
-  DEFAULT_FEEDBACK_MODEL,
   FeedbackLimiter,
   FeedbackNotNeeded,
   FeedbackUnavailable,
@@ -12,7 +12,8 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const limits = new FeedbackLimiter();
+// One limiter per tier, so basic accounts can't use up the plus tier's quota.
+const limits = { basic: new FeedbackLimiter(), plus: new FeedbackLimiter() };
 
 export async function POST(request: Request) {
   let release: (() => void) | undefined;
@@ -22,17 +23,17 @@ export async function POST(request: Request) {
     const parsed = feedbackSchema.safeParse(await body(request, 5_000));
     if (!parsed.success) throw new HttpError(400, "This language-note request is invalid.");
     if (!shouldRequestFeedback(parsed.data)) return json({ status: "not-needed" });
-    const apiKey = process.env.REQUESTY_API_KEY;
-    if (!apiKey)
+    const config = aiConfig(user.ai_tier);
+    if (!config.apiKey)
       return json({ status: "disabled", message: "AI comments are not enabled on this server." });
     const configured = Number(process.env.REQUESTY_DAILY_LIMIT || "200");
     const dailyLimit =
       Number.isInteger(configured) && configured >= 1 && configured <= 10_000 ? configured : 200;
-    release = limits.acquire(user.id, dailyLimit);
+    release = limits[config.tier].acquire(user.id, dailyLimit);
     const comment = await requestLanguageComment(parsed.data, {
-      apiKey,
-      model: process.env.REQUESTY_MODEL || DEFAULT_FEEDBACK_MODEL,
-      allowPaid: process.env.REQUESTY_ALLOW_PAID_MODELS === "true",
+      apiKey: config.apiKey,
+      model: config.model,
+      allowPaid: config.allowPaid,
     });
     return json({ status: "ready", comment });
   } catch (error) {

@@ -18,11 +18,11 @@ export async function requireUser() {
   const token = (await cookies()).get(cookieName)?.value;
   if (!token || !/^[a-f0-9]{64}$/.test(token)) throw new HttpError(401, "Sign in to continue.");
   const result = await db.query(
-    "SELECT u.id,u.email FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()",
+    "SELECT u.id,u.email,u.ai_tier FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()",
     [hashToken(token)],
   );
   if (!result.rowCount) throw new HttpError(401, "Your session has expired. Sign in again.");
-  return result.rows[0] as { id: string; email: string };
+  return result.rows[0] as { id: string; email: string; ai_tier: string };
 }
 export async function createSession(userId: string) {
   const token = randomBytes(32).toString("hex");
