@@ -66,3 +66,7 @@ tests. Also run the integration test when API, auth or DB code changed.
   GHCR image, so only push or merge with the owner's go-ahead.
 - Keep formatting-only changes in separate commits, and add them to `.git-blame-ignore-revs`.
 - Never run `docker compose down -v` on a stack with real data.
+- Stay compatible with **Node 22** (`engines`, Dockerfile, CI) for broad hosting
+  support. Don't use APIs that need a newer Node. PostgreSQL major upgrades need a
+  data migration plan, so Dependabot skips major updates for both.
+- `main` is protected: changes go through a PR, and the `unit` and `containers` checks must pass.
