@@ -97,7 +97,7 @@ jobs:
           node scripts/wait-health.mjs http://127.0.0.1:3013/api/health
           npx tsx tests/restart.mts verify
       - name: Sign in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
