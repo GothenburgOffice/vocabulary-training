@@ -105,7 +105,7 @@ $memory = Join-Path $env:USERPROFILE '.claude-memory\vocabulary-training'   # or
 $old = Join-Path $env:USERPROFILE '.claude\projects\<slug>\memory'
 New-Item -ItemType Directory -Force $memory | Out-Null
 if (Test-Path $old) {
-  $clash = Get-ChildItem $old -Name | Where-Object { Test-Path (Join-Path $memory $_) }
+  $clash = Get-ChildItem $old -Name | Where-Object { Test-Path -LiteralPath (Join-Path $memory $_) }
   if ($clash) { throw "Both folders have: $($clash -join ', '). Merge them by hand first." }
   Copy-Item "$old\*" $memory -Recurse; Rename-Item $old 'memory.bak'
 }
