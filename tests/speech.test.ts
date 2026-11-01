@@ -164,6 +164,39 @@ test("speech cache is account/model/voice/language scoped, expires and evicts", 
   assert.equal(calls, 7);
 });
 
+test("cached audio is deleted from memory when it expires, even if never asked for again", async () => {
+  let now = Date.UTC(2026, 9, 31, 10);
+  let calls = 0;
+  const timers: { run: () => void; ms: number }[] = [];
+  const transport = (async () => {
+    calls++;
+    return wav();
+  }) as typeof fetch;
+  const service = new SpeechService(
+    () => now,
+    128,
+    16_000_000,
+    (run, ms) => {
+      timers.push({ run, ms });
+    },
+  );
+  await service.get("a", input, config, transport);
+  assert.deepEqual(
+    timers.map((t) => t.ms),
+    [3_600_000],
+  );
+  assert.equal((await service.get("a", input, config, transport)).cache, "hit");
+  // The timer fires on a quiet server: the clip is gone, without any request or clock check.
+  // (The clock moves only past the per-account cooldown, nowhere near the hour.)
+  timers[0].run();
+  now += 1000;
+  assert.equal((await service.get("a", input, config, transport)).cache, "miss");
+  assert.equal(calls, 2);
+  // An old timer never removes the newer clip stored under the same key.
+  timers[0].run();
+  assert.equal((await service.get("a", input, config, transport)).cache, "hit");
+});
+
 test("speech cooldown is per account and skips cache hits, with no global quota", async () => {
   let now = Date.UTC(2026, 9, 31, 10);
   const service = new SpeechService(() => now);
