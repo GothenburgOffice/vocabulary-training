@@ -24,9 +24,9 @@ services:
       CLAUDE_CONFIG_DIR: /root/.claude
     volumes:
       - claude-config:/root/.claude
-      # Claude Code's project memory lives in the gitignored .claude/memory/, so the
-      # host and the container share it. /app maps to the "-app" project folder.
-      - ./.claude/memory:/root/.claude/projects/-app/memory
+      # Claude Code's project memory lives outside the repo, so `git clean` or a fresh
+      # clone never removes it. /app maps to the "-app" project folder.
+      - ${CLAUDE_MEMORY_DIR:-${HOME:-${USERPROFILE}}/.claude-memory/vocabulary-training}:/root/.claude/projects/-app/memory
 
 volumes:
   claude-config:
