@@ -36,9 +36,9 @@ services:
       DATABASE_URL: postgresql://vocabulary:${POSTGRES_PASSWORD}@db:5432/vocabulary
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3420}
       APP_ORIGIN_ALIASES: ${APP_ORIGIN_ALIASES:-}
-      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
       # Encrypts the Requesty keys saved in the admin area.
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:-}
+      AUTH_TRUSTED_IP_HEADER: ${AUTH_TRUSTED_IP_HEADER:-}
     depends_on:
       migrate:
         condition: service_completed_successfully

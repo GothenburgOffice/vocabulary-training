@@ -39,6 +39,22 @@ Compose binds the app to loopback by default; a reverse proxy on the host can ro
 to it. Containerized proxies should use an internal Docker network rather than
 publishing the database.
 
+Registration is a site setting, switched in Admin → Registration. A real site starts
+closed with no privacy details; only the dev and test stacks (`compose.dev.yaml`,
+`compose.test.yaml`) start open, with a clearly fake contact. It can only be
+switched on, and sign-up only works, once its checklist is complete: the privacy
+controller and contact are set, and `APP_ORIGIN` is HTTPS unless it's a local
+address. The privacy details are shown on the public `/privacy` page, which also
+lists the one cookie and what is stored. The site sets
+no other cookies and stores nothing else in the browser, so it needs no cookie
+consent banner. Never fill the privacy details with made-up values.
+
+Sign-in limits are per email address and site-wide. Behind a reverse proxy, set
+`AUTH_TRUSTED_IP_HEADER` to the header the proxy overwrites with the client's IP
+(for example `X-Real-IP`) to add a per-IP limit; only that one header is trusted,
+and only when the app can't be reached directly. Never point it at a header clients
+can set, such as an unrewritten `X-Forwarded-For`. All limits store hashes only.
+
 Keep registration closed unless it is intentionally needed. Registration has no
 email verification, invite mechanism or automated password recovery. A user can
 register an unverified email address; do not treat that as identity proof.

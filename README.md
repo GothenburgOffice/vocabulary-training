@@ -26,8 +26,8 @@ Requires Docker with the Compose plugin. No Node installation is needed.
 cp .env.example .env        # PowerShell: Copy-Item .env.example .env
 ```
 
-Edit `.env`: set a long random URL-safe `POSTGRES_PASSWORD`, and
-`ALLOW_REGISTRATION=true` while you create your account.
+Edit `.env`: set a long random URL-safe `POSTGRES_PASSWORD`, and `ADMIN_EMAIL` and
+`ADMIN_PASSWORD` for your own account (see **Admin** below).
 
 **From source:**
 
@@ -43,8 +43,11 @@ docker compose -f compose.images.yaml pull
 docker compose -f compose.images.yaml up -d --wait
 ```
 
-Open <http://localhost:3420>. After creating your account, set
-`ALLOW_REGISTRATION=false` and run the `up` command again.
+Open <http://localhost:3420> and sign in with the admin account. Registration
+starts closed. To let others sign up, open **Admin → Registration**: enter who runs
+the site and a privacy contact (shown on `/privacy`), then switch registration on.
+It can't open until those are set and, for a public address, `APP_ORIGIN` uses
+HTTPS. These are database settings, not `.env` ones.
 
 **Admin.** Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` before the first start,
 and `SETTINGS_ENCRYPTION_KEY` (`openssl rand -base64 32`) to save AI keys.
@@ -60,17 +63,17 @@ real data.** Both Compose files share the same project and volume name. Use
 
 ## Configuration
 
-| Variable                  | Default                 | Purpose                                                                         |
-| ------------------------- | ----------------------- | ------------------------------------------------------------------------------- |
-| `POSTGRES_PASSWORD`       | required                | Database password                                                               |
-| `APP_PORT`                | `3420`                  | Host port (bound to 127.0.0.1)                                                  |
-| `APP_ORIGIN`              | `http://localhost:3420` | Must exactly match the browser origin; HTTPS enables Secure cookies             |
-| `APP_ORIGIN_ALIASES`      | empty                   | More accepted origins, comma-separated (e.g. domain aliases)                    |
-| `ALLOW_REGISTRATION`      | `false`                 | Allow new accounts                                                              |
-| `ADMIN_EMAIL`             | empty                   | First admin, created on start while no admin exists                             |
-| `ADMIN_PASSWORD`          | empty                   | That admin's password (12–4096 characters), used only to create it              |
-| `VOCABULARY_IMAGE`        | `…:latest`              | Image for `compose.images.yaml`; pin a `sha-<commit>` tag                       |
-| `SETTINGS_ENCRYPTION_KEY` | empty                   | 32 random bytes (base64) that encrypt the Requesty keys saved in the admin area |
+| Variable                  | Default                 | Purpose                                                                            |
+| ------------------------- | ----------------------- | ---------------------------------------------------------------------------------- |
+| `POSTGRES_PASSWORD`       | required                | Database password                                                                  |
+| `APP_PORT`                | `3420`                  | Host port (bound to 127.0.0.1)                                                     |
+| `APP_ORIGIN`              | `http://localhost:3420` | Must exactly match the browser origin; HTTPS enables Secure cookies                |
+| `APP_ORIGIN_ALIASES`      | empty                   | More accepted origins, comma-separated (e.g. domain aliases)                       |
+| `ADMIN_EMAIL`             | empty                   | First admin, created on start while no admin exists                                |
+| `ADMIN_PASSWORD`          | empty                   | That admin's password (12–4096 characters), used only to create it                 |
+| `VOCABULARY_IMAGE`        | `…:latest`              | Image for `compose.images.yaml`; pin a `sha-<commit>` tag                          |
+| `SETTINGS_ENCRYPTION_KEY` | empty                   | 32 random bytes (base64) that encrypt the Requesty keys saved in the admin area    |
+| `AUTH_TRUSTED_IP_HEADER`  | empty                   | Header your reverse proxy overwrites with the client IP, for per-IP sign-in limits |
 
 ## Development
 
@@ -89,7 +92,8 @@ npm run test:integration  # HTTP + PostgreSQL against the running dev server
 ```
 
 Registration is enabled inside the dev container so the integration test can
-create throwaway accounts. AI keys and models are set in the admin area, also in
+create throwaway accounts: the dev database starts with registration open and a
+clearly fake privacy contact (`compose.dev.yaml`; CI uses `compose.test.yaml`). AI keys and models are set in the admin area, also in
 dev. Automated tests use dummy keys and never call Requesty: with AI configured, the
 integration test skips its "AI disabled" checks instead of making paid calls.
 Dependencies are reinstalled automatically on start when `package-lock.json`
