@@ -1,5 +1,6 @@
 import pg from "pg";
 import { readdir, readFile } from "node:fs/promises";
+import { bootstrapAdmin } from "./admin-bootstrap.mjs";
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const client = await pool.connect();
 try {
@@ -19,6 +20,9 @@ try {
     await client.query("INSERT INTO schema_migrations(name) VALUES($1)", [name]);
     console.log(`Applied ${name}`);
   }
+  const admin = await bootstrapAdmin(client);
+  if (admin === "created" || admin === "promoted")
+    console.log(`Admin account ${admin}: ${process.env.ADMIN_EMAIL?.trim().toLowerCase()}`);
   await client.query("COMMIT");
 } catch (e) {
   await client.query("ROLLBACK");

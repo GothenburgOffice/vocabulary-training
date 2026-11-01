@@ -1,11 +1,15 @@
 # AI features (optional)
 
 Two optional features use [Requesty](https://docs.requesty.ai/quickstart)'s
-OpenAI-compatible API through server-only keys, one per [tier](#tiers). With no
-key, both are hidden or show a quiet "unavailable" state, and practice works normally.
-**Grading, statistics and scheduling never use AI.**
+OpenAI-compatible API through server-only keys, one per [tier](#tiers). An admin
+sets them in the admin area (**AI settings** and **Languages**); changes apply
+without a restart. A feature without a key and a model is hidden, and practice
+works normally. **Grading, statistics and scheduling never use AI.**
 
-Never expose the key through a `NEXT_PUBLIC_` variable, source, image layers or docs.
+Keys are stored encrypted (AES-256-GCM, with `SETTINGS_ENCRYPTION_KEY` from
+`.env`) and never sent back to the browser: the admin page only shows whether a
+key is set and its last four characters. Never put a key in a `NEXT_PUBLIC_`
+variable, source, image layers or docs.
 
 ## Language notes for wrong answers
 
@@ -33,23 +37,29 @@ For alternatives (`a|b`) only the first is spoken.
 - Audio is cached in memory per account, model, voice, language and phrase for
   one hour (max 128 entries and 16 MB in total). It is never written to disk.
   Identical concurrent requests are generated only once.
-- The default MiMo/Mia voice is best for English and is not a reliable
-  pronunciation teacher for other languages.
+- Model, voice and instructions are set per language. A language without a
+  speech model has no speaker buttons. Voice and instructions are optional and
+  sent only when set, because not every model accepts them.
+- Generated voices are not reliable pronunciation teachers, especially outside
+  English.
 
 ## Tiers
 
 Each account has an `ai_tier`, `basic` (default) or `plus`. Each tier has its own
-Requesty key and models, so each tier's budget and fallback routing are set on
+Requesty key and settings, so each tier's budget and fallback routing are set on
 its key in Requesty (see [Cost control](#cost-control)).
 
-| Setting           | Basic                         | Plus                               |
-| ----------------- | ----------------------------- | ---------------------------------- |
-| Key               | `REQUESTY_API_KEY`            | `REQUESTY_PLUS_API_KEY`            |
-| Language notes    | `REQUESTY_MODEL`              | `REQUESTY_PLUS_MODEL`              |
-| Audio model/voice | `REQUESTY_SPEECH_MODEL/VOICE` | `REQUESTY_PLUS_SPEECH_MODEL/VOICE` |
+| Setting        | Where                   | Basic                      | Plus                                                             |
+| -------------- | ----------------------- | -------------------------- | ---------------------------------------------------------------- |
+| Key            | AI settings             | Basic key                  | Plus key, else the basic key                                     |
+| Language notes | AI settings             | Basic model                | Plus model, else the basic model                                 |
+| Word audio     | Languages, per language | Model, voice, instructions | Plus model with its voice and instructions, else the basic three |
 
-A blank plus model or voice uses the basic value. Without a plus key, plus
-accounts use the basic tier. There is no admin UI yet; set a tier in the database:
+A blank basic model turns that feature off for basic accounts (for word audio:
+for that language). The admin pages can load Requesty's model list with a key
+and suggest chat models for language notes and speech models for audio, with
+voice suggestions per model; typed values such as `policy/<name>` also work.
+Set an account's tier in the database:
 
 ```sh
 docker compose exec db psql -U vocabulary -c "UPDATE users SET ai_tier='plus' WHERE email='you@example.com'"

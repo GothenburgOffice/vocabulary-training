@@ -9,7 +9,6 @@ import {
   type FeedbackInput,
 } from "../lib/feedback.ts";
 import {
-  DEFAULT_FEEDBACK_MODEL,
   FeedbackLimiter,
   FeedbackNotNeeded,
   FeedbackUnavailable,
@@ -163,7 +162,6 @@ test("adapter makes exactly one bounded, nonstreaming generation", async (t) => 
 });
 
 test("policies are passed through to Requesty, which owns fallback routing and budgets", async () => {
-  assert.equal(DEFAULT_FEEDBACK_MODEL, "novita/ling-3.1-flash");
   const policy = "policy/VocabFree";
   const calls: { url: string; init?: RequestInit }[] = [];
   const transport = (async (url, init) => {

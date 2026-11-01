@@ -9,7 +9,6 @@ import {
 } from "../feedback";
 
 const endpoint = "https://router.requesty.ai/v1";
-export const DEFAULT_FEEDBACK_MODEL = "novita/ling-3.1-flash";
 export class FeedbackUnavailable extends Error {
   constructor(public reason: "unavailable" | "limited" | "configuration" = "unavailable") {
     super(reason);
@@ -146,4 +145,41 @@ export class FeedbackLimiter {
       else this.inFlight.delete(user);
     };
   }
+}
+
+// Requesty's model catalogue, sorted into what each admin setting can use. Each entry's
+// `api` field names its modality; the id check covers entries without it.
+export async function listModels(
+  apiKey: string,
+  transport: Fetcher = fetch,
+): Promise<{ chat: string[]; speech: string[] }> {
+  if (!apiKey) throw new FeedbackUnavailable("configuration");
+  let data: unknown;
+  try {
+    data = await readRequestyJSON(
+      await transport(`${endpoint}/models/all`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(15_000),
+        cache: "no-store",
+        redirect: "error",
+      }),
+      10_000_000,
+    );
+  } catch (error) {
+    if (error instanceof FeedbackUnavailable) throw error;
+    throw new FeedbackUnavailable();
+  }
+  const body = data as { data?: unknown; models?: unknown } | unknown[];
+  const list = Array.isArray(body) ? body : (body?.data ?? body?.models ?? []);
+  const chat = new Set<string>();
+  const speech = new Set<string>();
+  for (const entry of Array.isArray(list) ? list : []) {
+    const id = typeof entry?.id === "string" ? entry.id : "";
+    if (!id || id.length > 200) continue;
+    const api = typeof entry.api === "string" ? entry.api : "";
+    if (api === "speech" || (!api && /tts/i.test(id))) speech.add(id);
+    else if (api === "chat" || (!api && !/embed|whisper|transcribe|image|dall-e|flux/i.test(id)))
+      chat.add(id);
+  }
+  return { chat: [...chat].sort(), speech: [...speech].sort() };
 }
