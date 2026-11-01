@@ -2363,3 +2363,73 @@ nav button {
     padding-right: 16px;
   }
 }
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+.admin-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.admin-card h2 {
+  font-size: var(--text-lg);
+}
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.admin-status {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+.admin-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+.admin-row > .field {
+  flex: 1 1 180px;
+}
+.admin-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: var(--text-sm);
+}
+.admin-languages {
+  display: grid;
+  gap: 16px;
+  margin: 16px 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-language > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.admin-language.is-hidden h2::after {
+  content: " (hidden)";
+  color: var(--muted);
+  font-weight: 400;
+}
+.admin-speech {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.admin-speech legend {
+  padding: 0 4px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}

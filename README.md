@@ -45,7 +45,8 @@ docker compose -f compose.images.yaml up -d --wait
 Open <http://localhost:3420>. After creating your account, set
 `ALLOW_REGISTRATION=false` and run the `up` command again.
 
-**Admin.** Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` before the first start.
+**Admin.** Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` before the first start,
+and `SETTINGS_ENCRYPTION_KEY` (`openssl rand -base64 32`) to save AI keys.
 While no admin exists, each start creates that account, or promotes an existing
 account with that email without changing its password. Admins get an **Admin**
 link in the account bar, leading to `/admin`; everyone else gets a 404 there. The
@@ -58,21 +59,17 @@ real data.** Both Compose files share the same project and volume name. Use
 
 ## Configuration
 
-| Variable                | Default                              | Purpose                                                             |
-| ----------------------- | ------------------------------------ | ------------------------------------------------------------------- |
-| `POSTGRES_PASSWORD`     | required                             | Database password                                                   |
-| `APP_PORT`              | `3420`                               | Host port (bound to 127.0.0.1)                                      |
-| `APP_ORIGIN`            | `http://localhost:3420`              | Must exactly match the browser origin; HTTPS enables Secure cookies |
-| `APP_ORIGIN_ALIASES`    | empty                                | More accepted origins, comma-separated (e.g. domain aliases)        |
-| `ALLOW_REGISTRATION`    | `false`                              | Allow new accounts                                                  |
-| `ADMIN_EMAIL`           | empty                                | First admin, created on start while no admin exists                 |
-| `ADMIN_PASSWORD`        | empty                                | That admin's password (12–4096 characters), used only to create it  |
-| `VOCABULARY_IMAGE`      | `…:latest`                           | Image for `compose.images.yaml`; pin a `sha-<commit>` tag           |
-| `REQUESTY_API_KEY`      | empty                                | Server-only basic-tier key; empty disables AI notes and audio       |
-| `REQUESTY_MODEL`        | `novita/ling-3.1-flash`              | Model or `policy/<name>` for language notes                         |
-| `REQUESTY_SPEECH_MODEL` | `deepinfra/XiaomiMiMo/MiMo-V2.5-tts` | Text-to-speech model                                                |
-| `REQUESTY_SPEECH_VOICE` | `Mia`                                | Text-to-speech voice                                                |
-| `REQUESTY_PLUS_*`       | basic value                          | Plus tier: `API_KEY`, `MODEL`, `SPEECH_MODEL`, `SPEECH_VOICE`       |
+| Variable                  | Default                 | Purpose                                                                         |
+| ------------------------- | ----------------------- | ------------------------------------------------------------------------------- |
+| `POSTGRES_PASSWORD`       | required                | Database password                                                               |
+| `APP_PORT`                | `3420`                  | Host port (bound to 127.0.0.1)                                                  |
+| `APP_ORIGIN`              | `http://localhost:3420` | Must exactly match the browser origin; HTTPS enables Secure cookies             |
+| `APP_ORIGIN_ALIASES`      | empty                   | More accepted origins, comma-separated (e.g. domain aliases)                    |
+| `ALLOW_REGISTRATION`      | `false`                 | Allow new accounts                                                              |
+| `ADMIN_EMAIL`             | empty                   | First admin, created on start while no admin exists                             |
+| `ADMIN_PASSWORD`          | empty                   | That admin's password (12–4096 characters), used only to create it              |
+| `VOCABULARY_IMAGE`        | `…:latest`              | Image for `compose.images.yaml`; pin a `sha-<commit>` tag                       |
+| `SETTINGS_ENCRYPTION_KEY` | empty                   | 32 random bytes (base64) that encrypt the Requesty keys saved in the admin area |
 
 ## Development
 
@@ -91,9 +88,9 @@ npm run test:integration  # HTTP + PostgreSQL against the running dev server
 ```
 
 Registration is enabled inside the dev container so the integration test can
-create throwaway accounts. The dev container ignores `REQUESTY_API_KEY`, so tests
-never call the provider. To try the AI features there, set `DEV_REQUESTY_API_KEY`
-in `.env` (the integration test then fails, because it expects AI to be disabled).
+create throwaway accounts. AI keys and models are set in the admin area, also in
+dev. Automated tests use dummy keys and never call Requesty: with AI configured, the
+integration test skips its "AI disabled" checks instead of making paid calls.
 Dependencies are reinstalled automatically on start when `package-lock.json`
 changes. On Windows, **Dev Containers: Clone Repository in
 Container Volume** gives faster file watching than a folder on a Windows drive.

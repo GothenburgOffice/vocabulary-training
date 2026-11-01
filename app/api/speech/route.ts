@@ -1,5 +1,6 @@
 import { requireUser } from "../../../lib/server/auth";
 import { aiConfig } from "../../../lib/server/ai-config";
+import { loadAiSettings } from "../../../lib/server/site-settings";
 import { body, fail, json, requireOrigin } from "../../../lib/server/http";
 import { FeedbackUnavailable } from "../../../lib/server/requesty-client";
 import { SpeechService } from "../../../lib/server/speech-client";
@@ -14,13 +15,10 @@ export async function POST(request: Request) {
     const user = await requireUser();
     const parsed = speechSchema.safeParse(await body(request, 2_000));
     if (!parsed.success) return json({ status: "invalid" }, 400);
-    const config = aiConfig(user.ai_tier);
-    if (!config.apiKey) return json({ status: "disabled" }, 503);
-    const result = await speech.get(user.id, parsed.data, {
-      apiKey: config.apiKey,
-      model: config.speechModel,
-      voice: config.speechVoice,
-    });
+    const config = aiConfig(user.ai_tier, await loadAiSettings());
+    const settings = config.speech(parsed.data.language);
+    if (!settings) return json({ status: "disabled" }, 503);
+    const result = await speech.get(user.id, parsed.data, { apiKey: config.apiKey, ...settings });
     return new Response(new Uint8Array(result.bytes), {
       headers: {
         "Content-Type": result.contentType,

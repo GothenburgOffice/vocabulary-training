@@ -53,9 +53,14 @@ tests. Also run the integration test when API, auth or DB code changed.
     the answer's audio button stays hidden until the answer is graded or skipped.
 - Grading, statistics and scheduling are deterministic code.
 - Send a provider only what its call needs: never account IDs or whole lists.
-- Requesty keys (`REQUESTY_API_KEY`, `REQUESTY_PLUS_API_KEY`) stay server-side: never a
-  `NEXT_PUBLIC_` variable, and never in source, images or docs. Cost is controlled per key
-  in Requesty (fallback policy, Access List, budget), not by app-side price checks.
+- Requesty keys are saved in the admin area, encrypted with `SETTINGS_ENCRYPTION_KEY`
+  (`lib/server/secrets.ts`), and never sent to the browser: admin views show only whether
+  a key is set and its last four characters. Never put a key or the encryption key in a
+  `NEXT_PUBLIC_` variable, source, images or docs. Cost is controlled per key in Requesty
+  (fallback policy, Access List, budget), not by app-side price checks.
+- A feature without a key and a model is hidden. Speech is configured per language (six
+  settings); plus falls back to basic. Tests use dummy keys and never call Requesty.
+- Languages are hidden, never deleted or renamed: saved lists store the name.
 - Lists belong to a base and target language pair. Changing the profile's base
   language never relabels or migrates lists. Base and target must differ.
 - Answer normalization never rewrites stored text. Accents are strict by default.

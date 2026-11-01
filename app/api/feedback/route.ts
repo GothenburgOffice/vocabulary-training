@@ -3,6 +3,7 @@ import { shouldRequestFeedback } from "../../../lib/feedback";
 import { requireUser } from "../../../lib/server/auth";
 import { body, fail, HttpError, json, requireOrigin } from "../../../lib/server/http";
 import { aiConfig } from "../../../lib/server/ai-config";
+import { loadAiSettings } from "../../../lib/server/site-settings";
 import {
   FeedbackLimiter,
   FeedbackNotNeeded,
@@ -22,13 +23,13 @@ export async function POST(request: Request) {
     const parsed = feedbackSchema.safeParse(await body(request, 5_000));
     if (!parsed.success) throw new HttpError(400, "This language-note request is invalid.");
     if (!shouldRequestFeedback(parsed.data)) return json({ status: "not-needed" });
-    const config = aiConfig(user.ai_tier);
-    if (!config.apiKey)
+    const config = aiConfig(user.ai_tier, await loadAiSettings());
+    if (!config.languageNotes)
       return json({ status: "disabled", message: "AI comments are not enabled on this server." });
     release = limits.acquire(user.id);
     const comment = await requestLanguageComment(parsed.data, {
       apiKey: config.apiKey,
-      model: config.model,
+      model: config.languageNoteModel,
     });
     return json({ status: "ready", comment });
   } catch (error) {
