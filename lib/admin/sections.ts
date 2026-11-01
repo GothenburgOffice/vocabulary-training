@@ -15,8 +15,8 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     description: "Languages offered in the app, their CSV codes and speech settings.",
   },
   {
-    href: "/admin/privacy",
-    title: "Privacy",
-    description: "The data controller and privacy contact. Registration needs both.",
+    href: "/admin/registration",
+    title: "Registration",
+    description: "Open or close sign-up, and the privacy details it needs first.",
   },
 ];

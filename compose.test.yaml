@@ -1,0 +1,10 @@
+# Automated tests and local test instances only, on top of compose.yaml or
+# compose.images.yaml (CI sets COMPOSE_FILE). The first start opens registration with a
+# privacy contact that is clearly not a real operator, so the tests can register accounts.
+# Never use it for a real site: there, registration starts closed and is opened at /admin.
+services:
+  migrate:
+    environment:
+      ALLOW_REGISTRATION: "true"
+      PRIVACY_CONTROLLER_NAME: Automated test stack, not a real operator
+      PRIVACY_CONTACT_EMAIL: test-privacy@example.test

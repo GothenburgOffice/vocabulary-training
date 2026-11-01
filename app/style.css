@@ -2182,6 +2182,11 @@ nav button {
   font-size: var(--text-xs);
   margin-top: 12px;
 }
+.admin-checklist {
+  margin: 0 0 16px;
+  padding-left: 20px;
+  color: var(--red);
+}
 .auth-content.privacy-page {
   width: min(100%, 640px);
 }

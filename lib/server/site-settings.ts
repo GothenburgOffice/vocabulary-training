@@ -1,15 +1,16 @@
 import "server-only";
 import type { AiSettingsView, LanguageView, Speech, Tier } from "../admin/ai-settings";
-import type { Privacy } from "../admin/privacy";
+import { registrationBlockers, type Privacy, type RegistrationView } from "../admin/registration";
 import type { AiSettings, LanguageSettings } from "./ai-config";
 import { db } from "./db";
 import { decryptSecret, encryptionReady, encryptSecret } from "./secrets";
 
 const keyName = (tier: Tier) => `requesty.${tier}.api_key`;
 const modelName = (tier: Tier) => `requesty.${tier}.model`;
-// Also written by scripts/privacy-bootstrap.mjs.
+// Also seeded by scripts/settings-bootstrap.mjs.
 const PRIVACY_NAME = "privacy.controller_name";
 const PRIVACY_EMAIL = "privacy.contact_email";
+const REGISTRATION_OPEN = "registration.open";
 
 // Read on most requests, so cached briefly. Saves clear this process's cache at once; other
 // processes pick changes up within CACHE_MS.
@@ -190,7 +191,7 @@ export async function reorderLanguages(order: string[]) {
   invalidateAiSettings();
 }
 
-// The public privacy details. Registration needs both (privacyReady).
+// The public privacy details, for the /privacy page.
 export async function readPrivacy(): Promise<Privacy> {
   const settings = await readSettingsMap();
   return {
@@ -198,11 +199,33 @@ export async function readPrivacy(): Promise<Privacy> {
     contactEmail: settings.get(PRIVACY_EMAIL) ?? "",
   };
 }
-// Stored even when blank, so the first-start seed from .env never brings back a cleared value.
-export async function savePrivacy(privacy: Privacy) {
+// Whether registration is switched on, and what still blocks it. Sign-up needs both: open, and
+// no blockers.
+export async function readRegistration(): Promise<RegistrationView> {
+  const settings = await readSettingsMap();
+  const privacy = {
+    controllerName: settings.get(PRIVACY_NAME) ?? "",
+    contactEmail: settings.get(PRIVACY_EMAIL) ?? "",
+  };
+  return {
+    ...privacy,
+    open: settings.get(REGISTRATION_OPEN) === "true",
+    blockers: registrationBlockers(privacy, process.env.APP_ORIGIN ?? ""),
+  };
+}
+// Every value is stored, blank or false included, so the first-start seed from .env never
+// brings back something changed here.
+export async function saveRegistration(update: Privacy & { open: boolean }) {
   await db.query(
-    `INSERT INTO site_settings(key,value) VALUES ($1,$2),($3,$4)
+    `INSERT INTO site_settings(key,value) VALUES ($1,$2),($3,$4),($5,$6)
      ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=now()`,
-    [PRIVACY_NAME, privacy.controllerName, PRIVACY_EMAIL, privacy.contactEmail],
+    [
+      PRIVACY_NAME,
+      update.controllerName,
+      PRIVACY_EMAIL,
+      update.contactEmail,
+      REGISTRATION_OPEN,
+      String(update.open),
+    ],
   );
 }

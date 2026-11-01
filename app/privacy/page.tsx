@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { BookMark } from "../../lib/brand";
-import { privacyReady } from "../../lib/admin/privacy";
+import { privacyReady } from "../../lib/admin/registration";
 import { readPrivacy } from "../../lib/server/site-settings";
 
 export const dynamic = "force-dynamic";

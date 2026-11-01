@@ -1,7 +1,7 @@
 import pg from "pg";
 import { readdir, readFile } from "node:fs/promises";
 import { bootstrapAdmin } from "./admin-bootstrap.mjs";
-import { seedPrivacy } from "./privacy-bootstrap.mjs";
+import { seedSiteSettings } from "./settings-bootstrap.mjs";
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const client = await pool.connect();
 try {
@@ -24,7 +24,8 @@ try {
   const admin = await bootstrapAdmin(client);
   if (admin === "created" || admin === "promoted")
     console.log(`Admin account ${admin}: ${process.env.ADMIN_EMAIL?.trim().toLowerCase()}`);
-  if ((await seedPrivacy(client)) === "seeded") console.log("Privacy contact seeded from .env.");
+  const seeded = await seedSiteSettings(client);
+  if (seeded) console.log(`Seeded ${seeded} site settings (registration, privacy) from .env.`);
   await client.query("COMMIT");
 } catch (e) {
   await client.query("ROLLBACK");

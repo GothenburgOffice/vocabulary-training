@@ -23,7 +23,7 @@ COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 COPY --from=builder --chown=node:node /app/public ./public
 # The same release image can run the one-shot migration job.
-COPY --from=builder --chown=node:node /app/scripts/migrate.mjs /app/scripts/admin-bootstrap.mjs /app/scripts/privacy-bootstrap.mjs ./scripts/
+COPY --from=builder --chown=node:node /app/scripts/migrate.mjs /app/scripts/admin-bootstrap.mjs /app/scripts/settings-bootstrap.mjs ./scripts/
 COPY --from=builder --chown=node:node /app/db ./db
 COPY --from=builder --chown=node:node /app/LICENSE ./LICENSE
 LABEL org.opencontainers.image.source="https://github.com/GothenburgOffice/vocabulary-training" \
@@ -36,7 +36,7 @@ CMD ["node", "server.js"]
 
 # Small one-shot migration runner, separate from the application image.
 FROM dependencies AS migration
-COPY scripts/migrate.mjs scripts/admin-bootstrap.mjs scripts/privacy-bootstrap.mjs ./scripts/
+COPY scripts/migrate.mjs scripts/admin-bootstrap.mjs scripts/settings-bootstrap.mjs ./scripts/
 COPY db ./db
 USER node
 CMD ["node", "scripts/migrate.mjs"]

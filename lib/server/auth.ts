@@ -44,12 +44,15 @@ export async function createSession(userId: string) {
   await db.query("DELETE FROM sessions WHERE expires_at<now()");
   return token;
 }
-export async function limitAuth(email: string) {
-  // Database-backed so limits also work across app workers. No raw email or IP stored.
-  for (const [bucket, limit] of [
+export async function limitAuth(email: string, ip = "") {
+  // Database-backed so limits also work across app workers. No raw email or IP stored. Without
+  // a trusted client IP (clientIp), every visitor shares the conservative global bucket.
+  const buckets: [string, number][] = [
     [hashToken(email), 15],
+    ...(ip ? [[hashToken(`ip:${ip}`), 30] as [string, number]] : []),
     ["global", 300],
-  ] as const) {
+  ];
+  for (const [bucket, limit] of buckets) {
     const result = await db.query(
       `INSERT INTO auth_limits(bucket,window_start,attempts) VALUES($1,now(),1)
        ON CONFLICT(bucket) DO UPDATE SET
