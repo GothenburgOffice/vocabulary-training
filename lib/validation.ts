@@ -65,8 +65,14 @@ export const saveSchema = z.object({
   revision: z.number().int().nonnegative(),
   data: workspaceSchema,
 });
+// Only a fixed-length scrypt hash is stored, so the cap just bounds the hashing work.
+export const PASSWORD_MIN = 12;
+export const PASSWORD_MAX = 4096;
 export const credentialsSchema = z.object({
   action: z.enum(["login", "register"]),
-  email: z.string().trim().toLowerCase().email().max(254),
-  password: z.string().min(12).max(128),
+  email: z.string().trim().toLowerCase().email("Enter a valid email address.").max(254),
+  password: z
+    .string()
+    .min(PASSWORD_MIN, `Use a password of at least ${PASSWORD_MIN} characters.`)
+    .max(PASSWORD_MAX, `Use a password of at most ${PASSWORD_MAX} characters.`),
 });
