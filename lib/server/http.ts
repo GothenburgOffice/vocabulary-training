@@ -33,8 +33,10 @@ export function allowedOrigins(env: Record<string, string | undefined> = process
 }
 // Returns the matched origin, so callers can tell HTTPS from HTTP for that request.
 export function requireOrigin(request: Request) {
+  // Check the configuration first, so a misconfigured server answers 503 to every request.
+  const allowed = allowedOrigins();
   const origin = request.headers.get("origin");
-  if (!origin || !allowedOrigins().includes(origin))
+  if (!origin || !allowed.includes(origin))
     throw new HttpError(403, "This request is not from this application.");
   if (!request.headers.get("content-type")?.startsWith("application/json"))
     throw new HttpError(415, "Use JSON for this request.");

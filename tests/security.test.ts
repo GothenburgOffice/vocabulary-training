@@ -100,6 +100,12 @@ test("the session cookie's Secure flag follows the request's origin, not APP_ORI
     process.env.APP_ORIGIN_ALIASES = "http://127.0.0.1:3420";
     assert.doesNotMatch(setCookie("http://127.0.0.1:3420"), /;\s*Secure/i);
     assert.match(setCookie("https://example.com"), /;\s*Secure/i);
+
+    // A misconfigured server answers 503 even to a request without an Origin header.
+    delete process.env.APP_ORIGIN;
+    assert.throws(() => requireOrigin(new Request("http://app/api/auth", { method: "POST" })), {
+      status: 503,
+    });
   } finally {
     for (const [key, value] of [
       ["APP_ORIGIN", saved.origin],
