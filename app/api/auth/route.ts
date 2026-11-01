@@ -23,7 +23,7 @@ export async function GET() {
 }
 export async function POST(request: Request) {
   try {
-    requireOrigin(request);
+    const origin = requireOrigin(request);
     const parsed = credentialsSchema.safeParse(await body(request, 4096));
     if (!parsed.success)
       throw new HttpError(400, "Enter a valid email and a password of 12 to 128 characters.");
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     }
     const token = await createSession(userId!);
     const response = json({ user: { id: userId!, email } });
-    response.cookies.set(cookieName, token, cookieOptions());
+    response.cookies.set(cookieName, token, cookieOptions(origin));
     return response;
   } catch (e) {
     return fail(e);
@@ -75,11 +75,11 @@ export async function POST(request: Request) {
 }
 export async function DELETE(request: Request) {
   try {
-    requireOrigin(request);
+    const origin = requireOrigin(request);
     const token = (await cookies()).get(cookieName)?.value;
     if (token) await db.query("DELETE FROM sessions WHERE token_hash=$1", [hashToken(token)]);
     const response = json({ ok: true });
-    response.cookies.set(cookieName, "", { ...cookieOptions(), maxAge: 0 });
+    response.cookies.set(cookieName, "", { ...cookieOptions(origin), maxAge: 0 });
     return response;
   } catch (e) {
     return fail(e);

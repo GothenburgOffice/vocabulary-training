@@ -13,6 +13,8 @@ services:
     environment:
       # Local development only: the integration tests register throwaway accounts.
       ALLOW_REGISTRATION: "true"
+      # Opening the app via 127.0.0.1 instead of localhost also works here.
+      APP_ORIGIN_ALIASES: ${APP_ORIGIN_ALIASES:-http://127.0.0.1:${APP_PORT:-3420}}
       TEST_BASE_URL: http://localhost:3000
       TEST_ORIGIN: ${APP_ORIGIN:-http://localhost:3420}
       # Keyless by default so tests never call Requesty (they expect AI to be disabled).

@@ -57,6 +57,7 @@ real data.** Both Compose files share the same project and volume name. Use
 | `POSTGRES_PASSWORD`     | required                             | Database password                                                   |
 | `APP_PORT`              | `3420`                               | Host port (bound to 127.0.0.1)                                      |
 | `APP_ORIGIN`            | `http://localhost:3420`              | Must exactly match the browser origin; HTTPS enables Secure cookies |
+| `APP_ORIGIN_ALIASES`    | empty                                | More accepted origins, comma-separated (e.g. domain aliases)        |
 | `ALLOW_REGISTRATION`    | `false`                              | Allow new accounts                                                  |
 | `VOCABULARY_IMAGE`      | `…:latest`                           | Image for `compose.images.yaml`; pin a `sha-<commit>` tag           |
 | `REQUESTY_API_KEY`      | empty                                | Server-only basic-tier key; empty disables AI notes and audio       |

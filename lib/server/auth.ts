@@ -5,12 +5,13 @@ import { db } from "./db";
 import { hashToken } from "./password";
 import { HttpError } from "./http";
 export const cookieName = "vocabulary_session";
-export function cookieOptions() {
+// origin is the request's verified origin from requireOrigin.
+export function cookieOptions(origin: string) {
   return {
     httpOnly: true,
     sameSite: "strict" as const,
     path: "/",
-    secure: new URL(process.env.APP_ORIGIN || "http://localhost").protocol === "https:",
+    secure: new URL(origin).protocol === "https:",
     maxAge: 60 * 60 * 24 * 14,
   };
 }

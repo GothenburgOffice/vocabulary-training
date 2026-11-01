@@ -4,6 +4,7 @@ import { hashPassword, hashToken, verifyPassword } from "../lib/server/password.
 import { credentialsSchema, saveSchema, workspaceSchema } from "../lib/validation.ts";
 import { emptyWorkspace } from "../lib/workspace.ts";
 import { makeWord } from "../lib/learning.ts";
+import { allowedOrigins } from "../lib/server/http.ts";
 
 test("salted password hashes verify without storing plaintext", async () => {
   const pass = "test-only-example-passphrase";
@@ -57,4 +58,24 @@ test("workspace validation protects types, limits and language pairs", () => {
     }).success,
     false,
   );
+});
+test("allowed origins are the public origin plus exact aliases", () => {
+  assert.deepEqual(allowedOrigins({ APP_ORIGIN: "https://example.com" }), ["https://example.com"]);
+  assert.deepEqual(
+    allowedOrigins({
+      APP_ORIGIN: "https://example.com",
+      APP_ORIGIN_ALIASES: " https://www.example.com, http://127.0.0.1:3420 ,",
+    }),
+    ["https://example.com", "https://www.example.com", "http://127.0.0.1:3420"],
+  );
+  assert.throws(() => allowedOrigins({}), { status: 503 });
+  assert.throws(() => allowedOrigins({ APP_ORIGIN_ALIASES: "https://example.com" }), {
+    status: 503,
+  });
+  for (const bad of ["https://example.com/", "https://Example.com", "example.com", "https://a.b/x"])
+    assert.throws(
+      () => allowedOrigins({ APP_ORIGIN: "https://example.com", APP_ORIGIN_ALIASES: bad }),
+      { status: 503 },
+      bad,
+    );
 });
