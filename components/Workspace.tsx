@@ -21,7 +21,6 @@ import {
   X,
 } from "lucide-react";
 import { BookMark } from "../lib/brand";
-import { DEMO_NOW, sampleLists } from "../lib/sample";
 import {
   encodeCSV,
   isCorrect,
@@ -71,24 +70,20 @@ function Button({
   );
 }
 export default function Workspace({
-  demo = true,
   initial,
   onChange,
-  previewFeedback,
 }: {
-  demo?: boolean;
-  initial?: WorkspaceData;
+  initial: WorkspaceData;
   onChange?: (data: WorkspaceData) => void;
-  previewFeedback?: { endpoint: string; timeoutMs: number };
 }) {
-  const now = demo ? DEMO_NOW : Date.now();
-  const [lists, setLists] = useState<List[]>(() => initial?.lists ?? structuredClone(sampleLists));
-  const [selected, setSelected] = useState("everyday-french");
+  const now = Date.now();
+  const [lists, setLists] = useState<List[]>(initial.lists);
+  const [selected, setSelected] = useState("");
   const [view, setView] = useState<View>("library");
   const [query, setQuery] = useState("");
-  const [baseLanguage, setBaseLanguage] = useState(initial?.baseLanguage ?? "Swedish");
-  const [profileBase, setProfileBase] = useState(initial?.baseLanguage ?? "Swedish");
-  const [learningLanguage, setLearningLanguage] = useState(initial?.learningLanguage ?? "French");
+  const [baseLanguage, setBaseLanguage] = useState(initial.baseLanguage ?? "Swedish");
+  const [profileBase, setProfileBase] = useState(initial.baseLanguage ?? "Swedish");
+  const [learningLanguage, setLearningLanguage] = useState(initial.learningLanguage ?? "French");
   const [newLanguage, setNewLanguage] = useState("German");
   const [direction, setDirection] = useState<Direction>("forward");
   const [mode, setMode] = useState("adaptive");
@@ -100,7 +95,7 @@ export default function Workspace({
   const [answer, setAnswer] = useState("");
   const [feedback, setFeedback] = useState<(Result & { skipped?: boolean }) | null>(null);
   const [results, setResults] = useState<Result[]>([]);
-  const [runs, setRuns] = useState<Run[]>(initial?.runs ?? []);
+  const [runs, setRuns] = useState<Run[]>(initial.runs ?? []);
   const [draft, setDraft] = useState<List | null>(null);
   const [inputMode, setInputMode] = useState("pairs");
   const [bulk, setBulk] = useState("");
@@ -207,9 +202,7 @@ export default function Workspace({
     setModal(null);
     setNav(false);
     setNotice(
-      demo
-        ? "Profile updated for this preview session. Your existing lists have not been changed."
-        : "Profile updated. Existing lists have not been changed. See the account bar for save status.",
+      "Profile updated. Existing lists have not been changed. See the account bar for save status.",
     );
     setError("");
   }
@@ -310,11 +303,7 @@ export default function Workspace({
       setLearningLanguage(clean.to);
       setQuery("");
       setView("library");
-      setNotice(
-        demo
-          ? "List saved in this preview session. Export CSV to keep a copy."
-          : "List updated. See the account bar for save status.",
-      );
+      setNotice("List updated. See the account bar for save status.");
       setError("");
     } catch (e) {
       setError((e as Error).message);
@@ -511,21 +500,12 @@ export default function Workspace({
           <button onClick={() => setModal("help")}>
             <CircleHelp size={18} /> How practice works
           </button>
-          <a
-            href={
-              demo ? "./original/index.html" : "https://github.com/hkarn/vocabulary-tester-site"
-            }
-            target="_blank"
-            rel="noreferrer"
-          >
-            <ArrowLeft size={18} /> Original design
-          </a>
           <button className="account-row" onClick={openProfile} aria-label="Open profile">
             <span className="avatar">
               <UserRound size={16} />
             </span>
             <span>
-              {demo ? "Preview account" : "Your account"}
+              Your account
               <small>Profile settings</small>
             </span>
             <ChevronRight size={16} />
@@ -544,17 +524,6 @@ export default function Workspace({
         </button>
       </header>
       <main id="content">
-        {demo && (
-          <div className="preview-strip">
-            <span>
-              <span className="tiny-dot" />{" "}
-              {previewFeedback
-                ? "Live AI preview · answers sent to Requesty"
-                : "Interactive design preview"}
-            </span>
-            <span>Sample data · changes reset when you reload</span>
-          </div>
-        )}
         {view === "library" && (
           <>
             <header className="page-heading">
@@ -708,21 +677,11 @@ export default function Workspace({
                       <div className="word-row" key={w.id}>
                         <span className="word-with-audio">
                           <span>{w.front}</span>
-                          <SpeechButton
-                            text={w.front}
-                            language={list.from}
-                            demo={demo}
-                            previewEndpoint={previewFeedback?.endpoint}
-                          />
+                          <SpeechButton text={w.front} language={list.from} />
                         </span>
                         <span className="word-with-audio">
                           <span>{w.back.split("|")[0].trim()}</span>
-                          <SpeechButton
-                            text={w.back}
-                            language={list.to}
-                            demo={demo}
-                            previewEndpoint={previewFeedback?.endpoint}
-                          />
+                          <SpeechButton text={w.back} language={list.to} />
                         </span>
                         <span className={`state ${w[direction].streak >= 3 ? "established" : ""}`}>
                           {w[direction].streak >= 3
@@ -1036,8 +995,6 @@ export default function Workspace({
                     text={direction === "forward" ? current.front : current.back}
                     language={direction === "forward" ? list.from : list.to}
                     label="Play question word"
-                    demo={demo}
-                    previewEndpoint={previewFeedback?.endpoint}
                   />
                 </h2>
               </div>
@@ -1080,8 +1037,6 @@ export default function Workspace({
                         text={direction === "forward" ? current.back : current.front}
                         language={direction === "forward" ? list.to : list.from}
                         label="Play answer word"
-                        demo={demo}
-                        previewEndpoint={previewFeedback?.endpoint}
                       />
                     </p>
                     {feedback.correct && (
@@ -1111,8 +1066,6 @@ export default function Workspace({
               </form>
               {feedback && (
                 <LanguageNote
-                  demo={demo}
-                  previewFeedback={previewFeedback}
                   skipped={!!feedback.skipped}
                   input={{
                     sourceLanguage: direction === "forward" ? list.from : list.to,
@@ -1201,10 +1154,8 @@ export default function Workspace({
               <div>
                 <h1>Your {learningLanguage} practice history.</h1>
                 <p>
-                  {baseLanguage} ↔ {learningLanguage}.{" "}
-                  {demo
-                    ? "Sessions in this preview clear when you reload."
-                    : "Your most recent completed sessions, saved to your account."}
+                  {baseLanguage} ↔ {learningLanguage}. Your most recent completed sessions, saved to
+                  your account.
                 </p>
               </div>
               {list && (
@@ -1337,13 +1288,11 @@ export default function Workspace({
             <div className="account-future">
               <UserRound size={24} />
               <div>
-                <strong>
-                  {demo ? "Preview account · session-only" : "Your personal workspace"}
-                </strong>
+                <strong>Your personal workspace</strong>
                 <p>
-                  {demo
-                    ? "There is no sign-in or server storage in this preview. Profile settings, lists and progress reset on reload. Export CSV to keep your words."
-                    : "Lists, profile settings, review progress and completed sessions are saved to your account. Check the account bar for save status. CSV exports contain words, not your review history."}
+                  Lists, profile settings, review progress and completed sessions are saved to your
+                  account. Check the account bar for save status. CSV exports contain words, not
+                  your review history.
                 </p>
               </div>
             </div>
@@ -1451,16 +1400,13 @@ export default function Workspace({
               10 minutes.
             </p>
             <p>
-              These are tunable rules, not validated memory estimates.{" "}
-              {demo
-                ? "Sample dates use a fixed 30 October 2026 clock."
-                : "Review dates use your current device time."}{" "}
-              Each direction has its own history.
+              These are tunable rules, not validated memory estimates. Review dates use your current
+              device time. Each direction has its own history.
             </p>
             <p>
-              Speaker buttons play only when clicked. The demo voice is best for English and can
-              mispronounce other languages. The first saved alternative is spoken; answer audio
-              appears after grading or skipping. Audio never changes your grade.
+              Speaker buttons play only when clicked. Generated voices can mispronounce some
+              languages. The first saved alternative is spoken; answer audio appears after grading
+              or skipping. Audio never changes your grade.
             </p>
             <Button primary onClick={() => setModal(null)}>
               Back to my words <ArrowRight size={16} />

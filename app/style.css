@@ -431,14 +431,6 @@ nav button:hover,
   font-weight: 400;
   margin-top: 8px;
 }
-.tiny-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  background: var(--blue);
-  border-radius: 50%;
-  margin-right: 6px;
-}
 .side-bottom {
   margin-top: auto;
   padding-top: 32px;
@@ -460,26 +452,6 @@ main {
   min-width: 0;
   max-width: 1360px;
   padding: 28px 40px 16px;
-}
-.preview-strip {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: var(--muted);
-  font-size: var(--text-xs);
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--border);
-}
-.preview-strip > span:last-child {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.preview-strip button {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  color: var(--blue);
 }
 .page-heading {
   display: flex;
@@ -1287,9 +1259,6 @@ dialog > .button {
   .page-heading h1 {
     max-width: 460px;
   }
-  .preview-strip > span:last-child {
-    font-size: var(--text-xs);
-  }
   .list-filters {
     flex-wrap: wrap;
   }
@@ -1305,9 +1274,6 @@ dialog > .button {
   .workspace {
     font-size: var(--text-xs);
     gap: 6px;
-  }
-  .preview-strip > span:last-child {
-    display: none;
   }
   .page-heading {
     align-items: flex-start;
@@ -1441,10 +1407,6 @@ dialog > .button {
   }
   main {
     padding: 18px 20px 12px;
-  }
-  .preview-strip {
-    font-size: var(--text-xs);
-    padding-bottom: 16px;
   }
   .page-heading {
     margin: 24px 0;
@@ -1647,10 +1609,6 @@ dialog > .button {
   }
   .notice {
     align-items: flex-start;
-  }
-  .preview-strip .tiny-dot {
-    width: 5px;
-    height: 5px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -2009,9 +1967,6 @@ nav button.active > svg {
 .list-name small span {
   margin: 0 4px;
 }
-.preview-strip {
-  padding-bottom: 20px;
-}
 @media (max-width: 1200px) {
   .library-main {
     grid-column: span 7;
@@ -2035,7 +1990,7 @@ nav button.active > svg {
   }
 }
 
-/* Brand layout responds to its column, including an embedded preview frame. */
+/* Brand layout responds to its column. */
 .sidebar {
   container: sidebar / inline-size;
   width: 256px;
