@@ -233,3 +233,20 @@ test("real HTTP: admin AI settings and languages, with dummy keys and no provide
   const after = await (await api("/api/workspace", "GET", undefined, admin)).json();
   assert.deepEqual(after.ai, { languageNotes: false, speech: [] });
 });
+
+test("real HTTP: a 4096-character password registers and signs in; longer gets a clear 400", async () => {
+  // Non-ASCII, so the request body is well over the old 4 KB limit.
+  const password = "å".repeat(4096);
+  const email = `long-password-${randomUUID()}@example.test`;
+  const reg = await api("/api/auth", "POST", { action: "register", email, password });
+  assert.equal(reg.status, 200, await reg.clone().text());
+  const login = await api("/api/auth", "POST", { action: "login", email, password });
+  assert.equal(login.status, 200, await login.clone().text());
+  const tooLong = await api("/api/auth", "POST", {
+    action: "login",
+    email,
+    password: password + "å",
+  });
+  assert.equal(tooLong.status, 400);
+  assert.equal((await tooLong.json()).error, "Use a password of at most 4096 characters.");
+});

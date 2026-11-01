@@ -6,6 +6,7 @@ import Workspace from "./Workspace";
 import type { WorkspaceData } from "../lib/workspace";
 import { NO_AI, type AiFeatures, type Language } from "../lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
+import { PASSWORD_MAX, PASSWORD_MIN } from "../lib/validation";
 
 type Account = { id: string; email: string; is_admin?: boolean };
 type Loaded = {
@@ -216,13 +217,13 @@ export default function AccountApp() {
               <input
                 required
                 type="password"
-                minLength={12}
-                maxLength={128}
+                minLength={PASSWORD_MIN}
+                maxLength={PASSWORD_MAX}
                 autoComplete={action === "login" ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              <small>Use 12 to 128 characters. A passphrase works well.</small>
+              <small>Use at least {PASSWORD_MIN} characters. A passphrase works well.</small>
             </label>
             {error && (
               <p className="error" role="alert">

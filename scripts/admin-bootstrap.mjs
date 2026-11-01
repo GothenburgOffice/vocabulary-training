@@ -40,8 +40,8 @@ export async function bootstrapAdmin(client, env = process.env) {
   const promoted = await client.query("UPDATE users SET is_admin=true WHERE email=$1", [email]);
   if (promoted.rowCount) return "promoted";
   const password = env.ADMIN_PASSWORD ?? "";
-  if (password.length < 12 || password.length > 128)
-    throw new Error("ADMIN_PASSWORD must be 12 to 128 characters to create the admin account.");
+  if (password.length < 12 || password.length > 4096)
+    throw new Error("ADMIN_PASSWORD must be 12 to 4096 characters to create the admin account.");
   const id = randomUUID();
   await client.query("INSERT INTO users(id,email,password_hash,is_admin) VALUES($1,$2,$3,true)", [
     id,
