@@ -104,11 +104,18 @@ To share one memory, replace the Windows folder with a junction once, in PowerSh
 $memory = Join-Path $env:USERPROFILE '.claude-memory\vocabulary-training'   # or $env:CLAUDE_MEMORY_DIR
 $old = Join-Path $env:USERPROFILE '.claude\projects\<slug>\memory'
 New-Item -ItemType Directory -Force $memory | Out-Null
-if (Test-Path $old) { Copy-Item "$old\*" $memory -Recurse; Rename-Item $old 'memory.bak' }
+if (Test-Path $old) {
+  $clash = Get-ChildItem $old -Name | Where-Object { Test-Path (Join-Path $memory $_) }
+  if ($clash) { throw "Both folders have: $($clash -join ', '). Merge them by hand first." }
+  Copy-Item "$old\*" $memory -Recurse; Rename-Item $old 'memory.bak'
+}
 New-Item -ItemType Junction -Path $old -Target $memory
 ```
 
-Check that the junction lists your files, then delete `memory.bak`. To remove or
+If both folders have a file with the same name (usually `MEMORY.md`), it stops
+without changing anything: merge those files into the dev-container folder, delete
+them from the Windows one, and run it again. Check that the junction lists your
+files, then delete `memory.bak`. To remove or
 retarget the junction, use `cmd /c rmdir "<path>"`: in Windows PowerShell 5.1,
 `Remove-Item -Recurse` on a junction can delete the files it points to.
 
