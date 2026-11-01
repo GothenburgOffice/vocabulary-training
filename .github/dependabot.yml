@@ -32,11 +32,10 @@ updates:
     schedule:
       interval: weekly
     allow:
-      - dependency-name: postgres
-    ignore:
-      # A major PostgreSQL upgrade needs pg_upgrade or dump/restore of existing data.
-      - dependency-name: postgres
-        update-types: ["version-update:semver-major"]
+      - dependency-name: pgvector/pgvector
+    # Tags look like 0.8.6-pg18-trixie: updates move the pgvector version and keep the pg18
+    # suffix. A major PostgreSQL upgrade (pg19) needs pg_upgrade or dump/restore, so it is
+    # done by hand.
 
   - package-ecosystem: github-actions
     directory: /

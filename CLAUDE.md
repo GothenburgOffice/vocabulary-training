@@ -5,7 +5,7 @@ Guidance for Claude Code (and other contributors) working in this repository.
 ## Project
 
 vocabulary.training: personal word lists and typed-recall practice. Next.js 16
-(App Router), React 19, TypeScript, PostgreSQL 18, Docker Compose. Public repo
+(App Router), React 19, TypeScript, PostgreSQL 18 with pgvector, Docker Compose. Public repo
 `GothenburgOffice/vocabulary-training`, MIT. See [README](README.md) and
 [docs/architecture.md](docs/architecture.md).
 
