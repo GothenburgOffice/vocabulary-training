@@ -45,8 +45,9 @@ tests. Also run the integration test when API, auth or DB code changed.
 - AI language notes are requested **only** for wrong, non-skipped answers, and
   this is enforced in the UI, the route and the adapter. Never send account
   IDs or whole lists to a provider.
-- `REQUESTY_API_KEY` stays server-side: never a `NEXT_PUBLIC_` variable, and never in source, images or docs.
-  Paid models stay off unless `REQUESTY_ALLOW_PAID_MODELS=true`.
+- Requesty keys (`REQUESTY_API_KEY`, `REQUESTY_PLUS_API_KEY`) stay server-side: never a
+  `NEXT_PUBLIC_` variable, and never in source, images or docs. Cost is controlled per key
+  in Requesty (fallback policy, Access List, budget), not by app-side price checks.
 - The answer audio button is hidden until the answer is graded or skipped. Audio only plays on click.
 - Lists belong to a base and target language pair. Changing the profile's base
   language never relabels or migrates lists. Base and target must differ.

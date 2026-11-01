@@ -20,7 +20,8 @@ export class FeedbackNotNeeded extends Error {
     super("Feedback is not needed for an accepted or empty answer.");
   }
 }
-type Config = { apiKey: string; model: string; allowPaid: boolean; timeoutMs?: number };
+// Cost is controlled per key in Requesty (fallback policy, Access List, budget), not here.
+type Config = { apiKey: string; model: string; timeoutMs?: number };
 type Fetcher = typeof fetch;
 
 export async function readRequestyJSON(response: Response, max: number): Promise<unknown> {
@@ -53,71 +54,6 @@ export async function readRequestyJSON(response: Response, max: number): Promise
   }
 }
 
-export function isZeroPricedModel(catalog: unknown, id: string): boolean {
-  if (
-    !catalog ||
-    typeof catalog !== "object" ||
-    !("data" in catalog) ||
-    !Array.isArray(catalog.data)
-  )
-    return false;
-  const matches = catalog.data.filter(
-    (item: unknown) => item && typeof item === "object" && "id" in item && item.id === id,
-  );
-  if (matches.length !== 1) return false;
-  const model = matches[0];
-  // Fail closed for aliases, policies, absent pricing or unknown pricing schemes.
-  if (
-    !model ||
-    !Array.isArray(model.pricing) ||
-    !model.pricing.length ||
-    model.id.startsWith("policy/")
-  )
-    return false;
-  return model.pricing.every(
-    (band: Record<string, unknown>) =>
-      band &&
-      typeof band === "object" &&
-      band.input_price === 0 &&
-      band.output_price === 0 &&
-      Object.entries(band).every(([key, value]) =>
-        key === "prompt_tokens_threshold"
-          ? typeof value === "number" && Number.isFinite(value) && value >= 0
-          : key === "pricing_scheme"
-            ? value === "token"
-            : /price|cost/.test(key) && value === 0,
-      ) &&
-      (!band.pricing_scheme || band.pricing_scheme === "token"),
-  );
-}
-
-export function isFreeOnlyPolicyCatalog(catalog: unknown): boolean {
-  if (
-    !catalog ||
-    typeof catalog !== "object" ||
-    !("data" in catalog) ||
-    !Array.isArray(catalog.data) ||
-    !catalog.data.length
-  )
-    return false;
-  const ids = catalog.data.map((model: unknown) =>
-    model && typeof model === "object" && "id" in model ? model.id : null,
-  );
-  if (new Set(ids).size !== ids.length) return false;
-  // Authenticated /models includes unpriced policy aliases as well as concrete
-  // chat models. Aliases are routing metadata, not pricing evidence.
-  // Require a dedicated, free-only Access List so even an edited/nested policy
-  // cannot route to a paid model through the key. Never trust a policy's name.
-  const concrete = ids.filter(
-    (id): id is string => typeof id === "string" && !id.startsWith("policy/"),
-  );
-  return (
-    concrete.length > 0 &&
-    ids.every((id) => typeof id === "string" && id.length > 0) &&
-    concrete.every((id) => isZeroPricedModel(catalog, id))
-  );
-}
-
 export async function requestLanguageComment(
   input: FeedbackInput,
   config: Config,
@@ -139,19 +75,6 @@ export async function requestLanguageComment(
   const signal = AbortSignal.timeout(timeoutMs);
   const headers = { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" };
   try {
-    if (!config.allowPaid) {
-      const catalog = await readRequestyJSON(
-        await transport(`${endpoint}/models`, {
-          headers,
-          signal,
-          cache: "no-store",
-          redirect: "error",
-        }),
-        4_000_000,
-      );
-      if (!(policy ? isFreeOnlyPolicyCatalog(catalog) : isZeroPricedModel(catalog, config.model)))
-        throw new FeedbackUnavailable("configuration");
-    }
     const result = (await readRequestyJSON(
       await transport(`${endpoint}/chat/completions`, {
         method: "POST",

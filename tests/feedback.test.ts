@@ -13,8 +13,6 @@ import {
   FeedbackLimiter,
   FeedbackNotNeeded,
   FeedbackUnavailable,
-  isFreeOnlyPolicyCatalog,
-  isZeroPricedModel,
   requestLanguageComment,
 } from "../lib/server/requesty-client.ts";
 import { feedbackSchema } from "../lib/server/feedback-input.ts";
@@ -30,10 +28,7 @@ const input: FeedbackInput = {
   requireAccents: true,
   caseSensitive: false,
 };
-const config = { apiKey: "synthetic-test-key", model: "google/gemma-4-31b-it", allowPaid: false };
-const catalog = {
-  data: [{ id: config.model, pricing: [{ input_price: 0, cached_price: 0, output_price: 0 }] }],
-};
+const config = { apiKey: "synthetic-test-key", model: "google/gemma-4-31b-it" };
 const response = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
 const completion = (comment: string) =>
   response({ choices: [{ message: { content: JSON.stringify({ comment }) } }] });
@@ -74,23 +69,18 @@ test("only rejected nonempty answers need AI, using the same normalization and a
   );
 });
 
-test("accepted answers never check prices or invoke a provider, even with an incorrect caller grade or paid configuration", async () => {
+test("accepted answers never invoke a provider, even with an incorrect caller grade", async () => {
   let calls = 0;
   const transport = (async () => {
     calls++;
     throw new Error("Provider must not be contacted");
   }) as typeof fetch;
-  for (const allowPaid of [false, true]) {
-    for (const candidate of [
-      { ...input, correct: true },
-      { ...input, answer: input.reference },
-      { ...input, answer: "" },
-    ]) {
-      await assert.rejects(
-        requestLanguageComment(candidate, { ...config, allowPaid }, transport),
-        FeedbackNotNeeded,
-      );
-    }
+  for (const candidate of [
+    { ...input, correct: true },
+    { ...input, answer: input.reference },
+    { ...input, answer: "" },
+  ]) {
+    await assert.rejects(requestLanguageComment(candidate, config, transport), FeedbackNotNeeded);
   }
   assert.equal(calls, 0);
 });
@@ -114,10 +104,7 @@ test("private-preview timeout is bounded and does not change the normal app defa
     deadlines.push(milliseconds);
     return new AbortController().signal;
   });
-  const transport = (async (url) =>
-    String(url).endsWith("/models")
-      ? response(catalog)
-      : completion("A short comment.")) as typeof fetch;
+  const transport = (async () => completion("A short comment.")) as typeof fetch;
   await requestLanguageComment(input, { ...config, timeoutMs: 180_000 }, transport);
   await requestLanguageComment(input, config, transport);
   assert.deepEqual(deadlines, [180_000, 30_000]);
@@ -154,31 +141,7 @@ test("comment cap normalizes whitespace, strips controls and preserves Unicode s
   assert.throws(() => boundedComment(null));
 });
 
-test("free-only check fails closed for nonzero, missing, mixed and unknown pricing", () => {
-  assert.equal(isZeroPricedModel(catalog, config.model), true);
-  assert.equal(
-    isZeroPricedModel({ data: [...catalog.data, ...catalog.data] }, config.model),
-    false,
-  );
-  for (const pricing of [
-    [],
-    [{ input_price: 0 }],
-    [{ input_price: "0", output_price: "0" }],
-    [{ input_price: 0, output_price: 0.01 }],
-    [{ input_price: 0, output_price: 0, caching_price: 0.01 }],
-    [{ input_price: 0, output_price: 0, extra_fee: 1 }],
-    [{ input_price: 0, output_price: 0, pricing_scheme: "per_request" }],
-    [
-      { input_price: 0, output_price: 0 },
-      { input_price: 0.1, output_price: 0.1 },
-    ],
-  ])
-    assert.equal(isZeroPricedModel({ data: [{ id: config.model, pricing }] }, config.model), false);
-  assert.equal(isZeroPricedModel(null, config.model), false);
-  assert.equal(isZeroPricedModel(catalog, "unknown/model"), false);
-});
-
-test("adapter checks prices before one bounded, nonstreaming generation", async (t) => {
+test("adapter makes exactly one bounded, nonstreaming generation", async (t) => {
   const deadlines: number[] = [];
   t.mock.method(AbortSignal, "timeout", (milliseconds: number) => {
     deadlines.push(milliseconds);
@@ -187,20 +150,16 @@ test("adapter checks prices before one bounded, nonstreaming generation", async 
   const requests: { url: string; init?: RequestInit }[] = [];
   const transport = (async (url, init) => {
     requests.push({ url: String(url), init });
-    return requests.length === 1
-      ? response(catalog)
-      : completion("De uttrycker närliggande men inte identiska avsked.");
+    return completion("De uttrycker närliggande men inte identiska avsked.");
   }) as typeof fetch;
   const result = await requestLanguageComment(input, config, transport);
   assert.match(result, /avsked/);
-  assert.equal(requests.length, 2);
+  assert.equal(requests.length, 1);
   assert.deepEqual(deadlines, [FEEDBACK_TIMEOUT_MS]);
   assert.equal(FEEDBACK_TIMEOUT_MS, 30_000);
-  assert.equal(requests[0].init?.signal, requests[1].init?.signal);
-  assert.equal(requests[0].url, "https://router.requesty.ai/v1/models");
-  assert.equal(requests[1].url, "https://router.requesty.ai/v1/chat/completions");
-  assert.equal(requests[1].init?.redirect, "error");
-  const payload = JSON.parse(String(requests[1].init?.body));
+  assert.equal(requests[0].url, "https://router.requesty.ai/v1/chat/completions");
+  assert.equal(requests[0].init?.redirect, "error");
+  const payload = JSON.parse(String(requests[0].init?.body));
   assert.equal(payload.max_tokens, 768);
   assert.equal(payload.reasoning_effort, "none");
   assert.equal(payload.stream, false);
@@ -210,88 +169,27 @@ test("adapter checks prices before one bounded, nonstreaming generation", async 
   assert.equal(payload.messages[1].content.includes(config.apiKey), false);
 });
 
-test("paid upgrade is explicit and does not require prompt or UI changes", async () => {
-  let calls = 0;
-  const transport = (async () => {
-    calls++;
-    return completion("Brief feedback.");
-  }) as typeof fetch;
-  assert.equal(
-    await requestLanguageComment(
-      input,
-      { ...config, model: "provider/paid-model", allowPaid: true },
-      transport,
-    ),
-    "Brief feedback.",
-  );
-  assert.equal(calls, 1);
-});
-
-test("unpriced models and policies without a free-only key cannot generate", async () => {
-  let calls = 0;
-  const transport = (async () => {
-    calls++;
-    return response({ data: [] });
-  }) as typeof fetch;
-  await assert.rejects(requestLanguageComment(input, config, transport), FeedbackUnavailable);
-  assert.equal(calls, 1);
-  await assert.rejects(
-    requestLanguageComment(input, { ...config, model: "policy/paid-fallback" }, transport),
-    FeedbackUnavailable,
-  );
-  assert.equal(calls, 2);
-});
-
-test("the demo selects a direct free model; optional policies still verify every key-visible model", async () => {
+test("policies are passed through to Requesty, which owns fallback routing and budgets", async () => {
   assert.equal(DEFAULT_FEEDBACK_MODEL, "novita/ling-3.1-flash");
   const policy = "policy/VocabFree";
-  const freeCatalog = {
-    data: [
-      ...catalog.data,
-      { id: "nvidia/muse-glimmer-30b", pricing: [{ input_price: 0, output_price: 0 }] },
-      { id: policy },
-    ],
-  };
-  assert.equal(isFreeOnlyPolicyCatalog(freeCatalog), true);
   const calls: { url: string; init?: RequestInit }[] = [];
   const transport = (async (url, init) => {
     calls.push({ url: String(url), init });
-    return calls.length === 1 ? response(freeCatalog) : completion("A short policy-routed note.");
+    return completion("A short policy-routed note.");
   }) as typeof fetch;
   assert.equal(
     await requestLanguageComment(input, { ...config, model: policy }, transport),
     "A short policy-routed note.",
   );
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 1);
   assert.equal(
     (calls[0].init?.headers as Record<string, string>).Authorization,
     `Bearer ${config.apiKey}`,
   );
-  assert.equal(JSON.parse(String(calls[1].init?.body)).model, policy);
+  assert.equal(JSON.parse(String(calls[0].init?.body)).model, policy);
 });
 
-test("policy names never bypass pricing and malformed/paid/unknown key catalogs fail closed", async () => {
-  for (const data of [
-    [],
-    [null],
-    [{ id: "unknown/model" }],
-    [...catalog.data, { id: "paid/model", pricing: [{ input_price: 0.1, output_price: 0 }] }],
-    [...catalog.data, { id: config.model, pricing: [{ input_price: 0.1, output_price: 0 }] }],
-    [{ id: "policy/another-free-sounding-name", pricing: [{ input_price: 0, output_price: 0 }] }],
-  ]) {
-    let calls = 0;
-    const candidate = { data };
-    assert.equal(isFreeOnlyPolicyCatalog(candidate), false);
-    const transport = (async () => {
-      calls++;
-      return response(candidate);
-    }) as typeof fetch;
-    await assert.rejects(
-      requestLanguageComment(input, { ...config, model: "policy/VocabFree" }, transport),
-      FeedbackUnavailable,
-    );
-    assert.equal(calls, 1);
-  }
+test("malformed policy names are refused before any request", async () => {
   const noCall = (async () => {
     throw new Error("No request expected");
   }) as typeof fetch;
@@ -317,21 +215,12 @@ test("empty, malformed structured, extra-field and oversized outputs are unavail
   ]) {
     const transport = (async () =>
       response({ choices: [{ message: { content } }] })) as typeof fetch;
-    await assert.rejects(
-      requestLanguageComment(input, { ...config, allowPaid: true }, transport),
-      FeedbackUnavailable,
-    );
+    await assert.rejects(requestLanguageComment(input, config, transport), FeedbackUnavailable);
   }
   const long = (async () => completion("word ".repeat(100))) as typeof fetch;
-  assert.ok(
-    Array.from(await requestLanguageComment(input, { ...config, allowPaid: true }, long)).length <=
-      COMMENT_LIMIT,
-  );
+  assert.ok(Array.from(await requestLanguageComment(input, config, long)).length <= COMMENT_LIMIT);
   const huge = (async () => new Response("x".repeat(16_001))) as typeof fetch;
-  await assert.rejects(
-    requestLanguageComment(input, { ...config, allowPaid: true }, huge),
-    FeedbackUnavailable,
-  );
+  await assert.rejects(requestLanguageComment(input, config, huge), FeedbackUnavailable);
 });
 
 test("plain-text feedback is bounded display data, never a grading command", async () => {
@@ -340,7 +229,7 @@ test("plain-text feedback is bounded display data, never a grading command", asy
       choices: [{ message: { content: "  Bonjour means hello, not goodbye.  " } }],
     })) as typeof fetch;
   assert.equal(
-    await requestLanguageComment(input, { ...config, allowPaid: true }, transport),
+    await requestLanguageComment(input, config, transport),
     "Bonjour means hello, not goodbye.",
   );
   assert.equal(input.correct, false);
@@ -353,15 +242,12 @@ test("provider errors and timeouts have no retry or raw error disclosure", async
       calls++;
       return response({ secret: "do not expose" }, status);
     }) as typeof fetch;
-    await assert.rejects(
-      requestLanguageComment(input, { ...config, allowPaid: true }, transport),
-      (e: unknown) => {
-        assert.ok(e instanceof FeedbackUnavailable);
-        assert.equal(e.reason, status === 429 ? "limited" : "unavailable");
-        assert.equal(e.message.includes("secret"), false);
-        return true;
-      },
-    );
+    await assert.rejects(requestLanguageComment(input, config, transport), (e: unknown) => {
+      assert.ok(e instanceof FeedbackUnavailable);
+      assert.equal(e.reason, status === 429 ? "limited" : "unavailable");
+      assert.equal(e.message.includes("secret"), false);
+      return true;
+    });
     assert.equal(calls, 1);
   }
   const timeout = (async () => {

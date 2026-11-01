@@ -5,7 +5,6 @@ import { speechSchema } from "../lib/server/speech-input.ts";
 import {
   DEFAULT_SPEECH_MODEL,
   DEFAULT_SPEECH_VOICE,
-  isZeroPricedSpeechModel,
   requestSpeech,
   SpeechService,
 } from "../lib/server/speech-client.ts";
@@ -16,10 +15,7 @@ const config = {
   apiKey: "synthetic-test-key",
   model: DEFAULT_SPEECH_MODEL,
   voice: DEFAULT_SPEECH_VOICE,
-  allowPaid: false,
 };
-const catalog = { data: [{ id: config.model, pricing: { input_character: 0 } }] };
-const json = (value: unknown) => new Response(JSON.stringify(value));
 const wav = () => {
   const bytes = Buffer.alloc(48);
   bytes.write("RIFF", 0);
@@ -43,44 +39,19 @@ test("speech input is short word data, with no client-selected model, voice or e
   assert.equal(pronunciationText(" e\u0301cole | school "), "école");
 });
 
-test("speech pricing fails closed for paid, missing, unknown, duplicate and malformed entries", () => {
-  assert.equal(isZeroPricedSpeechModel(catalog, config.model), true);
-  for (const pricing of [
-    null,
-    [],
-    {},
-    { input_character: "0" },
-    { input_character: 0.01 },
-    { input_character: 0, extra_fee: 1 },
-    { input_character: 0, output_token: 0.01 },
-  ]) {
-    assert.equal(
-      isZeroPricedSpeechModel({ data: [{ id: config.model, pricing }] }, config.model),
-      false,
-    );
-  }
-  assert.equal(
-    isZeroPricedSpeechModel({ data: [...catalog.data, ...catalog.data] }, config.model),
-    false,
-  );
-  assert.equal(isZeroPricedSpeechModel(catalog, "missing"), false);
-});
-
-test("speech checks the authenticated catalog before exactly one WAV generation", async () => {
+test("speech makes exactly one WAV generation", async () => {
   const calls: { url: string; init?: RequestInit }[] = [];
   const transport = (async (url, init) => {
     calls.push({ url: String(url), init });
-    return calls.length === 1 ? json(catalog) : wav();
+    return wav();
   }) as typeof fetch;
   const result = await requestSpeech(input, config, transport);
   assert.equal(result.contentType, "audio/wav");
   assert.equal(result.bytes.byteLength, 48);
-  assert.equal(calls.length, 2);
-  assert.match(calls[0].url, /\/models\/speech$/);
-  assert.match(calls[1].url, /\/audio\/speech$/);
-  assert.equal(calls[0].init?.signal, calls[1].init?.signal);
-  assert.equal(calls[1].init?.redirect, "error");
-  assert.deepEqual(JSON.parse(String(calls[1].init?.body)), {
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /\/audio\/speech$/);
+  assert.equal(calls[0].init?.redirect, "error");
+  assert.deepEqual(JSON.parse(String(calls[0].init?.body)), {
     model: DEFAULT_SPEECH_MODEL,
     voice: "Mia",
     input: "Hello",
@@ -88,14 +59,12 @@ test("speech checks the authenticated catalog before exactly one WAV generation"
   });
 });
 
-test("speech never generates when free pricing is unavailable or nonzero", async () => {
+test("invalid speech configuration is refused before any request", async () => {
   let calls = 0;
   const transport = (async () => {
     calls++;
-    return json({ data: [] });
+    return wav();
   }) as typeof fetch;
-  await assert.rejects(requestSpeech(input, config, transport), FeedbackUnavailable);
-  assert.equal(calls, 1);
   for (const candidate of [
     { ...config, apiKey: "" },
     { ...config, model: "policy/anything" },
@@ -103,7 +72,7 @@ test("speech never generates when free pricing is unavailable or nonzero", async
   ]) {
     await assert.rejects(requestSpeech(input, candidate, transport), FeedbackUnavailable);
   }
-  assert.equal(calls, 1);
+  assert.equal(calls, 0);
 });
 
 test("speech rejects invalid audio, oversized streams, timeouts and provider errors without retries", async () => {
@@ -119,10 +88,7 @@ test("speech rejects invalid audio, oversized streams, timeouts and provider err
       calls++;
       return value;
     }) as typeof fetch;
-    await assert.rejects(
-      requestSpeech(input, { ...config, allowPaid: true }, transport),
-      FeedbackUnavailable,
-    );
+    await assert.rejects(requestSpeech(input, config, transport), FeedbackUnavailable);
     assert.equal(calls, 1);
   }
   await assert.rejects(
@@ -136,9 +102,8 @@ test("speech rejects invalid audio, oversized streams, timeouts and provider err
 test("speech cache replays and deduplicates per account, with no additional provider calls", async () => {
   let calls = 0;
   let complete: (() => void) | undefined;
-  const transport = (async (url) => {
+  const transport = (async () => {
     calls++;
-    if (String(url).endsWith("/models/speech")) return json(catalog);
     await new Promise<void>((resolve) => {
       complete = resolve;
     });
@@ -153,15 +118,15 @@ test("speech cache replays and deduplicates per account, with no additional prov
   assert.equal((await first).cache, "miss");
   assert.equal((await duplicate).cache, "hit");
   assert.equal((await service.get("account-a", input, config, transport)).cache, "hit");
-  assert.equal(calls, 2);
+  assert.equal(calls, 1);
 });
 
 test("speech cache is account/model/voice/language scoped, expires and evicts", async () => {
   let calls = 0;
   let now = Date.UTC(2026, 9, 31, 10);
-  const transport = (async (url) => {
+  const transport = (async () => {
     calls++;
-    return String(url).endsWith("/models/speech") ? json(catalog) : wav();
+    return wav();
   }) as typeof fetch;
   const service = new SpeechService(() => now, 1);
   await service.get("a", input, config, transport);
@@ -182,24 +147,16 @@ test("speech cache is account/model/voice/language scoped, expires and evicts", 
   );
   now += 1000;
   assert.equal(
-    (
-      await service.get(
-        "a",
-        input,
-        { ...config, model: "synthetic/other", allowPaid: true },
-        transport,
-      )
-    ).cache,
+    (await service.get("a", input, { ...config, model: "synthetic/other" }, transport)).cache,
     "miss",
   );
-  assert.equal(calls, 13);
+  assert.equal(calls, 7);
 });
 
 test("speech cooldown is per account and skips cache hits, with no global quota", async () => {
   let now = Date.UTC(2026, 9, 31, 10);
   const service = new SpeechService(() => now);
-  const transport = (async (url) =>
-    String(url).endsWith("/models/speech") ? json(catalog) : wav()) as typeof fetch;
+  const transport = (async () => wav()) as typeof fetch;
   await service.get("a", input, config, transport);
   assert.equal((await service.get("a", input, config, transport)).cache, "hit");
   assert.equal((await service.get("b", input, config, transport)).cache, "miss");
@@ -225,12 +182,12 @@ test("failed speech is not cached, releases concurrency and respects the byte bu
     FeedbackUnavailable,
   );
   now += 1000;
-  const transport = (async (url) => {
+  const transport = (async () => {
     calls++;
-    return String(url).endsWith("/models/speech") ? json(catalog) : wav();
+    return wav();
   }) as typeof fetch;
   assert.equal((await service.get("a", input, config, transport)).cache, "miss");
   now += 1000;
   assert.equal((await service.get("a", input, config, transport)).cache, "miss");
-  assert.equal(calls, 4);
+  assert.equal(calls, 2);
 });

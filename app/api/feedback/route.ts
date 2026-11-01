@@ -29,7 +29,6 @@ export async function POST(request: Request) {
     const comment = await requestLanguageComment(parsed.data, {
       apiKey: config.apiKey,
       model: config.model,
-      allowPaid: config.allowPaid,
     });
     return json({ status: "ready", comment });
   } catch (error) {
