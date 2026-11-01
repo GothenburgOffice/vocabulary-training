@@ -97,8 +97,8 @@ test("bootstrap refuses an invalid ADMIN_EMAIL before writing anything", async (
 });
 
 test("bootstrap refuses to create an admin with an unusable password", async () => {
-  for (const ADMIN_PASSWORD of ["", "too-short", "x".repeat(129)])
+  for (const ADMIN_PASSWORD of ["", "too-short", "x".repeat(4097)])
     await assert.rejects(bootstrapAdmin(fakeClient([]), { ...env, ADMIN_PASSWORD }), {
-      message: /ADMIN_PASSWORD must be 12 to 128 characters/,
+      message: /ADMIN_PASSWORD must be 12 to 4096 characters/,
     });
 });

@@ -98,6 +98,28 @@ Dependencies are reinstalled automatically on start when `package-lock.json`
 changes. On Windows, **Dev Containers: Clone Repository in
 Container Volume** gives faster file watching than a folder on a Windows drive.
 
+**Claude Code memory (optional).** Inside the dev container, Claude Code keeps its
+project memory in `~/.claude-memory/vocabulary-training` on the host (or
+`CLAUDE_MEMORY_DIR`), so it survives rebuilds and `git clean`. Claude Code running
+directly on Windows uses a separate folder,
+`%USERPROFILE%\.claude\projects\<slug>\memory`, where `<slug>` is the repository
+path with every non-alphanumeric character replaced by `-` (for example
+`e--Dokument--Websites-Github-vocabulary-training`; check the real folder name,
+since the drive letter's case can differ). The dev container doesn't link the two.
+To share one memory, replace the Windows folder with a junction once, in PowerShell:
+
+```powershell
+$memory = Join-Path $env:USERPROFILE '.claude-memory\vocabulary-training'   # or $env:CLAUDE_MEMORY_DIR
+$old = Join-Path $env:USERPROFILE '.claude\projects\<slug>\memory'
+New-Item -ItemType Directory -Force $memory | Out-Null
+if (Test-Path $old) { Copy-Item "$old\*" $memory -Recurse; Rename-Item $old 'memory.bak' }
+New-Item -ItemType Junction -Path $old -Target $memory
+```
+
+Check that the junction lists your files, then delete `memory.bak`. To remove or
+retarget the junction, use `cmd /c rmdir "<path>"`: in Windows PowerShell 5.1,
+`Remove-Item -Recurse` on a junction can delete the files it points to.
+
 **Plain Compose.** `docker compose -f compose.yaml -f compose.dev.yaml up --build`,
 then run the commands above with
 `docker compose -f compose.yaml -f compose.dev.yaml exec app <command>`.

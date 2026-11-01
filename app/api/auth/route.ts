@@ -25,9 +25,9 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const origin = requireOrigin(request);
-    const parsed = credentialsSchema.safeParse(await body(request, 4096));
-    if (!parsed.success)
-      throw new HttpError(400, "Enter a valid email and a password of 12 to 128 characters.");
+    // Room for a 4096-character password even when every character is JSON-escaped.
+    const parsed = credentialsSchema.safeParse(await body(request, 32_768));
+    if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
     const { action, email, password } = parsed.data;
     await limitAuth(email);
     let userId: string;
