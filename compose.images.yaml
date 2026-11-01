@@ -28,10 +28,10 @@ services:
     image: ${VOCABULARY_IMAGE:-ghcr.io/gothenburgoffice/vocabulary-training:latest}
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${APP_PORT:-3000}:3000"
+      - "127.0.0.1:${APP_PORT:-3420}:3000"
     environment:
       DATABASE_URL: postgresql://vocabulary:${POSTGRES_PASSWORD}@db:5432/vocabulary
-      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3420}
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
       REQUESTY_API_KEY: ${REQUESTY_API_KEY:-}
       REQUESTY_MODEL: ${REQUESTY_MODEL:-novita/ling-3.1-flash}

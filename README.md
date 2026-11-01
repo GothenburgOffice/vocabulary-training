@@ -42,7 +42,7 @@ docker compose -f compose.images.yaml pull
 docker compose -f compose.images.yaml up -d --wait
 ```
 
-Open <http://localhost:3000>. After creating your account, set
+Open <http://localhost:3420>. After creating your account, set
 `ALLOW_REGISTRATION=false` and run the `up` command again.
 
 The app listens on localhost only and PostgreSQL has no published port. Data lives
@@ -55,8 +55,8 @@ real data.** Both Compose files share the same project and volume name. Use
 | Variable                | Default                              | Purpose                                                             |
 | ----------------------- | ------------------------------------ | ------------------------------------------------------------------- |
 | `POSTGRES_PASSWORD`     | required                             | Database password                                                   |
-| `APP_PORT`              | `3000`                               | Host port (bound to 127.0.0.1)                                      |
-| `APP_ORIGIN`            | `http://localhost:3000`              | Must exactly match the browser origin; HTTPS enables Secure cookies |
+| `APP_PORT`              | `3420`                               | Host port (bound to 127.0.0.1)                                      |
+| `APP_ORIGIN`            | `http://localhost:3420`              | Must exactly match the browser origin; HTTPS enables Secure cookies |
 | `ALLOW_REGISTRATION`    | `false`                              | Allow new accounts                                                  |
 | `VOCABULARY_IMAGE`      | `…:latest`                           | Image for `compose.images.yaml`; pin a `sha-<commit>` tag           |
 | `REQUESTY_API_KEY`      | empty                                | Server-only basic-tier key; empty disables AI notes and audio       |
@@ -69,7 +69,7 @@ real data.** Both Compose files share the same project and volume name. Use
 
 **VS Code Dev Container (recommended).** Create `.env` as above, then run
 **Dev Containers: Reopen in Container**. VS Code starts PostgreSQL, runs
-migrations, starts the Next.js dev server on <http://localhost:3000> and attaches
+migrations, starts the Next.js dev server on <http://localhost:3420> and attaches
 to the `app` container, so TypeScript, ESLint and Prettier see the real
 dependencies. In the integrated terminal:
 
