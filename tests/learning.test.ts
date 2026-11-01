@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   directionOf,
   answersFor,
+  splitCSVAnswers,
   wordFromCSV,
   promptOf,
   normalize,
@@ -134,6 +135,28 @@ test("CSV keeps accepted answers with | in the file only", () => {
   assert.deepEqual(row, ["katt", "chat|minou"]);
   const again = wordFromCSV(row[0], row[1]);
   assert.deepEqual([again.back, again.accepted], ["chat", ["minou"]]);
+});
+
+test("CSV answers escape a literal | and backslash so they survive export and import", () => {
+  // The CSV cells are written as they appear in the file.
+  const file = String.raw;
+  assert.deepEqual(splitCSVAnswers(file`Ju\|'hoan|chat`), ["Ju|'hoan", "chat"]);
+  assert.deepEqual(splitCSVAnswers(file`a\\|b`), ["a\\", "b"]);
+  // A backslash before anything else stays as written.
+  assert.deepEqual(splitCSVAnswers(file`a\b`), [file`a\b`]);
+  const word = makeWord("klick", "Ju|'hoan", "", ["back\\slash", "ends with \\"]);
+  const list = {
+    id: "1",
+    title: "t",
+    description: "",
+    from: "Swedish",
+    to: "French",
+    words: [word],
+  };
+  const [, row] = parseCSV(encodeCSV(list));
+  assert.equal(row[1], file`Ju\|'hoan|back\\slash|ends with \\`);
+  const again = wordFromCSV(row[0], row[1]);
+  assert.deepEqual([again.back, again.accepted], ["Ju|'hoan", ["back\\slash", "ends with \\"]]);
 });
 
 test("directions are stored as the side that was shown", () => {

@@ -1346,7 +1346,8 @@ ${learningLanguage}`;
               Paste a two-column CSV. The first row contains language names or old-style codes such
               as sv,fr. Following rows contain word pairs. To accept more than one answer, separate
               them with | in the second column, for example chat|minou. The first one is shown when
-              you practise. Exports use the same format.
+              you practise. For a | that is part of the answer, write \|. Exports use the same
+              format.
             </p>
             <label className="field">
               CSV contents

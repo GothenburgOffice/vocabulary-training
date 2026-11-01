@@ -101,11 +101,27 @@ export function reviewed(previous: History, correct: boolean, now: number): Hist
   };
 }
 // In CSV files only, "|" separates the accepted answers in the learning column: the first is
-// the primary answer. Stored words keep them apart (Word.accepted).
+// the primary answer. Stored words keep them apart (Word.accepted). "\|" is a literal "|"
+// (some languages write click consonants with it) and "\\" a literal "\"; a backslash before
+// anything else stays as written.
 export const csvAnswers = (word: Pick<Word, "back" | "accepted">) =>
-  [word.back, ...(word.accepted ?? [])].join("|");
+  [word.back, ...(word.accepted ?? [])].map((a) => a.replace(/[\\|]/g, "\\$&")).join("|");
+export function splitCSVAnswers(cell: string): string[] {
+  const answers: string[] = [];
+  let current = "";
+  for (let i = 0; i < cell.length; i++) {
+    const c = cell[i];
+    if (c === "\\" && (cell[i + 1] === "|" || cell[i + 1] === "\\")) current += cell[++i];
+    else if (c === "|") {
+      answers.push(current);
+      current = "";
+    } else current += c;
+  }
+  answers.push(current);
+  return answers.map((a) => a.trim());
+}
 export function wordFromCSV(front: string, answers: string) {
-  const [back = "", ...accepted] = answers.split("|").map((a) => a.trim());
+  const [back = "", ...accepted] = splitCSVAnswers(answers);
   return makeWord(front.trim(), back, "", accepted.filter(Boolean));
 }
 export function encodeCSV(list: List) {
