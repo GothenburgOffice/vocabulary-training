@@ -98,22 +98,15 @@ test("shared feedback input rejects model selection, extra data, invalid languag
     assert.equal(feedbackSchema.safeParse(candidate).success, false);
 });
 
-test("private-preview timeout is bounded and does not change the normal app default", async (t) => {
+test("language comment uses the fixed feedback timeout", async (t) => {
   const deadlines: number[] = [];
   t.mock.method(AbortSignal, "timeout", (milliseconds: number) => {
     deadlines.push(milliseconds);
     return new AbortController().signal;
   });
   const transport = (async () => completion("A short comment.")) as typeof fetch;
-  await requestLanguageComment(input, { ...config, timeoutMs: 180_000 }, transport);
   await requestLanguageComment(input, config, transport);
-  assert.deepEqual(deadlines, [180_000, 30_000]);
-  for (const timeoutMs of [0, -1, 180_001, NaN, Infinity]) {
-    await assert.rejects(
-      requestLanguageComment(input, { ...config, timeoutMs }, transport),
-      FeedbackUnavailable,
-    );
-  }
+  assert.deepEqual(deadlines, [30_000]);
 });
 
 test("prompt is bounded commentary, preserves accents and isolates untrusted input", () => {

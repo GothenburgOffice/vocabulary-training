@@ -9,14 +9,10 @@ export default function SpeechButton({
   text,
   language,
   label,
-  demo = false,
-  previewEndpoint,
 }: {
   text: string;
   language: string;
   label?: string;
-  demo?: boolean;
-  previewEndpoint?: string;
 }) {
   const [state, setState] = useState<"idle" | "loading" | "playing">("idle");
   const [error, setError] = useState("");
@@ -32,15 +28,11 @@ export default function SpeechButton({
       mounted.current = false;
       current.current?.abort();
     };
-  }, [spoken, language, previewEndpoint]);
+  }, [spoken, language]);
 
   async function play() {
     if (state === "playing") {
       current.current?.abort();
-      return;
-    }
-    if (demo && !previewEndpoint) {
-      setError("Audio needs a configured Requesty server.");
       return;
     }
     activePlayback?.abort();
@@ -76,20 +68,9 @@ export default function SpeechButton({
     setError("");
     setState("loading");
     try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (previewEndpoint) {
-        const session = await fetch(`${previewEndpoint}/session`, {
-          signal: controller.signal,
-          cache: "no-store",
-        });
-        if (!session.ok) throw new Error("Unavailable");
-        const proof = await session.json();
-        if (typeof proof.token !== "string") throw new Error("Unavailable");
-        headers["X-Preview-Session"] = proof.token;
-      }
-      const response = await fetch(previewEndpoint ? `${previewEndpoint}/speech` : "/api/speech", {
+      const response = await fetch("/api/speech", {
         method: "POST",
-        headers,
+        headers: { "Content-Type": "application/json" },
         cache: "no-store",
         signal: controller.signal,
         body: JSON.stringify({ text: spoken, language }),
@@ -137,7 +118,7 @@ export default function SpeechButton({
         aria-label={state === "playing" ? `Stop: ${accessibleLabel}` : accessibleLabel}
         aria-pressed={state === "playing"}
         aria-busy={state === "loading"}
-        title={`${state === "playing" ? "Stop audio" : accessibleLabel} · Demo voice, best for English`}
+        title={state === "playing" ? "Stop audio" : accessibleLabel}
       >
         {state === "loading" ? (
           <LoaderCircle size={16} aria-hidden="true" />

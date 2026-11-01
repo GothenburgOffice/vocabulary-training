@@ -21,7 +21,7 @@ export class FeedbackNotNeeded extends Error {
   }
 }
 // Cost is controlled per key in Requesty (fallback policy, Access List, budget), not here.
-type Config = { apiKey: string; model: string; timeoutMs?: number };
+type Config = { apiKey: string; model: string };
 type Fetcher = typeof fetch;
 
 export async function readRequestyJSON(response: Response, max: number): Promise<unknown> {
@@ -61,18 +61,14 @@ export async function requestLanguageComment(
 ) {
   if (!shouldRequestFeedback(input)) throw new FeedbackNotNeeded();
   const policy = config.model.startsWith("policy/");
-  const timeoutMs = config.timeoutMs ?? FEEDBACK_TIMEOUT_MS;
   if (
     !config.apiKey ||
     !config.model ||
     config.model.length > 200 ||
-    !Number.isInteger(timeoutMs) ||
-    timeoutMs < 1000 ||
-    timeoutMs > 180_000 ||
     (policy && !/^policy\/[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(config.model))
   )
     throw new FeedbackUnavailable("configuration");
-  const signal = AbortSignal.timeout(timeoutMs);
+  const signal = AbortSignal.timeout(FEEDBACK_TIMEOUT_MS);
   const headers = { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" };
   try {
     const result = (await readRequestyJSON(

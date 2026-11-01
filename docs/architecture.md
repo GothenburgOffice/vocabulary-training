@@ -48,9 +48,3 @@ Moving to normalized tables with incremental saves: [#1](https://github.com/Goth
 Docker Compose runs `db` (PostgreSQL 17), a one-shot `migrate` job, then `app`
 (a standalone Next.js server, non-root). `compose.dev.yaml` swaps in the dev target
 with the source mounted. `.devcontainer/` attaches VS Code to that dev container.
-
-## Design preview
-
-`scripts/sync-preview.mjs` copies the shared UI (`Workspace` with sample data
-from `lib/sample.ts`) into a separate, private static preview project. It never
-copies server code or secrets. The preview has no accounts or durable saves.

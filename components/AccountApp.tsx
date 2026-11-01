@@ -273,7 +273,7 @@ export default function AccountApp() {
           </button>
         </div>
       )}
-      <Workspace key={loaded.user.id} demo={false} initial={loaded.data} onChange={changed} />
+      <Workspace key={loaded.user.id} initial={loaded.data} onChange={changed} />
     </>
   );
 }
