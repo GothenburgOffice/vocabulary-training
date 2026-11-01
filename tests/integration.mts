@@ -132,3 +132,35 @@ test("real HTTP and PostgreSQL: accounts, ownership, persistence, conflicts, CSR
   }
   assert(limited);
 });
+
+test("real HTTP: the admin area answers 404 to everyone but admins", async () => {
+  assert.equal((await api("/admin")).status, 404);
+  const email = `not-admin-${randomUUID()}@example.test`;
+  const reg = await api("/api/auth", "POST", {
+    action: "register",
+    email,
+    password: "integration-test-only-password",
+  });
+  assert.equal(reg.status, 200, await reg.clone().text());
+  const cookie = reg.headers.get("set-cookie")!.split(";")[0];
+  assert.equal((await api("/admin", "GET", undefined, cookie)).status, 404);
+  const me = await (await api("/api/workspace", "GET", undefined, cookie)).json();
+  assert.equal(me.user.is_admin, false);
+
+  // CI creates this admin through ADMIN_EMAIL/ADMIN_PASSWORD; other stacks skip this part.
+  const adminEmail = process.env.TEST_ADMIN_EMAIL;
+  const adminPassword = process.env.TEST_ADMIN_PASSWORD;
+  if (!adminEmail || !adminPassword) return;
+  const login = await api("/api/auth", "POST", {
+    action: "login",
+    email: adminEmail,
+    password: adminPassword,
+  });
+  assert.equal(login.status, 200, await login.clone().text());
+  const adminCookie = login.headers.get("set-cookie")!.split(";")[0];
+  const admin = await (await api("/api/workspace", "GET", undefined, adminCookie)).json();
+  assert.equal(admin.user.is_admin, true);
+  const page = await api("/admin", "GET", undefined, adminCookie);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /Overview/);
+});

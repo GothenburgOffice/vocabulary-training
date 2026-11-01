@@ -33,6 +33,10 @@ tests. Also run the integration test when API, auth or DB code changed.
 - `lib/validation.ts`: Zod schemas. Update them with any change to the workspace shape.
 - `lib/server/**`: server-only (`import "server-only"`). DB, sessions, Requesty clients.
 - `app/api/*/route.ts`: mutations call `requireOrigin` and then `requireUser`. Errors go through `HttpError`/`fail`.
+- `app/admin/`: the admin area, a shell (`layout.tsx`, `components/admin/AdminNav.tsx`)
+  with one module per section. To add a section: `app/admin/<slug>/page.tsx` (calls
+  `adminPage()`), components in `components/admin/`, API in `app/api/admin/<slug>/`
+  (`requireOrigin`, then `requireAdmin`), and an entry in `lib/admin/sections.ts`.
 - `components/Workspace.tsx`: the whole UI, a client component. It and the
   components it renders must not import server code.
 - `db/migrations/NNN_name.sql`: **append-only**. Never edit an applied migration; add a new file.

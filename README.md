@@ -45,6 +45,12 @@ docker compose -f compose.images.yaml up -d --wait
 Open <http://localhost:3420>. After creating your account, set
 `ALLOW_REGISTRATION=false` and run the `up` command again.
 
+**Admin.** Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` before the first start.
+While no admin exists, each start creates that account, or promotes an existing
+account with that email without changing its password. Admins get an **Admin**
+link in the account bar, leading to `/admin`; everyone else gets a 404 there. The
+flag is `users.is_admin`, so you can also set it directly in the database.
+
 The app listens on localhost only and PostgreSQL has no published port. Data lives
 in a named volume that survives `docker compose down`. **Never use `down -v` on
 real data.** Both Compose files share the same project and volume name. Use
@@ -59,6 +65,8 @@ real data.** Both Compose files share the same project and volume name. Use
 | `APP_ORIGIN`            | `http://localhost:3420`              | Must exactly match the browser origin; HTTPS enables Secure cookies |
 | `APP_ORIGIN_ALIASES`    | empty                                | More accepted origins, comma-separated (e.g. domain aliases)        |
 | `ALLOW_REGISTRATION`    | `false`                              | Allow new accounts                                                  |
+| `ADMIN_EMAIL`           | empty                                | First admin, created on start while no admin exists                 |
+| `ADMIN_PASSWORD`        | empty                                | That admin's password (12–4096 characters), used only to create it  |
 | `VOCABULARY_IMAGE`      | `…:latest`                           | Image for `compose.images.yaml`; pin a `sha-<commit>` tag           |
 | `REQUESTY_API_KEY`      | empty                                | Server-only basic-tier key; empty disables AI notes and audio       |
 | `REQUESTY_MODEL`        | `novita/ling-3.1-flash`              | Model or `policy/<name>` for language notes                         |

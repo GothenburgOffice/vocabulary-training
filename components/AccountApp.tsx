@@ -1,11 +1,11 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowRight, Check, LogOut, RefreshCw } from "lucide-react";
+import { ArrowRight, Check, LogOut, RefreshCw, Settings } from "lucide-react";
 import { BookMark } from "../lib/brand";
 import Workspace from "./Workspace";
 import type { WorkspaceData } from "../lib/workspace";
 
-type Account = { id: string; email: string };
+type Account = { id: string; email: string; is_admin?: boolean };
 type Loaded = { user: Account; data: WorkspaceData; revision: number };
 const fingerprint = (data: WorkspaceData) =>
   JSON.stringify(data, (_key, value) =>
@@ -261,6 +261,11 @@ export default function AccountApp() {
         <span className="save-state" role="status">
           {status === "All changes saved" && <Check size={14} />} {status}
         </span>
+        {loaded.user.is_admin && (
+          <a className="text-button" href="/admin">
+            <Settings size={15} /> Admin
+          </a>
+        )}
         <button className="text-button" disabled={busy} onClick={() => void logout()}>
           <LogOut size={15} /> Sign out
         </button>

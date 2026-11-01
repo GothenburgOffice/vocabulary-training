@@ -36,6 +36,10 @@ jobs:
       APP_PORT: 3013
       APP_ORIGIN: http://127.0.0.1:3013
       ALLOW_REGISTRATION: "true"
+      ADMIN_EMAIL: ci-admin@example.test
+      ADMIN_PASSWORD: ci-only-disposable-admin-password
+      TEST_ADMIN_EMAIL: ci-admin@example.test
+      TEST_ADMIN_PASSWORD: ci-only-disposable-admin-password
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.1.0
@@ -76,6 +80,10 @@ jobs:
       APP_PORT: 3013
       APP_ORIGIN: http://127.0.0.1:3013
       ALLOW_REGISTRATION: "true"
+      ADMIN_EMAIL: ci-admin@example.test
+      ADMIN_PASSWORD: ci-only-disposable-admin-password
+      TEST_ADMIN_EMAIL: ci-admin@example.test
+      TEST_ADMIN_PASSWORD: ci-only-disposable-admin-password
       VOCABULARY_IMAGE: vocabulary-training:publish
     steps:
       - uses: actions/checkout@v7.0.1
