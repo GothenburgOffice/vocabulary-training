@@ -7,8 +7,9 @@ Intended for controlled self-hosting. This is not a security audit.
 - Passwords are salted and hashed with Node's scrypt; raw passwords are never stored.
 - Random 256-bit session tokens are stored only as SHA-256 hashes in PostgreSQL.
   Cookies are HTTP-only, SameSite Strict, host-only and expire after 14 days.
-  A request over an HTTPS origin gets the Secure flag. Signing in on one alias
-  doesn't sign you in on another.
+  A request over an HTTPS origin gets the Secure flag. Sessions are separate only
+  across hostnames: aliases that differ just by port, or by scheme for a cookie
+  without Secure, share the same session cookie.
 - Every workspace read/write derives its owner from the authenticated session.
   The API accepts no client-supplied owner ID.
 - Mutation endpoints require JSON Content-Type and an Origin that exactly matches

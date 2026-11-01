@@ -5,16 +5,6 @@ import { db } from "./db";
 import { hashToken } from "./password";
 import { HttpError } from "./http";
 export const cookieName = "vocabulary_session";
-// origin is the request's verified origin from requireOrigin.
-export function cookieOptions(origin: string) {
-  return {
-    httpOnly: true,
-    sameSite: "strict" as const,
-    path: "/",
-    secure: new URL(origin).protocol === "https:",
-    maxAge: 60 * 60 * 24 * 14,
-  };
-}
 export async function requireUser() {
   const token = (await cookies()).get(cookieName)?.value;
   if (!token || !/^[a-f0-9]{64}$/.test(token)) throw new HttpError(401, "Sign in to continue.");

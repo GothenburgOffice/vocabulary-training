@@ -4,7 +4,7 @@ import { hashPassword, hashToken, verifyPassword } from "../lib/server/password.
 import { credentialsSchema, saveSchema, workspaceSchema } from "../lib/validation.ts";
 import { emptyWorkspace } from "../lib/workspace.ts";
 import { makeWord } from "../lib/learning.ts";
-import { allowedOrigins } from "../lib/server/http.ts";
+import { allowedOrigins, cookieOptions, json, requireOrigin } from "../lib/server/http.ts";
 
 test("salted password hashes verify without storing plaintext", async () => {
   const pass = "test-only-example-passphrase";
@@ -78,4 +78,34 @@ test("allowed origins are the public origin plus exact aliases", () => {
       { status: 503 },
       bad,
     );
+});
+test("the session cookie's Secure flag follows the request's origin, not APP_ORIGIN", () => {
+  const saved = { origin: process.env.APP_ORIGIN, aliases: process.env.APP_ORIGIN_ALIASES };
+  const setCookie = (origin: string) => {
+    const request = new Request("http://app/api/auth", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+    });
+    const response = json({ ok: true });
+    response.cookies.set("session", "token", cookieOptions(requireOrigin(request)));
+    return response.headers.get("set-cookie")!;
+  };
+  try {
+    process.env.APP_ORIGIN = "http://localhost:3420";
+    process.env.APP_ORIGIN_ALIASES = "https://example.com";
+    assert.match(setCookie("https://example.com"), /;\s*Secure/i);
+    assert.doesNotMatch(setCookie("http://localhost:3420"), /;\s*Secure/i);
+
+    process.env.APP_ORIGIN = "https://example.com";
+    process.env.APP_ORIGIN_ALIASES = "http://127.0.0.1:3420";
+    assert.doesNotMatch(setCookie("http://127.0.0.1:3420"), /;\s*Secure/i);
+    assert.match(setCookie("https://example.com"), /;\s*Secure/i);
+  } finally {
+    for (const [key, value] of [
+      ["APP_ORIGIN", saved.origin],
+      ["APP_ORIGIN_ALIASES", saved.aliases],
+    ] as const)
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+  }
 });

@@ -40,6 +40,17 @@ export function requireOrigin(request: Request) {
     throw new HttpError(415, "Use JSON for this request.");
   return origin;
 }
+// origin is the request's verified origin from requireOrigin, not APP_ORIGIN, so each alias
+// gets the Secure flag that matches its own scheme.
+export function cookieOptions(origin: string) {
+  return {
+    httpOnly: true,
+    sameSite: "strict" as const,
+    path: "/",
+    secure: new URL(origin).protocol === "https:",
+    maxAge: 60 * 60 * 24 * 14,
+  };
+}
 export async function body(request: Request, max = 2_000_000): Promise<unknown> {
   if (Number(request.headers.get("content-length")) > max)
     throw new HttpError(
