@@ -15,13 +15,43 @@ export function fail(error: unknown) {
   console.error("Request failed:", error instanceof Error ? error.name : "unknown");
   return json({ error: "The server could not complete the request. Please retry." }, 500);
 }
+// APP_ORIGIN is the public origin; APP_ORIGIN_ALIASES optionally adds more, comma-separated.
+// Each entry must be written exactly as browsers send it, e.g. https://example.com.
+export function allowedOrigins(env: Record<string, string | undefined> = process.env) {
+  if (!env.APP_ORIGIN?.trim()) throw new HttpError(503, "The server origin is not configured.");
+  const origins = [env.APP_ORIGIN, ...(env.APP_ORIGIN_ALIASES ?? "").split(",")]
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  for (const origin of origins) {
+    let bare = false;
+    try {
+      bare = new URL(origin).origin === origin;
+    } catch {}
+    if (!bare) throw new HttpError(503, "The server origin is configured incorrectly.");
+  }
+  return origins;
+}
+// Returns the matched origin, so callers can tell HTTPS from HTTP for that request.
 export function requireOrigin(request: Request) {
-  const expected = process.env.APP_ORIGIN;
-  if (!expected) throw new HttpError(503, "The server origin is not configured.");
-  if (request.headers.get("origin") !== expected)
+  // Check the configuration first, so a misconfigured server answers 503 to every request.
+  const allowed = allowedOrigins();
+  const origin = request.headers.get("origin");
+  if (!origin || !allowed.includes(origin))
     throw new HttpError(403, "This request is not from this application.");
   if (!request.headers.get("content-type")?.startsWith("application/json"))
     throw new HttpError(415, "Use JSON for this request.");
+  return origin;
+}
+// origin is the request's verified origin from requireOrigin, not APP_ORIGIN, so each alias
+// gets the Secure flag that matches its own scheme.
+export function cookieOptions(origin: string) {
+  return {
+    httpOnly: true,
+    sameSite: "strict" as const,
+    path: "/",
+    secure: new URL(origin).protocol === "https:",
+    maxAge: 60 * 60 * 24 * 14,
+  };
 }
 export async function body(request: Request, max = 2_000_000): Promise<unknown> {
   if (Number(request.headers.get("content-length")) > max)

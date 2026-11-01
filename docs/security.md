@@ -7,10 +7,13 @@ Intended for controlled self-hosting. This is not a security audit.
 - Passwords are salted and hashed with Node's scrypt; raw passwords are never stored.
 - Random 256-bit session tokens are stored only as SHA-256 hashes in PostgreSQL.
   Cookies are HTTP-only, SameSite Strict, host-only and expire after 14 days.
-  HTTPS `APP_ORIGIN` enables the Secure flag.
+  A request over an HTTPS origin gets the Secure flag. Sessions are separate only
+  across hostnames: aliases that differ just by port, or by scheme for a cookie
+  without Secure, share the same session cookie.
 - Every workspace read/write derives its owner from the authenticated session.
   The API accepts no client-supplied owner ID.
-- Mutation endpoints require the exact configured Origin and JSON Content-Type.
+- Mutation endpoints require JSON Content-Type and an Origin that exactly matches
+  `APP_ORIGIN` or one of `APP_ORIGIN_ALIASES`.
 - SQL values use parameterized queries. Zod validates all saved workspace data.
 - Session expiry is checked on every request. Sign-out revokes the stored token.
 - Authentication throttles are shared across processes through PostgreSQL.
@@ -23,6 +26,8 @@ Intended for controlled self-hosting. This is not a security audit.
 ## Operator responsibilities
 
 Put HTTPS in front of the app and set `APP_ORIGIN` to the exact public origin.
+List any other domains that serve it in `APP_ORIGIN_ALIASES`, using HTTPS too:
+an HTTP alias gets session cookies without the Secure flag.
 Compose binds the app to loopback by default; a reverse proxy on the host can route
 to it. Containerized proxies should use an internal Docker network rather than
 publishing the database.
