@@ -1,7 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { EMPTY_WORKSPACE, bootstrapAdmin, hashPassword } from "../scripts/admin-bootstrap.mjs";
+import {
+  EMPTY_WORKSPACE,
+  bootstrapAdmin,
+  hashPassword,
+  validAdminEmail,
+} from "../scripts/admin-bootstrap.mjs";
 import { verifyPassword } from "../lib/server/password.ts";
+import { credentialsSchema } from "../lib/validation.ts";
 import { emptyWorkspace } from "../lib/workspace.ts";
 
 // Answers the bootstrap's queries from a list of users and records the writes.
@@ -57,9 +63,42 @@ test("bootstrap promotes an existing account without touching its password", asy
   assert.equal(client.writes.length, 0);
 });
 
+test("bootstrap accepts exactly the emails that can sign in", () => {
+  // 255 characters; long.slice(1) is the 254-character limit.
+  const long = `${"a".repeat(61)}@${"b".repeat(180)}.example.test`;
+  for (const email of [
+    "admin@example.test",
+    "first.last+tag@sub.example.test",
+    "o'brien@example.test",
+    "bad",
+    "admin@",
+    "@example.test",
+    "admin@example",
+    ".admin@example.test",
+    "admin.@example.test",
+    "ad..min@example.test",
+    "admin@-example.test",
+    long,
+    long.slice(1),
+  ]) {
+    const signIn = credentialsSchema.shape.email.safeParse(email).success;
+    assert.equal(validAdminEmail(email), signIn, email);
+  }
+});
+
+test("bootstrap refuses an invalid ADMIN_EMAIL before writing anything", async () => {
+  for (const ADMIN_EMAIL of ["bad", "admin@example", `${"a".repeat(250)}@example.test`]) {
+    const client = fakeClient([]);
+    await assert.rejects(bootstrapAdmin(client, { ...env, ADMIN_EMAIL }), {
+      message: /ADMIN_EMAIL must be a valid email address/,
+    });
+    assert.equal(client.writes.length, 0);
+  }
+});
+
 test("bootstrap refuses to create an admin with an unusable password", async () => {
-  for (const ADMIN_PASSWORD of ["", "too-short", "x".repeat(4097)])
+  for (const ADMIN_PASSWORD of ["", "too-short", "x".repeat(129)])
     await assert.rejects(bootstrapAdmin(fakeClient([]), { ...env, ADMIN_PASSWORD }), {
-      message: /ADMIN_PASSWORD must be 12 to 4096 characters/,
+      message: /ADMIN_PASSWORD must be 12 to 128 characters/,
     });
 });
