@@ -40,14 +40,19 @@ tests. Also run the integration test when API, auth or DB code changed.
 
 ## Rules that must not regress
 
-- Grading, statistics and scheduling are deterministic. AI never grades,
-  accepts alternatives or edits words.
-- AI language notes are requested **only** for wrong, non-skipped answers, and
-  this is enforced in the UI, the route and the adapter. Never send account
-  IDs or whole lists to a provider.
-- `REQUESTY_API_KEY` stays server-side: never a `NEXT_PUBLIC_` variable, and never in source, images or docs.
-  Paid models stay off unless `REQUESTY_ALLOW_PAID_MODELS=true`.
-- The answer audio button is hidden until the answer is graded or skipped. Audio only plays on click.
+- Each AI call has one job. Keep it to that job:
+  - **Language notes** (`/api/feedback`): after a wrong, non-skipped answer, a short
+    note on how the attempt differs from the reference. The note explains; it never
+    judges. It doesn't decide or change the grade, call the answer acceptable, or
+    suggest new alternatives. It's requested only for wrong, non-skipped answers,
+    enforced in the UI, the route and the adapter.
+  - **Word audio** (`/api/speech`): reads one phrase aloud. Only plays on click, and
+    the answer's audio button stays hidden until the answer is graded or skipped.
+- Grading, statistics and scheduling are deterministic code.
+- Send a provider only what its call needs: never account IDs or whole lists.
+- Requesty keys (`REQUESTY_API_KEY`, `REQUESTY_PLUS_API_KEY`) stay server-side: never a
+  `NEXT_PUBLIC_` variable, and never in source, images or docs. Cost is controlled per key
+  in Requesty (fallback policy, Access List, budget), not by app-side price checks.
 - Lists belong to a base and target language pair. Changing the profile's base
   language never relabels or migrates lists. Base and target must differ.
 - Answer normalization never rewrites stored text. Accents are strict by default.

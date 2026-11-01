@@ -9,7 +9,6 @@ const env = {
   REQUESTY_MODEL: "basic/model",
   REQUESTY_SPEECH_MODEL: "basic/tts",
   REQUESTY_SPEECH_VOICE: "Mia",
-  REQUESTY_ALLOW_PAID_MODELS: "true",
 };
 
 test("basic tier uses the basic settings and defaults", () => {
@@ -19,7 +18,6 @@ test("basic tier uses the basic settings and defaults", () => {
     model: DEFAULT_FEEDBACK_MODEL,
     speechModel: DEFAULT_SPEECH_MODEL,
     speechVoice: DEFAULT_SPEECH_VOICE,
-    allowPaid: false,
   });
   assert.equal(aiConfig("basic", env).apiKey, "basic-key");
 });
@@ -34,7 +32,7 @@ test("plus tier without its own key uses the basic tier", () => {
   assert.deepEqual(aiConfig("plus", env), aiConfig("basic", env));
 });
 
-test("plus tier uses its own key and models, inheriting blanks but never paid access", () => {
+test("plus tier uses its own key and models, inheriting blank settings", () => {
   const plus = aiConfig("plus", {
     ...env,
     REQUESTY_PLUS_API_KEY: "plus-key",
@@ -47,11 +45,5 @@ test("plus tier uses its own key and models, inheriting blanks but never paid ac
     model: "plus/model",
     speechModel: "basic/tts",
     speechVoice: "Mia",
-    allowPaid: false,
   });
-  assert.equal(
-    aiConfig("plus", { REQUESTY_PLUS_API_KEY: "k", REQUESTY_PLUS_ALLOW_PAID_MODELS: "true" })
-      .allowPaid,
-    true,
-  );
 });

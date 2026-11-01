@@ -39,38 +39,29 @@ For alternatives (`a|b`) only the first is spoken.
 ## Tiers
 
 Each account has an `ai_tier`, `basic` (default) or `plus`. Each tier has its own
-Requesty key and models, so spend limits and fallback policies for each tier are
-set on its key in Requesty.
+Requesty key and models, so each tier's budget and fallback routing are set on
+its key in Requesty (see [Cost control](#cost-control)).
 
 | Setting           | Basic                         | Plus                               |
 | ----------------- | ----------------------------- | ---------------------------------- |
 | Key               | `REQUESTY_API_KEY`            | `REQUESTY_PLUS_API_KEY`            |
 | Language notes    | `REQUESTY_MODEL`              | `REQUESTY_PLUS_MODEL`              |
 | Audio model/voice | `REQUESTY_SPEECH_MODEL/VOICE` | `REQUESTY_PLUS_SPEECH_MODEL/VOICE` |
-| Paid models       | `REQUESTY_ALLOW_PAID_MODELS`  | `REQUESTY_PLUS_ALLOW_PAID_MODELS`  |
 
 A blank plus model or voice uses the basic value. Without a plus key, plus
-accounts use the basic tier. The paid-models switch is never inherited. There is
-no admin UI yet; set a tier in the database:
+accounts use the basic tier. There is no admin UI yet; set a tier in the database:
 
 ```sh
-docker compose exec db psql -U vocabulary -c   "UPDATE users SET ai_tier='plus' WHERE email='you@example.com'"
+docker compose exec db psql -U vocabulary -c "UPDATE users SET ai_tier='plus' WHERE email='you@example.com'"
 ```
 
-## Free-only guard
+## Cost control
 
-With paid models off (the default for both tiers), the server checks the key's
-authenticated model catalog before each uncached generation:
-
-- **Direct model:** that model must have known zero pricing.
-- **`policy/<name>`:** every concrete model visible to the key must have known
-  zero pricing. An empty, unknown or mixed catalog is refused. Unpriced
-  `policy/` entries are not taken as evidence that a model is free.
-
-The check and the generation are not atomic, and pricing can change. Also restrict
-models and spending in Requesty itself, for example with a key-specific
-[Access List](https://docs.requesty.ai/features/access-lists). To use a paid
-model, change the model setting and set that tier's paid-models switch to `true`.
+The app has no price checks. Cost is controlled on each tier's key in Requesty:
+use a `policy/<name>` model for fallback routing, an
+[Access List](https://docs.requesty.ai/features/access-lists) to limit which
+models the key may use, and a budget on the key. When a key runs out or is
+refused, the feature shows its quiet "unavailable" state and practice continues.
 
 ## Per-account guards
 

@@ -20,7 +20,6 @@ export async function POST(request: Request) {
       apiKey: config.apiKey,
       model: config.speechModel,
       voice: config.speechVoice,
-      allowPaid: config.allowPaid,
     });
     return new Response(new Uint8Array(result.bytes), {
       headers: {

@@ -1,40 +1,14 @@
 import { createHash } from "node:crypto";
 import { SPEECH_TIMEOUT_MS, type SpeechInput } from "../speech";
 import { speechSchema } from "./speech-input";
-import { FeedbackLimiter, FeedbackUnavailable, readRequestyJSON } from "./requesty-client";
+import { FeedbackLimiter, FeedbackUnavailable } from "./requesty-client";
 
 export const DEFAULT_SPEECH_MODEL = "deepinfra/XiaomiMiMo/MiMo-V2.5-tts";
 export const DEFAULT_SPEECH_VOICE = "Mia";
 const endpoint = "https://router.requesty.ai/v1";
 const MAX_AUDIO_BYTES = 4_000_000;
-export type SpeechConfig = { apiKey: string; model: string; voice: string; allowPaid: boolean };
+export type SpeechConfig = { apiKey: string; model: string; voice: string };
 export type SpeechAudio = { bytes: Uint8Array; contentType: "audio/wav" };
-
-export function isZeroPricedSpeechModel(catalog: unknown, id: string): boolean {
-  if (
-    !catalog ||
-    typeof catalog !== "object" ||
-    !("data" in catalog) ||
-    !Array.isArray(catalog.data)
-  )
-    return false;
-  const matches = catalog.data.filter(
-    (item: unknown) => item && typeof item === "object" && "id" in item && item.id === id,
-  );
-  if (matches.length !== 1) return false;
-  const pricing = matches[0].pricing;
-  return (
-    !!pricing &&
-    !Array.isArray(pricing) &&
-    typeof pricing === "object" &&
-    pricing.input_character === 0 &&
-    Object.entries(pricing).every(
-      ([key, value]) =>
-        ["input_character", "output_character", "input_token", "output_token"].includes(key) &&
-        value === 0,
-    )
-  );
-}
 
 function checkConfig(config: SpeechConfig) {
   if (
@@ -60,19 +34,6 @@ export async function requestSpeech(
   const signal = AbortSignal.timeout(SPEECH_TIMEOUT_MS);
   const headers = { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" };
   try {
-    if (!config.allowPaid) {
-      const catalog = await readRequestyJSON(
-        await transport(`${endpoint}/models/speech`, {
-          headers,
-          signal,
-          cache: "no-store",
-          redirect: "error",
-        }),
-        4_000_000,
-      );
-      if (!isZeroPricedSpeechModel(catalog, config.model))
-        throw new FeedbackUnavailable("configuration");
-    }
     const response = await transport(`${endpoint}/audio/speech`, {
       method: "POST",
       headers,
