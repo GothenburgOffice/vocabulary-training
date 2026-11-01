@@ -58,8 +58,8 @@ test("bootstrap promotes an existing account without touching its password", asy
 });
 
 test("bootstrap refuses to create an admin with an unusable password", async () => {
-  for (const ADMIN_PASSWORD of ["", "too-short", "x".repeat(4097)])
+  for (const ADMIN_PASSWORD of ["", "too-short", "x".repeat(129)])
     await assert.rejects(bootstrapAdmin(fakeClient([]), { ...env, ADMIN_PASSWORD }), {
-      message: /ADMIN_PASSWORD must be 12 to 4096 characters/,
+      message: /ADMIN_PASSWORD must be 12 to 128 characters/,
     });
 });
