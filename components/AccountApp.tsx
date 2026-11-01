@@ -1,13 +1,21 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowRight, Check, LogOut, RefreshCw } from "lucide-react";
+import { ArrowRight, Check, LogOut, RefreshCw, Settings } from "lucide-react";
 import { BookMark } from "../lib/brand";
 import Workspace from "./Workspace";
 import type { WorkspaceData } from "../lib/workspace";
+import { NO_AI, type AiFeatures, type Language } from "../lib/languages";
+import { AiFeaturesContext } from "./AiFeatures";
 import { PASSWORD_MAX, PASSWORD_MIN } from "../lib/validation";
 
-type Account = { id: string; email: string };
-type Loaded = { user: Account; data: WorkspaceData; revision: number };
+type Account = { id: string; email: string; is_admin?: boolean };
+type Loaded = {
+  user: Account;
+  data: WorkspaceData;
+  revision: number;
+  languages?: Language[];
+  ai?: AiFeatures;
+};
 const fingerprint = (data: WorkspaceData) =>
   JSON.stringify(data, (_key, value) =>
     value && typeof value === "object" && !Array.isArray(value)
@@ -262,6 +270,11 @@ export default function AccountApp() {
         <span className="save-state" role="status">
           {status === "All changes saved" && <Check size={14} />} {status}
         </span>
+        {loaded.user.is_admin && (
+          <a className="text-button" href="/admin">
+            <Settings size={15} /> Admin
+          </a>
+        )}
         <button className="text-button" disabled={busy} onClick={() => void logout()}>
           <LogOut size={15} /> Sign out
         </button>
@@ -274,7 +287,14 @@ export default function AccountApp() {
           </button>
         </div>
       )}
-      <Workspace key={loaded.user.id} initial={loaded.data} onChange={changed} />
+      <AiFeaturesContext.Provider value={loaded.ai ?? NO_AI}>
+        <Workspace
+          key={loaded.user.id}
+          initial={loaded.data}
+          onChange={changed}
+          languageList={loaded.languages}
+        />
+      </AiFeaturesContext.Provider>
     </>
   );
 }

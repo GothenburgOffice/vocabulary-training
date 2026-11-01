@@ -3,11 +3,11 @@ import { SPEECH_TIMEOUT_MS, type SpeechInput } from "../speech";
 import { speechSchema } from "./speech-input";
 import { FeedbackLimiter, FeedbackUnavailable } from "./requesty-client";
 
-export const DEFAULT_SPEECH_MODEL = "deepinfra/XiaomiMiMo/MiMo-V2.5-tts";
-export const DEFAULT_SPEECH_VOICE = "Mia";
 const endpoint = "https://router.requesty.ai/v1";
 const MAX_AUDIO_BYTES = 4_000_000;
-export type SpeechConfig = { apiKey: string; model: string; voice: string };
+// Voice and instructions are optional: not every model accepts them, so they are sent only
+// when set.
+export type SpeechConfig = { apiKey: string; model: string; voice: string; instructions: string };
 export type SpeechAudio = { bytes: Uint8Array; contentType: "audio/wav" };
 
 function checkConfig(config: SpeechConfig) {
@@ -16,9 +16,10 @@ function checkConfig(config: SpeechConfig) {
     !config.model ||
     config.model.length > 200 ||
     config.model.startsWith("policy/") ||
-    !config.voice.trim() ||
     config.voice.length > 60 ||
-    /[\u0000-\u001f\u007f]/u.test(config.voice)
+    /[\u0000-\u001f\u007f]/u.test(config.voice) ||
+    config.instructions.length > 2000 ||
+    /[\u0000-\u0008\u000b-\u001f\u007f]/u.test(config.instructions)
   ) {
     throw new FeedbackUnavailable("configuration");
   }
@@ -42,7 +43,8 @@ export async function requestSpeech(
       redirect: "error",
       body: JSON.stringify({
         model: config.model,
-        voice: config.voice,
+        ...(config.voice ? { voice: config.voice } : {}),
+        ...(config.instructions ? { instructions: config.instructions } : {}),
         input: input.text,
         response_format: "wav",
       }),
@@ -105,7 +107,16 @@ export class SpeechService {
     if (!user || user.length > 256 || !speechSchema.safeParse(input).success)
       throw new FeedbackUnavailable("configuration");
     const key = createHash("sha256")
-      .update(JSON.stringify([user, config.model, config.voice, input.language, input.text]))
+      .update(
+        JSON.stringify([
+          user,
+          config.model,
+          config.voice,
+          config.instructions,
+          input.language,
+          input.text,
+        ]),
+      )
       .digest("hex");
     const now = this.clock();
     const existing = this.entries.get(key);

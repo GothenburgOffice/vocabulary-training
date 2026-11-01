@@ -2,19 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { pronunciationText } from "../lib/speech.ts";
 import { speechSchema } from "../lib/server/speech-input.ts";
-import {
-  DEFAULT_SPEECH_MODEL,
-  DEFAULT_SPEECH_VOICE,
-  requestSpeech,
-  SpeechService,
-} from "../lib/server/speech-client.ts";
+import { requestSpeech, SpeechService } from "../lib/server/speech-client.ts";
 import { FeedbackUnavailable } from "../lib/server/requesty-client.ts";
 
 const input = { text: "Hello", language: "English" };
 const config = {
   apiKey: "synthetic-test-key",
-  model: DEFAULT_SPEECH_MODEL,
-  voice: DEFAULT_SPEECH_VOICE,
+  model: "synthetic/tts",
+  voice: "Mia",
+  instructions: "",
 };
 const wav = () => {
   const bytes = Buffer.alloc(48);
@@ -52,11 +48,24 @@ test("speech makes exactly one WAV generation", async () => {
   assert.match(calls[0].url, /\/audio\/speech$/);
   assert.equal(calls[0].init?.redirect, "error");
   assert.deepEqual(JSON.parse(String(calls[0].init?.body)), {
-    model: DEFAULT_SPEECH_MODEL,
+    model: "synthetic/tts",
     voice: "Mia",
     input: "Hello",
     response_format: "wav",
   });
+});
+
+test("speech sends voice and instructions only when they are set", async () => {
+  const bodies: Record<string, unknown>[] = [];
+  const transport = (async (_url, init) => {
+    bodies.push(JSON.parse(String(init?.body)));
+    return wav();
+  }) as typeof fetch;
+  await requestSpeech(input, { ...config, voice: "" }, transport);
+  await requestSpeech(input, { ...config, instructions: "Speak slowly." }, transport);
+  assert.equal("voice" in bodies[0], false);
+  assert.equal("instructions" in bodies[0], false);
+  assert.equal(bodies[1].instructions, "Speak slowly.");
 });
 
 test("invalid speech configuration is refused before any request", async () => {
@@ -68,7 +77,9 @@ test("invalid speech configuration is refused before any request", async () => {
   for (const candidate of [
     { ...config, apiKey: "" },
     { ...config, model: "policy/anything" },
-    { ...config, voice: "" },
+    { ...config, model: "" },
+    { ...config, voice: "x".repeat(61) },
+    { ...config, instructions: "x".repeat(2001) },
   ]) {
     await assert.rejects(requestSpeech(input, candidate, transport), FeedbackUnavailable);
   }

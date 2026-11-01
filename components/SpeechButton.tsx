@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { LoaderCircle, Square, Volume2 } from "lucide-react";
 import { pronunciationText, SPEECH_TIMEOUT_MS } from "../lib/speech";
+import { AiFeaturesContext } from "./AiFeatures";
 
 let activePlayback: AbortController | undefined;
 
@@ -14,6 +15,7 @@ export default function SpeechButton({
   language: string;
   label?: string;
 }) {
+  const ai = useContext(AiFeaturesContext);
   const [state, setState] = useState<"idle" | "loading" | "playing">("idle");
   const [error, setError] = useState("");
   const current = useRef<AbortController | undefined>(undefined);
@@ -108,6 +110,8 @@ export default function SpeechButton({
       stop();
     }
   }
+  // No speech model for this language (or no key): no button at all.
+  if (!ai.speech.includes(language)) return null;
   return (
     <span className="speech-control">
       <button

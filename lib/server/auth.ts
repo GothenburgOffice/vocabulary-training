@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { notFound } from "next/navigation";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { hashToken } from "./password";
@@ -9,11 +10,30 @@ export async function requireUser() {
   const token = (await cookies()).get(cookieName)?.value;
   if (!token || !/^[a-f0-9]{64}$/.test(token)) throw new HttpError(401, "Sign in to continue.");
   const result = await db.query(
-    "SELECT u.id,u.email,u.ai_tier FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()",
+    "SELECT u.id,u.email,u.ai_tier,u.is_admin FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()",
     [hashToken(token)],
   );
   if (!result.rowCount) throw new HttpError(401, "Your session has expired. Sign in again.");
-  return result.rows[0] as { id: string; email: string; ai_tier: string };
+  return result.rows[0] as { id: string; email: string; ai_tier: string; is_admin: boolean };
+}
+// Admin pages and routes answer 404 to everyone else, so they don't reveal that they exist.
+export async function requireAdmin() {
+  const user = await requireUser().catch((e) => {
+    if (e instanceof HttpError && e.status === 401) return null;
+    throw e;
+  });
+  if (!user?.is_admin) throw new HttpError(404, "Not found.");
+  return user;
+}
+// For admin pages: everyone else gets the normal 404 page. Call it in every admin page,
+// not only the layout, because client navigation doesn't rerun the layout.
+export async function adminPage() {
+  try {
+    return await requireAdmin();
+  } catch (e) {
+    if (e instanceof HttpError && e.status === 404) notFound();
+    throw e;
+  }
 }
 export async function createSession(userId: string) {
   const token = randomBytes(32).toString("hex");

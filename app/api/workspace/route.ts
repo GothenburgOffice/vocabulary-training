@@ -1,5 +1,7 @@
 import { db } from "../../../lib/server/db";
 import { requireUser } from "../../../lib/server/auth";
+import { aiConfig } from "../../../lib/server/ai-config";
+import { loadAiSettings } from "../../../lib/server/site-settings";
 import { body, fail, HttpError, json, requireOrigin } from "../../../lib/server/http";
 import { saveSchema } from "../../../lib/validation";
 export const runtime = "nodejs";
@@ -11,7 +13,16 @@ export async function GET() {
       user.id,
     ]);
     if (!result.rowCount) throw new HttpError(404, "Workspace not found.");
-    return json({ user, ...result.rows[0] });
+    const settings = await loadAiSettings();
+    // The language list (names, CSV codes, hidden flags) and which AI features this
+    // account can use. Never keys or model settings.
+    const languages = settings.languages.map(({ name, code, hidden }) => ({ name, code, hidden }));
+    return json({
+      user,
+      ...result.rows[0],
+      languages,
+      ai: aiConfig(user.ai_tier, settings).features,
+    });
   } catch (e) {
     return fail(e);
   }
