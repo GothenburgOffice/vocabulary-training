@@ -52,14 +52,21 @@ test("real HTTP and PostgreSQL: accounts, ownership, persistence, conflicts, CSR
     ).status,
     400,
   );
-  const disabledAudio = await api(
-    "/api/speech",
-    "POST",
-    { text: "hello", language: "English" },
-    cookie,
-  );
-  assert.equal(disabledAudio.status, 503);
-  assert.equal((await disabledAudio.json()).status, "disabled");
+  // The server lists its languages and this account's AI features, never keys or models.
+  assert(first.languages.some((l: { name: string }) => l.name === "English"));
+  assert.equal(JSON.stringify(first).includes("model"), false);
+  // Only check the disabled path when English has no speech, so a dev stack with a real key
+  // never makes a paid call here.
+  if (!first.ai.speech.includes("English")) {
+    const disabledAudio = await api(
+      "/api/speech",
+      "POST",
+      { text: "hello", language: "English" },
+      cookie,
+    );
+    assert.equal(disabledAudio.status, 503);
+    assert.equal((await disabledAudio.json()).status, "disabled");
+  }
   assert.equal(first.data.lists.length, 0);
   const list = {
     id: "one",
@@ -131,6 +138,122 @@ test("real HTTP and PostgreSQL: accounts, ownership, persistence, conflicts, CSR
     }
   }
   assert(limited);
+});
+
+test("real HTTP: the admin area answers 404 to everyone but admins", async () => {
+  assert.equal((await api("/admin")).status, 404);
+  const email = `not-admin-${randomUUID()}@example.test`;
+  const reg = await api("/api/auth", "POST", {
+    action: "register",
+    email,
+    password: "integration-test-only-password",
+  });
+  assert.equal(reg.status, 200, await reg.clone().text());
+  const cookie = reg.headers.get("set-cookie")!.split(";")[0];
+  assert.equal((await api("/admin", "GET", undefined, cookie)).status, 404);
+  const me = await (await api("/api/workspace", "GET", undefined, cookie)).json();
+  assert.equal(me.user.is_admin, false);
+
+  // CI creates this admin through ADMIN_EMAIL/ADMIN_PASSWORD; other stacks skip this part.
+  const adminEmail = process.env.TEST_ADMIN_EMAIL;
+  const adminPassword = process.env.TEST_ADMIN_PASSWORD;
+  if (!adminEmail || !adminPassword) return;
+  const login = await api("/api/auth", "POST", {
+    action: "login",
+    email: adminEmail,
+    password: adminPassword,
+  });
+  assert.equal(login.status, 200, await login.clone().text());
+  const adminCookie = login.headers.get("set-cookie")!.split(";")[0];
+  const admin = await (await api("/api/workspace", "GET", undefined, adminCookie)).json();
+  assert.equal(admin.user.is_admin, true);
+  const page = await api("/admin", "GET", undefined, adminCookie);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /Overview/);
+});
+
+test("real HTTP: admin AI settings and languages, with dummy keys and no provider calls", async () => {
+  const adminEmail = process.env.TEST_ADMIN_EMAIL;
+  const adminPassword = process.env.TEST_ADMIN_PASSWORD;
+  // This writes site settings, so it needs its own opt-in (CI sets it) on a stack whose AI
+  // settings are empty, never only the admin login that the admin-access test uses.
+  if (!adminEmail || !adminPassword || process.env.TEST_WRITE_SITE_SETTINGS !== "1") return;
+  const login = await api("/api/auth", "POST", {
+    action: "login",
+    email: adminEmail,
+    password: adminPassword,
+  });
+  assert.equal(login.status, 200, await login.clone().text());
+  const admin = login.headers.get("set-cookie")!.split(";")[0];
+  const dummyKey = "rqsty-sk-integration-test-dummy-key";
+  type AdminLanguage = { name: string; revision: string; speech: { model: string } };
+  const readLanguages = async (): Promise<AdminLanguage[]> =>
+    (await (await api("/api/admin/languages", "GET", undefined, admin)).json()).languages;
+
+  const before = await (await api("/api/admin/ai", "GET", undefined, admin)).json();
+  const languages = await readLanguages();
+  assert.deepEqual(
+    [before.tiers.basic, before.tiers.plus, languages.filter((l) => l.speech.model).length],
+    [{ model: "", key: { state: "unset" } }, { model: "", key: { state: "unset" } }, 0],
+    "TEST_WRITE_SITE_SETTINGS needs a stack without AI settings: this test clears them.",
+  );
+  const english = languages.find((l) => l.name === "English")!;
+  try {
+    assert.equal((await api("/api/admin/ai")).status, 404);
+    assert.equal(
+      (
+        await api("/api/admin/ai", "PUT", { tier: "basic", model: "x" }, admin, {
+          Origin: "https://attacker.invalid",
+        })
+      ).status,
+      403,
+    );
+    const saved = await api(
+      "/api/admin/ai",
+      "PUT",
+      { tier: "basic", apiKey: dummyKey, model: "synthetic/chat" },
+      admin,
+    );
+    assert.equal(saved.status, 200, await saved.clone().text());
+    const view = await saved.text();
+    assert.equal(view.includes(dummyKey), false);
+    assert.equal(JSON.parse(view).tiers.basic.key.hint, dummyKey.slice(-4));
+
+    const speech = (model: string) => ({
+      ...english,
+      speech: { model, voice: "", instructions: "" },
+    });
+    assert.equal((await api("/api/admin/languages", "PUT", speech("policy/x"), admin)).status, 400);
+    assert.equal(
+      (await api("/api/admin/languages", "PUT", speech("synthetic/tts"), admin)).status,
+      200,
+    );
+    // Saved from the revision loaded before that change: refused, not overwritten.
+    const stale = await api("/api/admin/languages", "PUT", { ...english, hidden: true }, admin);
+    assert.equal(stale.status, 409);
+    const name = `Integration ${randomUUID().slice(0, 8)}`;
+    const added = await api("/api/admin/languages", "POST", { name, code: "" }, admin);
+    assert.equal(added.status, 200, await added.clone().text());
+    const integration = (await added.json()).languages.find((l: AdminLanguage) => l.name === name);
+    assert.equal(
+      (await api("/api/admin/languages", "PUT", { ...integration, hidden: true }, admin)).status,
+      200,
+    );
+
+    const me = await (await api("/api/workspace", "GET", undefined, admin)).json();
+    assert.deepEqual(me.ai, { languageNotes: true, speech: ["English"] });
+    assert(
+      me.languages.some((l: { name: string; hidden: boolean }) => l.name === name && l.hidden),
+    );
+    assert.equal(JSON.stringify(me).includes(dummyKey), false);
+  } finally {
+    // Back to no key, no models and English as it was, even after a failed assertion.
+    await api("/api/admin/ai", "PUT", { tier: "basic", apiKey: null, model: "" }, admin);
+    const current = (await readLanguages()).find((l) => l.name === "English")!;
+    await api("/api/admin/languages", "PUT", { ...english, revision: current.revision }, admin);
+  }
+  const after = await (await api("/api/workspace", "GET", undefined, admin)).json();
+  assert.deepEqual(after.ai, { languageNotes: false, speech: [] });
 });
 
 test("real HTTP: a 4096-character password registers and signs in; longer gets a clear 400", async () => {

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useContext, useEffect, useRef, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -33,30 +33,13 @@ import {
   type List,
 } from "../lib/learning";
 import type { WorkspaceData, Result, Run } from "../lib/workspace";
+import { DEFAULT_LANGUAGES, languageCodes, pickerLanguages, type Language } from "../lib/languages";
+import { AiFeaturesContext } from "./AiFeatures";
 import LanguageNote from "./LanguageNote";
 import RequestyAttribution from "./RequestyAttribution";
 import SpeechButton from "./SpeechButton";
 
 type View = "library" | "editor" | "test" | "results" | "history";
-const languages = [
-  "Swedish",
-  "French",
-  "English",
-  "Spanish",
-  "German",
-  "Italian",
-  "Japanese",
-  "Other",
-];
-const codes: Record<string, string> = {
-  sv: "Swedish",
-  fr: "French",
-  en: "English",
-  es: "Spanish",
-  de: "German",
-  it: "Italian",
-  ja: "Japanese",
-};
 function Button({
   children,
   onClick,
@@ -72,11 +55,17 @@ function Button({
 export default function Workspace({
   initial,
   onChange,
+  languageList = DEFAULT_LANGUAGES,
 }: {
   initial: WorkspaceData;
   onChange?: (data: WorkspaceData) => void;
+  languageList?: Language[];
 }) {
   const now = Date.now();
+  const ai = useContext(AiFeaturesContext);
+  // Visible languages and Other; hidden ones only where already in use (added below).
+  const languages = pickerLanguages(languageList);
+  const codes = languageCodes(languageList);
   const [lists, setLists] = useState<List[]>(initial.lists);
   const [selected, setSelected] = useState("");
   const [view, setView] = useState<View>("library");
@@ -188,12 +177,18 @@ export default function Workspace({
           lists.filter((l) => l.from === profileBase && l.to !== profileBase).map((l) => l.to),
         ),
       ].sort();
+      // With every language hidden only "Other" is offered, so fall back to hidden ones too.
+      const nextLearning = targets.includes(learningLanguage)
+        ? learningLanguage
+        : targets[0] ||
+          languages.find((l) => l !== profileBase) ||
+          languageList.map((l) => l.name).find((l) => l !== profileBase);
+      if (!nextLearning) {
+        setError("There is no other language to learn with this base language yet.");
+        return;
+      }
       setBaseLanguage(profileBase);
-      setLearningLanguage(
-        targets.includes(learningLanguage)
-          ? learningLanguage
-          : targets[0] || languages.find((l) => l !== profileBase)!,
-      );
+      setLearningLanguage(nextLearning);
       setSelected("");
       setQuery("");
       setDirection("forward");
@@ -1064,7 +1059,7 @@ export default function Workspace({
                   </div>
                 )}
               </form>
-              {feedback && (
+              {feedback && ai.languageNotes && (
                 <LanguageNote
                   skipped={!!feedback.skipped}
                   input={{
@@ -1225,7 +1220,7 @@ export default function Workspace({
               Simple review statistics. <CircleHelp size={13} />
             </button>
           </div>
-          <RequestyAttribution />
+          {(ai.languageNotes || ai.speech.length > 0) && <RequestyAttribution />}
         </footer>
       </main>
       <dialog
@@ -1275,7 +1270,7 @@ export default function Workspace({
                 disabled={view === "test"}
                 onChange={(e) => setProfileBase(e.target.value)}
               >
-                {languages.map((l) => (
+                {pickerLanguages(languageList, [baseLanguage, profileBase]).map((l) => (
                   <option key={l}>{l}</option>
                 ))}
               </select>
@@ -1403,11 +1398,13 @@ export default function Workspace({
               These are tunable rules, not validated memory estimates. Review dates use your current
               device time. Each direction has its own history.
             </p>
-            <p>
-              Speaker buttons play only when clicked. Generated voices can mispronounce some
-              languages. The first saved alternative is spoken; answer audio appears after grading
-              or skipping. Audio never changes your grade.
-            </p>
+            {ai.speech.length > 0 && (
+              <p>
+                Speaker buttons play only when clicked. Generated voices can mispronounce some
+                languages. The first saved alternative is spoken; answer audio appears after grading
+                or skipping. Audio never changes your grade.
+              </p>
+            )}
             <Button primary onClick={() => setModal(null)}>
               Back to my words <ArrowRight size={16} />
             </Button>

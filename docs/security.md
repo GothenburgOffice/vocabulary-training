@@ -10,10 +10,16 @@ Intended for controlled self-hosting. This is not a security audit.
   A request over an HTTPS origin gets the Secure flag. Sessions are separate only
   across hostnames: aliases that differ just by port, or by scheme for a cookie
   without Secure, share the same session cookie.
+- The admin area (`/admin`, `/api/admin/*`) answers 404 to anyone who isn't an
+  admin (`users.is_admin`), signed in or not. `ADMIN_PASSWORD` is only used to
+  create the first admin and never overwrites an existing password.
 - Every workspace read/write derives its owner from the authenticated session.
   The API accepts no client-supplied owner ID.
 - Mutation endpoints require JSON Content-Type and an Origin that exactly matches
   `APP_ORIGIN` or one of `APP_ORIGIN_ALIASES`.
+- Requesty keys are stored encrypted with AES-256-GCM (`SETTINGS_ENCRYPTION_KEY`)
+  and never returned to the browser. Keep the encryption key out of backups that
+  hold the database.
 - SQL values use parameterized queries. Zod validates all saved workspace data.
 - Session expiry is checked on every request. Sign-out revokes the stored token.
 - Authentication throttles are shared across processes through PostgreSQL.

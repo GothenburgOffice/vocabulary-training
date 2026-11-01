@@ -20,6 +20,8 @@ services:
       target: migration
     environment:
       DATABASE_URL: postgresql://vocabulary:${POSTGRES_PASSWORD}@db:5432/vocabulary
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy
@@ -36,14 +38,8 @@ services:
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3420}
       APP_ORIGIN_ALIASES: ${APP_ORIGIN_ALIASES:-}
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
-      REQUESTY_API_KEY: ${REQUESTY_API_KEY:-}
-      REQUESTY_MODEL: ${REQUESTY_MODEL:-novita/ling-3.1-flash}
-      REQUESTY_SPEECH_MODEL: ${REQUESTY_SPEECH_MODEL:-deepinfra/XiaomiMiMo/MiMo-V2.5-tts}
-      REQUESTY_SPEECH_VOICE: ${REQUESTY_SPEECH_VOICE:-Mia}
-      REQUESTY_PLUS_API_KEY: ${REQUESTY_PLUS_API_KEY:-}
-      REQUESTY_PLUS_MODEL: ${REQUESTY_PLUS_MODEL:-}
-      REQUESTY_PLUS_SPEECH_MODEL: ${REQUESTY_PLUS_SPEECH_MODEL:-}
-      REQUESTY_PLUS_SPEECH_VOICE: ${REQUESTY_PLUS_SPEECH_VOICE:-}
+      # Encrypts the Requesty keys saved in the admin area.
+      SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
