@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "../../../lib/server/db";
 import {
   body,
+  clientIp,
   cookieOptions,
   fail,
   HttpError,
@@ -12,6 +13,7 @@ import {
 import { cookieName, createSession, limitAuth, requireUser } from "../../../lib/server/auth";
 import { hashPassword, hashToken, verifyPassword } from "../../../lib/server/password";
 import { credentialsSchema } from "../../../lib/validation";
+import { readRegistration } from "../../../lib/server/site-settings";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function GET() {
@@ -28,11 +30,19 @@ export async function POST(request: Request) {
     const parsed = credentialsSchema.safeParse(await body(request, 32_768));
     if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
     const { action, email, password } = parsed.data;
-    await limitAuth(email);
+    await limitAuth(email, clientIp(request));
     let userId: string;
     if (action === "register") {
-      if (process.env.ALLOW_REGISTRATION !== "true")
+      // Switched on in Admin → Registration, and only usable once its checklist is complete
+      // (the privacy contact first: the email address is personal data).
+      const registration = await readRegistration();
+      if (!registration.open)
         throw new HttpError(403, "Registration is closed. Contact the site owner.");
+      if (registration.blockers.length)
+        throw new HttpError(
+          403,
+          "Registration opens once the site owner has published a privacy contact and finished setup.",
+        );
       const passwordHash = await hashPassword(password);
       userId = randomUUID();
       // The profile languages default in the users table; lists start empty.

@@ -253,6 +253,13 @@ test("real HTTP: lists, reviews, sessions and the profile are saved as rows", as
 
 test("real HTTP: the admin area answers 404 to everyone but admins", async () => {
   assert.equal((await api("/admin")).status, 404);
+  assert.equal((await api("/api/admin/registration")).status, 404);
+  // The privacy page is public, and this stack has a privacy contact (registration works).
+  const privacyPage = await api("/privacy");
+  assert.equal(privacyPage.status, 200);
+  const privacyHtml = await privacyPage.text();
+  assert.match(privacyHtml, /Privacy and cookies/);
+  assert.match(privacyHtml, /Privacy contact/);
   const email = `not-admin-${randomUUID()}@example.test`;
   const reg = await api("/api/auth", "POST", {
     action: "register",
@@ -309,6 +316,8 @@ test("real HTTP: admin AI settings and languages, with dummy keys and no provide
     "TEST_WRITE_SITE_SETTINGS needs a stack without AI settings: this test clears them.",
   );
   const english = languages.find((l) => l.name === "English")!;
+  const registration = await (await api("/api/admin/registration", "GET", undefined, admin)).json();
+  assert.equal(registration.open, true);
   try {
     assert.equal((await api("/api/admin/ai")).status, 404);
     assert.equal(
@@ -357,14 +366,49 @@ test("real HTTP: admin AI settings and languages, with dummy keys and no provide
       me.languages.some((l: { name: string; hidden: boolean }) => l.name === name && l.hidden),
     );
     assert.equal(JSON.stringify(me).includes(dummyKey), false);
+
+    // Registration: closed when switched off, and it can't be switched on without its
+    // checklist (here: the privacy contact).
+    const { controllerName, contactEmail } = registration;
+    const saveRegistration = (update: object) =>
+      api(
+        "/api/admin/registration",
+        "PUT",
+        { open: true, controllerName, contactEmail, ...update },
+        admin,
+      );
+    assert.equal((await saveRegistration({ contactEmail: "not-an-email" })).status, 400);
+    assert.equal((await saveRegistration({ open: false })).status, 200);
+    const off = await api("/api/auth", "POST", {
+      action: "register",
+      email: `closed-${randomUUID()}@example.test`,
+      password: "integration-test-only-password",
+    });
+    assert.equal(off.status, 403);
+    assert.match((await off.json()).error, /closed/);
+    const blocked = await saveRegistration({ controllerName: "", contactEmail: "" });
+    assert.equal(blocked.status, 400);
+    assert.match((await blocked.json()).error, /privacy contact/);
+    const cleared = await saveRegistration({ open: false, controllerName: "", contactEmail: "" });
+    assert.equal(cleared.status, 200);
+    assert.equal((await cleared.json()).blockers.length, 2);
   } finally {
-    // Back to no key, no models and English as it was, even after a failed assertion.
+    // Back to no key, no models, and English and registration as they were, even after a
+    // failed assertion.
     await api("/api/admin/ai", "PUT", { tier: "basic", apiKey: null, model: "" }, admin);
+    const { open, controllerName, contactEmail } = registration;
+    await api("/api/admin/registration", "PUT", { open, controllerName, contactEmail }, admin);
     const current = (await readLanguages()).find((l) => l.name === "English")!;
     await api("/api/admin/languages", "PUT", { ...english, revision: current.revision }, admin);
   }
   const after = await (await api("/api/workspace", "GET", undefined, admin)).json();
   assert.deepEqual(after.ai, { languageNotes: false, speech: [] });
+  const reopened = await api("/api/auth", "POST", {
+    action: "register",
+    email: `reopened-${randomUUID()}@example.test`,
+    password: "integration-test-only-password",
+  });
+  assert.equal(reopened.status, 200, await reopened.clone().text());
 });
 
 test("real HTTP: a 4096-character password registers and signs in; longer gets a clear 400", async () => {

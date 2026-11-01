@@ -84,6 +84,8 @@ export async function requestSpeech(
   }
 }
 
+// How long a clip stays in memory; /privacy promises it, so expiry deletes it on a timer.
+const CACHE_MS = 60 * 60_000;
 // Private, bounded, one-process demo cache. Never persist words/audio to disk.
 // Account scope prevents another user from retrieving a cached private word.
 export class SpeechService {
@@ -95,7 +97,17 @@ export class SpeechService {
     private readonly clock: () => number = Date.now,
     private readonly maxEntries = 128,
     private readonly maxBytes = 16_000_000,
+    // Runs a deletion later without keeping the process alive.
+    private readonly schedule: (run: () => void, ms: number) => void = (run, ms) => {
+      setTimeout(run, ms).unref();
+    },
   ) {}
+  // Removes a clip if it's still the one stored under its key.
+  private drop(key: string, entry: { audio: SpeechAudio; expires: number }) {
+    if (this.entries.get(key) !== entry) return;
+    this.bytes -= entry.audio.bytes.byteLength;
+    this.entries.delete(key);
+  }
 
   async get(
     user: string,
@@ -134,8 +146,11 @@ export class SpeechService {
     const release = this.limiter.acquire(user, now);
     const task = requestSpeech(input, config, transport)
       .then((audio) => {
-        this.entries.set(key, { audio, expires: this.clock() + 60 * 60_000 });
+        const entry = { audio, expires: this.clock() + CACHE_MS };
+        this.entries.set(key, entry);
         this.bytes += audio.bytes.byteLength;
+        // Deleted at expiry even if nobody asks for it again.
+        this.schedule(() => this.drop(key, entry), CACHE_MS);
         while (this.entries.size > this.maxEntries || this.bytes > this.maxBytes) {
           const oldest = this.entries.keys().next().value;
           if (!oldest) break;

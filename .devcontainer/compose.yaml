@@ -12,8 +12,6 @@ services:
         { npm ci && cp package-lock.json node_modules/.installed-lock; }; } &&
         exec npm run dev
     environment:
-      # Local development only: the integration tests register throwaway accounts.
-      ALLOW_REGISTRATION: "true"
       TEST_BASE_URL: http://localhost:3000
       TEST_ORIGIN: ${APP_ORIGIN:-http://localhost:3420}
       # Claude Code keeps its sign-in and settings in this volume across rebuilds.
