@@ -45,6 +45,6 @@ Moving to normalized tables with incremental saves: [#1](https://github.com/Goth
 
 ## Runtime
 
-Docker Compose runs `db` (PostgreSQL 17), a one-shot `migrate` job, then `app`
+Docker Compose runs `db` (PostgreSQL 18), a one-shot `migrate` job, then `app`
 (a standalone Next.js server, non-root). `compose.dev.yaml` swaps in the dev target
 with the source mounted. `.devcontainer/` attaches VS Code to that dev container.
