@@ -1,6 +1,16 @@
 export type Direction = "forward" | "reverse";
 export type History = { correct: number; wrong: number; streak: number; due: number };
-export type Word = { id: string; front: string; back: string; forward: History; reverse: History };
+// front is the native prompt and back the primary answer. accepted holds any further answers
+// accepted in the learning language (from CSV import for now); reverse practice shows back
+// and accepts only front.
+export type Word = {
+  id: string;
+  front: string;
+  back: string;
+  accepted?: string[];
+  forward: History;
+  reverse: History;
+};
 export type List = {
   id: string;
   title: string;
@@ -10,21 +20,15 @@ export type List = {
   words: Word[];
 };
 export const freshHistory = (): History => ({ correct: 0, wrong: 0, streak: 0, due: 0 });
-export function makeWord(front = "", back = "", id = ""): Word {
+export function makeWord(front = "", back = "", id = "", accepted: string[] = []): Word {
   return {
     id: id || crypto.randomUUID(),
     front,
     back,
+    ...(accepted.length ? { accepted } : {}),
     forward: freshHistory(),
     reverse: freshHistory(),
   };
-}
-// The match key for the same word across lists (words.learning_key): the first form before
-// any "|" alternatives, trimmed, inner spaces collapsed, Unicode NFC and lowercase. Accents
-// stay, since they change meaning (pêche, péché). Derived from the stored text, never a
-// replacement for it.
-export function learningKey(text: string) {
-  return text.split("|")[0].trim().replace(/\s+/gu, " ").normalize("NFC").toLowerCase();
 }
 // Stored as which side was shown: "forward" shows the native side (front) and asks for the
 // learning side (back).
@@ -33,7 +37,8 @@ export const directionOf = (prompt: string): Direction =>
   prompt === "native" ? "forward" : "reverse";
 export function normalize(text: string, caseSensitive = false, accents = true) {
   // Compare common keyboard/typographic apostrophes equally, without changing
-  // stored text, accents on letters, or distinct letter-like marks (e.g. ʻ).
+  // stored text, accents on letters, or distinct letter-like marks (e.g. ʻ). With the
+  // defaults this matches vocabulary_key() in db/migrations/005; keep the two in step.
   let value = text
     .trim()
     .normalize("NFC")
@@ -42,12 +47,21 @@ export function normalize(text: string, caseSensitive = false, accents = true) {
   if (!accents) value = value.normalize("NFD").replace(/\p{Diacritic}/gu, "");
   return caseSensitive ? value : value.toLocaleLowerCase();
 }
-export function isCorrect(answer: string, expected: string, caseSensitive = false, accents = true) {
-  return expected
-    .split("|")
-    .some(
-      (a) => normalize(a, caseSensitive, accents) === normalize(answer, caseSensitive, accents),
-    );
+export function isCorrect(
+  answer: string,
+  expected: string | readonly string[],
+  caseSensitive = false,
+  accents = true,
+) {
+  const typed = normalize(answer, caseSensitive, accents);
+  return (typeof expected === "string" ? [expected] : expected).some(
+    (a) => normalize(a, caseSensitive, accents) === typed,
+  );
+}
+// What counts as correct for a prompt: forward (native shown) accepts the primary answer or
+// any further accepted one; reverse (primary answer shown) accepts only the native text.
+export function answersFor(word: Pick<Word, "front" | "back" | "accepted">, direction: Direction) {
+  return direction === "forward" ? [word.back, ...(word.accepted ?? [])] : [word.front];
 }
 export function weight(history: History, now: number) {
   const errorRate = (history.wrong + 1) / (history.correct + history.wrong + 2);
@@ -86,9 +100,17 @@ export function reviewed(previous: History, correct: boolean, now: number): Hist
     due: correct ? now + days * 86400000 : now + 600000,
   };
 }
+// In CSV files only, "|" separates the accepted answers in the learning column: the first is
+// the primary answer. Stored words keep them apart (Word.accepted).
+export const csvAnswers = (word: Pick<Word, "back" | "accepted">) =>
+  [word.back, ...(word.accepted ?? [])].join("|");
+export function wordFromCSV(front: string, answers: string) {
+  const [back = "", ...accepted] = answers.split("|").map((a) => a.trim());
+  return makeWord(front.trim(), back, "", accepted.filter(Boolean));
+}
 export function encodeCSV(list: List) {
   const quote = (v: string) => `"${v.replaceAll('"', '""')}"`;
-  return [[list.from, list.to], ...list.words.map((w) => [w.front, w.back])]
+  return [[list.from, list.to], ...list.words.map((w) => [w.front, csvAnswers(w)])]
     .map((row) => row.map(quote).join(","))
     .join("\r\n");
 }

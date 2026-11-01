@@ -10,7 +10,8 @@ Built with Next.js, TypeScript and PostgreSQL, and run with Docker Compose.
 - Word-pair lists per language pair, with paired and bulk editing and CSV import/export.
 - Practice in either direction with independent review statistics per direction.
 - Weighted (spaced review) or random sampling, configurable round size,
-  case/accent options, accepted alternatives (`a|b`) and mistakes retry.
+  case/accent options, several accepted answers per word (through CSV import for now) and
+  mistakes retry.
 - Session history per language pair.
 - Saves after each answer, with conflict detection across browser tabs.
 - Optional: a short AI language note for wrong answers and click-to-play word

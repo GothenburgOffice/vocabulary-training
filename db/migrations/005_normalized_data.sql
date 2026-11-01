@@ -2,6 +2,19 @@
 -- are dropped without conversion; accounts keep their sign-in and start with no lists.
 CREATE EXTENSION IF NOT EXISTS vector;
 
+-- The match key for finding the same word or answer again: NFC, the standalone apostrophe
+-- marks ` ´ ‘ ’ as ', whitespace trimmed and collapsed, lowercase, and the Greek final sigma
+-- folded. Accents on letters stay (pêche, péché). It agrees with normalize() in
+-- lib/learning.ts, which grades answers; keep the two in step. Keys are only compared with
+-- other keys made here, and never replace the stored text.
+CREATE FUNCTION vocabulary_key(t text) RETURNS text
+LANGUAGE sql IMMUTABLE PARALLEL SAFE RETURNS NULL ON NULL INPUT
+RETURN translate(
+  lower(btrim(regexp_replace(
+    translate(normalize(t, NFC), E'\u0060\u00B4\u2018\u2019', repeat('''', 4)),
+    '\s+', ' ', 'g'))),
+  'ς', 'σ');
+
 -- The profile: which native (base) and learning language the dashboard shows.
 ALTER TABLE users
   ADD COLUMN native_language text NOT NULL DEFAULT 'Swedish'
@@ -10,10 +23,11 @@ ALTER TABLE users
     CHECK (length(learning_language) BETWEEN 1 AND 60),
   ADD CONSTRAINT users_languages_differ CHECK (native_language <> learning_language);
 
-DROP TABLE workspaces;
+DROP TABLE IF EXISTS workspaces;
 
 -- Every user table carries user_id and the language pair, and indexes lead with
--- user -> native -> learning. The copies on words and word_reviews follow the list through
+-- user -> native -> learning. The copies on words, accepted_answers and word_reviews follow
+-- the list through
 -- composite foreign keys with ON UPDATE CASCADE, so they can't drift from it.
 CREATE TABLE lists (
   id uuid PRIMARY KEY,
@@ -38,12 +52,10 @@ CREATE TABLE words (
   user_id uuid NOT NULL,
   native_language text NOT NULL,
   learning_language text NOT NULL,
+  -- The prompt in the native language. Its answers are in accepted_answers.
   native_text text NOT NULL CHECK (length(native_text) BETWEEN 1 AND 200),
-  learning_text text NOT NULL CHECK (length(learning_text) BETWEEN 1 AND 200),
-  -- learningKey() in lib/learning.ts: for matching the same word across lists (#56). It never
-  -- replaces the stored text.
-  learning_key text NOT NULL,
-  -- A copy of the list's visibility (#55), so public searches use a small partial index.
+  native_key text GENERATED ALWAYS AS (vocabulary_key(native_text)) STORED,
+  -- A copy of the list's visibility (#55).
   is_public boolean NOT NULL DEFAULT false,
   position integer NOT NULL,
   FOREIGN KEY (list_id, user_id, native_language, learning_language)
@@ -52,9 +64,34 @@ CREATE TABLE words (
   UNIQUE (id, user_id, native_language, learning_language)
 );
 CREATE INDEX words_list_idx ON words (list_id, position);
-CREATE INDEX words_user_key_idx ON words (user_id, native_language, learning_language, learning_key);
-CREATE INDEX words_key_idx ON words (learning_language, learning_key);
-CREATE INDEX words_public_key_idx ON words (learning_language, learning_key) WHERE is_public;
+CREATE INDEX words_user_key_idx ON words (user_id, native_language, learning_language, native_key);
+
+-- The answers accepted in the learning language. Position 0 is the primary answer: the one
+-- shown, and the prompt when practising in reverse (which accepts only native_text). Every
+-- word has one, written with the word in the same transaction.
+CREATE TABLE accepted_answers (
+  word_id uuid NOT NULL,
+  position integer NOT NULL CHECK (position >= 0),
+  user_id uuid NOT NULL,
+  native_language text NOT NULL,
+  learning_language text NOT NULL,
+  learning_text text NOT NULL CHECK (length(learning_text) BETWEEN 1 AND 200),
+  learning_key text GENERATED ALWAYS AS (vocabulary_key(learning_text)) STORED,
+  -- A copy of the word's visibility (#55), so public searches use a small partial index.
+  is_public boolean NOT NULL DEFAULT false,
+  PRIMARY KEY (word_id, position),
+  UNIQUE (word_id, learning_key),
+  FOREIGN KEY (word_id, user_id, native_language, learning_language)
+    REFERENCES words (id, user_id, native_language, learning_language)
+    ON UPDATE CASCADE ON DELETE CASCADE
+);
+-- The same learning word across a user's lists, the later join to global terms (#56), and
+-- public search (#55).
+CREATE INDEX accepted_answers_user_key_idx
+  ON accepted_answers (user_id, native_language, learning_language, learning_key);
+CREATE INDEX accepted_answers_key_idx ON accepted_answers (learning_language, learning_key);
+CREATE INDEX accepted_answers_public_key_idx
+  ON accepted_answers (learning_language, learning_key) WHERE is_public;
 
 -- The current review state per word and prompt ('native': the native side was shown and the
 -- learning side typed; 'learning': the other way). A word without a row has never been
@@ -99,9 +136,10 @@ CREATE TABLE run_results (
   word_id uuid REFERENCES words(id) ON DELETE SET NULL,
   list_id uuid REFERENCES lists(id) ON DELETE SET NULL,
   prompt text NOT NULL CHECK (prompt IN ('native', 'learning')),
+  -- The word as practised: its native text and primary answer.
   native_text text NOT NULL,
   learning_text text NOT NULL,
-  learning_key text NOT NULL,
+  learning_key text GENERATED ALWAYS AS (vocabulary_key(learning_text)) STORED,
   answer text NOT NULL CHECK (length(answer) <= 500),
   correct boolean NOT NULL,
   answered_at timestamptz NOT NULL,

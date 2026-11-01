@@ -113,7 +113,12 @@ export default function AccountApp() {
             description,
             from,
             to,
-            words: words.map((w) => ({ id: w.id, front: w.front, back: w.back })),
+            words: words.map((w) => ({
+              id: w.id,
+              front: w.front,
+              back: w.back,
+              accepted: w.accepted ?? [],
+            })),
           },
         }),
       });

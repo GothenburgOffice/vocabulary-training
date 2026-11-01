@@ -16,8 +16,8 @@ variable, source, image layers or docs.
 After a rejected, non-skipped answer, a one- or two-sentence note in the
 profile's base language appears below the right/wrong feedback.
 
-- Only for wrong answers. Correct answers, including normalized variants and
-  accepted alternatives, never trigger a request. The UI, the HTTP route and the
+- Only for wrong answers. Correct answers, including normalized variants and a
+  word's other accepted answers, never trigger a request. The UI, the HTTP route and the
   provider adapter (`lib/server/requesty-client.ts`) each repeat this check
   before using any quota.
 - Sends only the phrase, language names, reference answer, the attempt and the
@@ -31,7 +31,7 @@ profile's base language appears below the right/wrong feedback.
 
 Speaker buttons appear beside the question, beside the revealed answer (only
 after grading or skipping) and beside library words. Nothing plays automatically.
-For alternatives (`a|b`) only the first is spoken.
+A word with several accepted answers speaks its primary answer.
 
 - Sends only the selected phrase (max 200 characters).
 - Audio is cached in memory per account, model, voice, language and phrase for

@@ -4,7 +4,6 @@ import type { z } from "zod";
 import {
   directionOf,
   freshHistory,
-  learningKey,
   promptOf,
   reviewed,
   type History,
@@ -51,7 +50,12 @@ export function loadWorkspace(userId: string) {
       [userId],
     );
     const words = await c.query(
-      "SELECT id, list_id, native_text, learning_text FROM words WHERE user_id=$1 ORDER BY position",
+      "SELECT id, list_id, native_text FROM words WHERE user_id=$1 ORDER BY position",
+      [userId],
+    );
+    const answers = await c.query(
+      `SELECT word_id, learning_text FROM accepted_answers WHERE user_id=$1
+       ORDER BY word_id, position`,
       [userId],
     );
     const reviews = await c.query(
@@ -80,13 +84,18 @@ export function loadWorkspace(userId: string) {
         streak: r.streak,
         due: Math.round(r.due),
       });
+    const wordAnswers = new Map<string, string[]>();
+    for (const a of answers.rows)
+      wordAnswers.set(a.word_id, [...(wordAnswers.get(a.word_id) ?? []), a.learning_text]);
     const listWords = new Map<string, List["words"]>();
     for (const w of words.rows) {
       const entry = listWords.get(w.list_id) ?? [];
+      const [back = "", ...accepted] = wordAnswers.get(w.id) ?? [];
       entry.push({
         id: w.id,
         front: w.native_text,
-        back: w.learning_text,
+        back,
+        ...(accepted.length ? { accepted } : {}),
         forward: history.get(`${w.id}:native`) ?? freshHistory(),
         reverse: history.get(`${w.id}:learning`) ?? freshHistory(),
       });
@@ -186,30 +195,41 @@ export function saveList(
       ids,
     ]);
     const words = await c.query(
-      `INSERT INTO words (id, list_id, user_id, native_language, learning_language,
-         native_text, learning_text, learning_key, position)
-       SELECT w.id, $1, $2, $3, $4, w.native_text, w.learning_text, w.learning_key, w.position
-       FROM unnest($5::uuid[], $6::text[], $7::text[], $8::text[]) WITH ORDINALITY
-         AS w(id, native_text, learning_text, learning_key, position)
+      `INSERT INTO words (id, list_id, user_id, native_language, learning_language, native_text,
+         position)
+       SELECT w.id, $1, $2, $3, $4, w.native_text, w.position
+       FROM unnest($5::uuid[], $6::text[]) WITH ORDINALITY AS w(id, native_text, position)
        ON CONFLICT (id) DO UPDATE SET native_text=EXCLUDED.native_text,
-         learning_text=EXCLUDED.learning_text, learning_key=EXCLUDED.learning_key,
          position=EXCLUDED.position
        WHERE words.list_id = EXCLUDED.list_id
        RETURNING id`,
-      [
-        listId,
-        userId,
-        list.from,
-        list.to,
-        ids,
-        list.words.map((w) => w.front),
-        list.words.map((w) => w.back),
-        list.words.map((w) => learningKey(w.back)),
-      ],
+      [listId, userId, list.from, list.to, ids, list.words.map((w) => w.front)],
     );
     // A word id that belongs to another list (or account) isn't taken over.
     if (words.rowCount !== ids.length)
       throw new HttpError(409, "Some words belong to another list. Reload this tab.");
+    // The answers are rewritten with their words: the primary answer at position 0, then the
+    // further accepted ones. An answer with the same key as an earlier one is left out.
+    const answers = list.words.flatMap((w) =>
+      [w.back, ...w.accepted].map((text, position) => ({ id: w.id, position, text })),
+    );
+    await c.query("DELETE FROM accepted_answers WHERE word_id = ANY($1::uuid[])", [ids]);
+    await c.query(
+      `INSERT INTO accepted_answers (word_id, position, user_id, native_language,
+         learning_language, learning_text)
+       SELECT DISTINCT ON (a.word_id, vocabulary_key(a.learning_text))
+         a.word_id, a.position, $1, $2, $3, a.learning_text
+       FROM unnest($4::uuid[], $5::int[], $6::text[]) AS a(word_id, position, learning_text)
+       ORDER BY a.word_id, vocabulary_key(a.learning_text), a.position`,
+      [
+        userId,
+        list.from,
+        list.to,
+        answers.map((a) => a.id),
+        answers.map((a) => a.position),
+        answers.map((a) => a.text),
+      ],
+    );
     return { revision: saved };
   });
 }
@@ -269,14 +289,13 @@ export function addRun(userId: string, run: z.infer<typeof runSaveSchema>) {
     const r = run.results;
     await c.query(
       `INSERT INTO run_results (run_id, position, user_id, native_language, learning_language,
-         word_id, list_id, prompt, native_text, learning_text, learning_key, answer, correct,
-         answered_at)
+         word_id, list_id, prompt, native_text, learning_text, answer, correct, answered_at)
        SELECT $1, r.position, $2, $3, $4, w.id, w.list_id, r.prompt, r.native_text,
-         r.learning_text, r.learning_key, r.answer, r.correct, to_timestamp(r.answered_at/1000.0)
-       FROM unnest($5::uuid[], $6::text[], $7::text[], $8::text[], $9::text[], $10::text[],
-         $11::boolean[], $12::float8[]) WITH ORDINALITY
-         AS r(word_id, prompt, native_text, learning_text, learning_key, answer, correct,
-           answered_at, position)
+         r.learning_text, r.answer, r.correct, to_timestamp(r.answered_at/1000.0)
+       FROM unnest($5::uuid[], $6::text[], $7::text[], $8::text[], $9::text[], $10::boolean[],
+         $11::float8[]) WITH ORDINALITY
+         AS r(word_id, prompt, native_text, learning_text, answer, correct, answered_at,
+           position)
        LEFT JOIN words w ON w.id = r.word_id AND w.user_id = $2`,
       [
         run.id,
@@ -287,7 +306,6 @@ export function addRun(userId: string, run: z.infer<typeof runSaveSchema>) {
         r.map((x) => promptOf(x.direction)),
         r.map((x) => x.word.front),
         r.map((x) => x.word.back),
-        r.map((x) => learningKey(x.word.back)),
         r.map((x) => x.answer),
         r.map((x) => x.correct),
         r.map((x) => x.answeredAt),

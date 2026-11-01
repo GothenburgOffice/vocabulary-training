@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   try {
     requireOrigin(request);
     const user = await requireUser();
-    const parsed = feedbackSchema.safeParse(await body(request, 5_000));
+    const parsed = feedbackSchema.safeParse(await body(request, 20_000));
     if (!parsed.success) throw new HttpError(400, "This language-note request is invalid.");
     if (!shouldRequestFeedback(parsed.data)) return json({ status: "not-needed" });
     const config = aiConfig(user.ai_tier, await loadAiSettings());

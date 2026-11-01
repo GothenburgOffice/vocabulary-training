@@ -57,6 +57,9 @@ test("save requests protect types, limits and language pairs", () => {
   assert.equal(save({ words: [{ ...word(), id: "w-legacy" }] }), false);
   assert.equal(save({ words: Array.from({ length: 1001 }, () => word()) }), false);
   assert.equal(save({ words: [] }), false);
+  assert(save({ words: [{ ...word(), accepted: ["salut", "coucou"] }] }));
+  assert.equal(save({ words: [{ ...word(), accepted: [""] }] }), false);
+  assert.equal(save({ words: [{ ...word(), accepted: Array(21).fill("x") }] }), false);
 
   const review = { wordId: crypto.randomUUID(), direction: "forward", correct: true };
   assert(reviewSchema.safeParse(review).success);

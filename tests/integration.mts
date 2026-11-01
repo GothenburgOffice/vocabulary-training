@@ -147,7 +147,7 @@ test("real HTTP: lists, reviews, sessions and the profile are saved as rows", as
   const cookie = reg.headers.get("set-cookie")!.split(";")[0];
   const listId = randomUUID();
   const [kept, removed] = [randomUUID(), randomUUID()];
-  type Pair = { id: string; front: string; back: string };
+  type Pair = { id: string; front: string; back: string; accepted?: string[] };
   const list = (words: Pair[], to = "French") => ({
     title: "Rows",
     description: "Integration",
@@ -155,8 +155,9 @@ test("real HTTP: lists, reviews, sessions and the profile are saved as rows", as
     to,
     words,
   });
+  // "Minou" and " CHAT " repeat earlier answers by key, so they are left out.
   const words = [
-    { id: kept, front: "katt", back: "chat" },
+    { id: kept, front: "katt", back: "chat", accepted: ["minou", "Minou", " CHAT "] },
     { id: removed, front: "hund", back: "chien" },
   ];
   const put = (revision: number | null, data: object) =>
@@ -180,6 +181,9 @@ test("real HTTP: lists, reviews, sessions and the profile are saved as rows", as
   assert.equal(history.wrong, 1);
   assert(history.due > Date.now());
   assert.deepEqual(dump.lists[0].words[0].reverse, { correct: 0, wrong: 0, streak: 0, due: 0 });
+  assert.equal(dump.lists[0].words[0].back, "chat");
+  assert.deepEqual(dump.lists[0].words[0].accepted, ["minou"]);
+  assert.equal(dump.lists[0].words[1].accepted, undefined);
 
   // A session keeps the text it practised, also for words removed afterwards.
   const run = {
@@ -217,6 +221,8 @@ test("real HTTP: lists, reviews, sessions and the profile are saved as rows", as
     dump.lists[0].words.map((w: Pair) => w.id),
     [kept],
   );
+  // The accepted answers followed the word to the new language pair.
+  assert.deepEqual(dump.lists[0].words[0].accepted, ["minou"]);
   const kept_ = dump.lists[0].words[0].forward;
   assert.equal(kept_.correct + kept_.wrong, 4);
   assert.equal(dump.runs.length, 1);

@@ -16,8 +16,11 @@ export const listSaveSchema = z
         description: z.string().max(1000),
         from: language,
         to: language,
+        // back is the primary answer; accepted holds further answers (from CSV for now).
         words: z
-          .array(z.object({ id, front: text, back: text }))
+          .array(
+            z.object({ id, front: text, back: text, accepted: z.array(text).max(20).default([]) }),
+          )
           .min(1)
           .max(1000),
       })

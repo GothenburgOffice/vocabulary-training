@@ -30,6 +30,7 @@ tests. Also run the integration test when API, auth or DB code changed.
 ## Code map
 
 - `lib/learning.ts`: pure matching, sampling, scheduling and CSV. Unit-test any change here.
+  `normalize()` (grading) and the database's `vocabulary_key()` (migration 005) must stay in step.
 - `lib/validation.ts`: Zod schemas for save requests. Update them with any change to the data shape.
 - `lib/server/workspace-store.ts`: every query on the user data tables (`lists`, `words`,
   `word_reviews`, `runs`, `run_results`). Every query filters on `user_id`.

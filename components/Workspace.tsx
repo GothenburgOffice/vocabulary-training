@@ -23,8 +23,10 @@ import {
 import { BookMark } from "../lib/brand";
 import {
   encodeCSV,
+  answersFor,
   isCorrect,
   makeWord,
+  wordFromCSV,
   parseCSV,
   randomOrder,
   reviewed,
@@ -334,8 +336,8 @@ ${learningLanguage}`;
   function submitAnswer(e: FormEvent, skip = false) {
     e.preventDefault();
     if (!list || !current || feedback || (!answer.trim() && !skip)) return;
-    const expected = direction === "forward" ? current.back : current.front;
-    const correct = !skip && isCorrect(answer, expected, caseSensitive, accents);
+    const correct =
+      !skip && isCorrect(answer, answersFor(current, direction), caseSensitive, accents);
     const result: Result = {
       word: { id: current.id, front: current.front, back: current.back },
       answer: skip ? "Skipped" : answer.trim(),
@@ -406,7 +408,7 @@ ${learningLanguage}`;
           `This CSV uses ${from} as its base language. Your profile uses ${baseLanguage}. Change your profile first to import it; existing lists will not be changed.`,
         );
       if (from === to) throw new Error("The CSV must contain two different languages.");
-      const words = rows.slice(1).map(([a, b]) => makeWord(a.trim(), b.trim()));
+      const words = rows.slice(1).map(([a, b]) => wordFromCSV(a, b));
       if (!from || !to || words.some((w) => !w.front || !w.back))
         throw new Error("Language names and both sides of every pair are required.");
       setDraft({
@@ -685,7 +687,7 @@ ${learningLanguage}`;
                           <SpeechButton text={w.front} language={list.from} />
                         </span>
                         <span className="word-with-audio">
-                          <span>{w.back.split("|")[0].trim()}</span>
+                          <span>{w.back}</span>
                           <SpeechButton text={w.back} language={list.to} />
                         </span>
                         <span className={`state ${w[direction].streak >= 3 ? "established" : ""}`}>
@@ -943,10 +945,6 @@ ${learningLanguage}`;
                   </small>
                 </label>
               )}
-              <p className="editor-hint">
-                More than one right answer? Separate alternatives with <strong>|</strong>, for
-                example <strong>hi | hello</strong>.
-              </p>
               {error && (
                 <p role="alert" className="error">
                   {error}
@@ -992,9 +990,7 @@ ${learningLanguage}`;
               <div className="prompt">
                 <span>Translate into {direction === "forward" ? list.to : list.from}</span>
                 <h2 className="prompt-word">
-                  <span>
-                    {direction === "forward" ? current.front : current.back.split("|")[0].trim()}
-                  </span>
+                  <span>{direction === "forward" ? current.front : current.back}</span>
                   <SpeechButton
                     key={`${current.id}-${direction}`}
                     text={direction === "forward" ? current.front : current.back}
@@ -1032,10 +1028,7 @@ ${learningLanguage}`;
                     <p className="answer-pronunciation">
                       <span>
                         {feedback.correct ? "Answer: " : "Correct answer: "}
-                        {(direction === "forward" ? current.back : current.front)
-                          .split("|")
-                          .map((s) => s.trim())
-                          .join(" / ")}
+                        {answersFor(current, direction).join(" / ")}
                       </span>
                       <SpeechButton
                         key={`${current.id}-${direction}-answer`}
@@ -1076,9 +1069,9 @@ ${learningLanguage}`;
                     sourceLanguage: direction === "forward" ? list.from : list.to,
                     targetLanguage: direction === "forward" ? list.to : list.from,
                     explanationLanguage: baseLanguage,
-                    source:
-                      direction === "forward" ? current.front : current.back.split("|")[0].trim(),
+                    source: direction === "forward" ? current.front : current.back,
                     reference: direction === "forward" ? current.back : current.front,
+                    accepted: direction === "forward" ? current.accepted : undefined,
                     answer: feedback.answer,
                     correct: feedback.correct,
                     requireAccents: accents,
@@ -1136,9 +1129,7 @@ ${learningLanguage}`;
                   <span className={r.correct ? "result-ok" : "result-wrong"}>
                     {r.correct ? <Check size={17} /> : <X size={17} />}
                   </span>
-                  <strong>
-                    {r.direction === "forward" ? r.word.front : r.word.back.split("|")[0]}
-                  </strong>
+                  <strong>{r.direction === "forward" ? r.word.front : r.word.back}</strong>
                   <div>
                     <span>{r.answer}</span>
                     {!r.correct && (
@@ -1353,7 +1344,9 @@ ${learningLanguage}`;
           <>
             <p>
               Paste a two-column CSV. The first row contains language names or old-style codes such
-              as sv,fr. Following rows contain word pairs.
+              as sv,fr. Following rows contain word pairs. To accept more than one answer, separate
+              them with | in the second column, for example chat|minou. The first one is shown when
+              you practise. Exports use the same format.
             </p>
             <label className="field">
               CSV contents
@@ -1411,8 +1404,8 @@ ${learningLanguage}`;
             {ai.speech.length > 0 && (
               <p>
                 Speaker buttons play only when clicked. Generated voices can mispronounce some
-                languages. The first saved alternative is spoken; answer audio appears after grading
-                or skipping. Audio never changes your grade.
+                languages. Answer audio appears after grading or skipping. Audio never changes your
+                grade.
               </p>
             )}
             <Button primary onClick={() => setModal(null)}>
