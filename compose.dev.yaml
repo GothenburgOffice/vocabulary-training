@@ -2,8 +2,14 @@ services:
   app:
     build:
       target: development
+    # No NODE_ENV here: `next dev` and `next build` each set their own, and a container-wide
+    # development value breaks `npm run build`.
     environment:
-      NODE_ENV: development
+      # File events don't cross into the container from a Windows drive, so `next dev` polls
+      # for changes. That needs webpack (`npm run dev` uses --webpack): Turbopack ignores this
+      # and its own polling misses these edits. Set WATCHPACK_POLLING=false in .env on Linux
+      # or macOS to save CPU.
+      WATCHPACK_POLLING: ${WATCHPACK_POLLING:-true}
     volumes:
       - .:/app
       - node_modules:/app/node_modules
