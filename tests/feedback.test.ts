@@ -39,7 +39,8 @@ test("only rejected nonempty answers need AI, using the same normalization and a
     { ...input, answer: " " },
     { ...input, answer: "à bientôt" },
     { ...input, answer: "À BIENTÔT" },
-    { ...input, reference: "bonjour | salut", answer: "salut" },
+    // An answer matching a further accepted answer is correct: no note.
+    { ...input, reference: "bonjour", accepted: ["salut"], answer: "Salut" },
     ...["'", "`", "´", "’", "‘"].map((mark) => ({
       ...input,
       reference: "s'il vous plaît",

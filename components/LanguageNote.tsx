@@ -30,6 +30,8 @@ export default function LanguageNote({
     requireAccents,
     caseSensitive,
   } = input;
+  // A string, so the effect below only reruns when the answers really change.
+  const accepted = JSON.stringify(input.accepted ?? []);
   const needsFeedback = !skipped && shouldRequestFeedback(input);
   useEffect(() => {
     if (!needsFeedback) return;
@@ -51,6 +53,7 @@ export default function LanguageNote({
             explanationLanguage,
             source,
             reference,
+            accepted: JSON.parse(accepted),
             answer,
             correct,
             requireAccents,
@@ -91,6 +94,7 @@ export default function LanguageNote({
     explanationLanguage,
     source,
     reference,
+    accepted,
     answer,
     correct,
     requireAccents,

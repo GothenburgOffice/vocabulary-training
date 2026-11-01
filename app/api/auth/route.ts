@@ -12,7 +12,6 @@ import {
 import { cookieName, createSession, limitAuth, requireUser } from "../../../lib/server/auth";
 import { hashPassword, hashToken, verifyPassword } from "../../../lib/server/password";
 import { credentialsSchema } from "../../../lib/validation";
-import { emptyWorkspace } from "../../../lib/workspace";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function GET() {
@@ -35,28 +34,19 @@ export async function POST(request: Request) {
       if (process.env.ALLOW_REGISTRATION !== "true")
         throw new HttpError(403, "Registration is closed. Contact the site owner.");
       const passwordHash = await hashPassword(password);
-      const client = await db.connect();
-      try {
-        await client.query("BEGIN");
-        userId = randomUUID();
-        await client.query("INSERT INTO users(id,email,password_hash) VALUES($1,$2,$3)", [
+      userId = randomUUID();
+      // The profile languages default in the users table; lists start empty.
+      await db
+        .query("INSERT INTO users(id,email,password_hash) VALUES($1,$2,$3)", [
           userId,
           email,
           passwordHash,
-        ]);
-        await client.query("INSERT INTO workspaces(user_id,data) VALUES($1,$2)", [
-          userId,
-          emptyWorkspace(),
-        ]);
-        await client.query("COMMIT");
-      } catch (e) {
-        await client.query("ROLLBACK");
-        if ((e as { code?: string }).code === "23505")
-          throw new HttpError(409, "An account could not be created. Try signing in instead.");
-        throw e;
-      } finally {
-        client.release();
-      }
+        ])
+        .catch((e) => {
+          if ((e as { code?: string }).code === "23505")
+            throw new HttpError(409, "An account could not be created. Try signing in instead.");
+          throw e;
+        });
     } else {
       const result = await db.query("SELECT id,password_hash FROM users WHERE email=$1", [email]);
       const user = result.rows[0];

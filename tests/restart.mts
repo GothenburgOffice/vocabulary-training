@@ -1,7 +1,6 @@
 import { readFile, writeFile, unlink } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
-import { makeWord } from "../lib/learning.ts";
 const base = process.env.TEST_BASE_URL ?? "http://127.0.0.1:3013";
 const headers = { "Content-Type": "application/json", Origin: base };
 const file = process.env.TEST_RESTART_FILE ?? "/tmp/vocabulary-restart-fixture.json";
@@ -17,27 +16,18 @@ if (process.argv[2] === "prepare") {
   });
   assert.equal(response.status, 200);
   const cookie = response.headers.get("set-cookie")!.split(";")[0];
-  const first = await (
-    await fetch(`${base}/api/workspace`, { headers: { Cookie: cookie } })
-  ).json();
   const title = `Survives restart ${randomUUID()}`;
-  const data = {
-    ...first.data,
-    lists: [
-      {
-        id: "restart",
-        title,
-        description: "",
-        from: "Swedish",
-        to: "French",
-        words: [makeWord("hej", "bonjour", "rw")],
-      },
-    ],
+  const list = {
+    title,
+    description: "",
+    from: "Swedish",
+    to: "French",
+    words: [{ id: randomUUID(), front: "hej", back: "bonjour" }],
   };
-  const save = await fetch(`${base}/api/workspace`, {
+  const save = await fetch(`${base}/api/lists/${randomUUID()}`, {
     method: "PUT",
     headers: { ...headers, Cookie: cookie },
-    body: JSON.stringify({ revision: first.revision, data }),
+    body: JSON.stringify({ revision: null, list }),
   });
   assert.equal(save.status, 200);
   await writeFile(file, JSON.stringify({ cookie, title }), { mode: 0o600 });

@@ -32,7 +32,7 @@ test("speech input is short word data, with no client-selected model, voice or e
   ]) {
     assert.equal(speechSchema.safeParse(value).success, false);
   }
-  assert.equal(pronunciationText(" e\u0301cole | school "), "école");
+  assert.equal(pronunciationText(" e\u0301cole "), "école");
 });
 
 test("speech makes exactly one WAV generation", async () => {

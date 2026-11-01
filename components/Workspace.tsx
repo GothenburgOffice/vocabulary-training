@@ -23,8 +23,10 @@ import {
 import { BookMark } from "../lib/brand";
 import {
   encodeCSV,
+  answersFor,
   isCorrect,
   makeWord,
+  wordFromCSV,
   parseCSV,
   randomOrder,
   reviewed,
@@ -32,7 +34,7 @@ import {
   type Direction,
   type List,
 } from "../lib/learning";
-import type { WorkspaceData, Result, Run } from "../lib/workspace";
+import type { WorkspaceData, Result, Run, WorkspaceSync } from "../lib/workspace";
 import { DEFAULT_LANGUAGES, languageCodes, pickerLanguages, type Language } from "../lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
 import LanguageNote from "./LanguageNote";
@@ -54,11 +56,12 @@ function Button({
 }
 export default function Workspace({
   initial,
-  onChange,
+  sync,
   languageList = DEFAULT_LANGUAGES,
 }: {
   initial: WorkspaceData;
-  onChange?: (data: WorkspaceData) => void;
+  // Receives each change to save. Without it (tests, previews), nothing is saved.
+  sync?: WorkspaceSync;
   languageList?: Language[];
 }) {
   const now = Date.now();
@@ -98,9 +101,18 @@ export default function Workspace({
   const answerRef = useRef<HTMLInputElement>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDialogElement>(null);
+  // The id of the newest answer per word and direction (see submitAnswer).
+  const latestReview = useRef(new Map<string, string>());
+  // The profile languages change in several places; save whenever the pair changes.
+  const savedProfile = useRef(`${initial.baseLanguage}
+${initial.learningLanguage}`);
   useEffect(() => {
-    onChange?.({ lists, runs, baseLanguage, learningLanguage });
-  }, [lists, runs, baseLanguage, learningLanguage, onChange]);
+    const profile = `${baseLanguage}
+${learningLanguage}`;
+    if (profile === savedProfile.current) return;
+    savedProfile.current = profile;
+    sync?.saveProfile(baseLanguage, learningLanguage);
+  }, [baseLanguage, learningLanguage, sync]);
   useEffect(() => {
     const media = window.matchMedia("(min-width: 681px)");
     const close = () => setNav(false);
@@ -206,7 +218,7 @@ export default function Workspace({
       target
         ? structuredClone(target)
         : {
-            id: `list-${Date.now()}`,
+            id: crypto.randomUUID(),
             title: "",
             description: "",
             from: baseLanguage,
@@ -294,6 +306,7 @@ export default function Workspace({
           ? ls.map((l) => (l.id === clean.id ? clean : l))
           : [...ls, clean],
       );
+      sync?.saveList(clean);
       setSelected(clean.id);
       setLearningLanguage(clean.to);
       setQuery("");
@@ -325,13 +338,14 @@ export default function Workspace({
   function submitAnswer(e: FormEvent, skip = false) {
     e.preventDefault();
     if (!list || !current || feedback || (!answer.trim() && !skip)) return;
-    const expected = direction === "forward" ? current.back : current.front;
-    const correct = !skip && isCorrect(answer, expected, caseSensitive, accents);
-    const result = {
-      word: structuredClone(current),
+    const correct =
+      !skip && isCorrect(answer, answersFor(current, direction), caseSensitive, accents);
+    const result: Result = {
+      word: { id: current.id, front: current.front, back: current.back },
       answer: skip ? "Skipped" : answer.trim(),
       correct,
       direction,
+      answeredAt: now,
     };
     setFeedback({ ...result, skipped: skip });
     setResults((r) => [...r, result]);
@@ -349,23 +363,36 @@ export default function Workspace({
             },
       ),
     );
+    // Take the server's state once saved, so answers from other tabs show here too, unless a
+    // later answer for the same word and direction is still on its way.
+    const review = { id: crypto.randomUUID(), wordId: current.id, direction, correct };
+    const key = `${review.wordId}:${direction}`;
+    latestReview.current.set(key, review.id);
+    void sync?.review(review).then((history) => {
+      if (!history || latestReview.current.get(key) !== review.id) return;
+      setLists((ls) =>
+        ls.map((l) => ({
+          ...l,
+          words: l.words.map((w) => (w.id === review.wordId ? { ...w, [direction]: history } : w)),
+        })),
+      );
+    });
   }
   function next() {
     if (!list) return;
     if (index + 1 >= queue.length) {
-      setRuns((r) =>
-        [
-          {
-            id: crypto.randomUUID(),
-            completedAt: now,
-            title: list.title,
-            from: list.from,
-            to: list.to,
-            results,
-          },
-          ...r,
-        ].slice(0, 200),
-      );
+      const run: Run = {
+        id: crypto.randomUUID(),
+        completedAt: now,
+        listId: list.id,
+        mode,
+        title: list.title,
+        from: list.from,
+        to: list.to,
+        results,
+      };
+      setRuns((r) => [run, ...r].slice(0, 200));
+      sync?.completeRun(run);
       setView("results");
     } else {
       setIndex((i) => i + 1);
@@ -396,11 +423,11 @@ export default function Workspace({
           `This CSV uses ${from} as its base language. Your profile uses ${baseLanguage}. Change your profile first to import it; existing lists will not be changed.`,
         );
       if (from === to) throw new Error("The CSV must contain two different languages.");
-      const words = rows.slice(1).map(([a, b]) => makeWord(a.trim(), b.trim()));
+      const words = rows.slice(1).map(([a, b]) => wordFromCSV(a, b));
       if (!from || !to || words.some((w) => !w.front || !w.back))
         throw new Error("Language names and both sides of every pair are required.");
       setDraft({
-        id: `import-${Date.now()}`,
+        id: crypto.randomUUID(),
         title: "Imported word list",
         description: "",
         from,
@@ -675,7 +702,7 @@ export default function Workspace({
                           <SpeechButton text={w.front} language={list.from} />
                         </span>
                         <span className="word-with-audio">
-                          <span>{w.back.split("|")[0].trim()}</span>
+                          <span>{w.back}</span>
                           <SpeechButton text={w.back} language={list.to} />
                         </span>
                         <span className={`state ${w[direction].streak >= 3 ? "established" : ""}`}>
@@ -933,10 +960,6 @@ export default function Workspace({
                   </small>
                 </label>
               )}
-              <p className="editor-hint">
-                More than one right answer? Separate alternatives with <strong>|</strong>, for
-                example <strong>hi | hello</strong>.
-              </p>
               {error && (
                 <p role="alert" className="error">
                   {error}
@@ -982,9 +1005,7 @@ export default function Workspace({
               <div className="prompt">
                 <span>Translate into {direction === "forward" ? list.to : list.from}</span>
                 <h2 className="prompt-word">
-                  <span>
-                    {direction === "forward" ? current.front : current.back.split("|")[0].trim()}
-                  </span>
+                  <span>{direction === "forward" ? current.front : current.back}</span>
                   <SpeechButton
                     key={`${current.id}-${direction}`}
                     text={direction === "forward" ? current.front : current.back}
@@ -1022,10 +1043,7 @@ export default function Workspace({
                     <p className="answer-pronunciation">
                       <span>
                         {feedback.correct ? "Answer: " : "Correct answer: "}
-                        {(direction === "forward" ? current.back : current.front)
-                          .split("|")
-                          .map((s) => s.trim())
-                          .join(" / ")}
+                        {answersFor(current, direction).join(" / ")}
                       </span>
                       <SpeechButton
                         key={`${current.id}-${direction}-answer`}
@@ -1066,9 +1084,9 @@ export default function Workspace({
                     sourceLanguage: direction === "forward" ? list.from : list.to,
                     targetLanguage: direction === "forward" ? list.to : list.from,
                     explanationLanguage: baseLanguage,
-                    source:
-                      direction === "forward" ? current.front : current.back.split("|")[0].trim(),
+                    source: direction === "forward" ? current.front : current.back,
                     reference: direction === "forward" ? current.back : current.front,
+                    accepted: direction === "forward" ? current.accepted : undefined,
                     answer: feedback.answer,
                     correct: feedback.correct,
                     requireAccents: accents,
@@ -1126,9 +1144,7 @@ export default function Workspace({
                   <span className={r.correct ? "result-ok" : "result-wrong"}>
                     {r.correct ? <Check size={17} /> : <X size={17} />}
                   </span>
-                  <strong>
-                    {r.direction === "forward" ? r.word.front : r.word.back.split("|")[0]}
-                  </strong>
+                  <strong>{r.direction === "forward" ? r.word.front : r.word.back}</strong>
                   <div>
                     <span>{r.answer}</span>
                     {!r.correct && (
@@ -1343,7 +1359,10 @@ export default function Workspace({
           <>
             <p>
               Paste a two-column CSV. The first row contains language names or old-style codes such
-              as sv,fr. Following rows contain word pairs.
+              as sv,fr. Following rows contain word pairs. To accept more than one answer, separate
+              them with | in the second column, for example chat|minou. The first one is shown when
+              you practise. For a | that is part of the answer, write \|. Exports use the same
+              format.
             </p>
             <label className="field">
               CSV contents
@@ -1401,8 +1420,8 @@ export default function Workspace({
             {ai.speech.length > 0 && (
               <p>
                 Speaker buttons play only when clicked. Generated voices can mispronounce some
-                languages. The first saved alternative is spoken; answer audio appears after grading
-                or skipping. Audio never changes your grade.
+                languages. Answer audio appears after grading or skipping. Audio never changes your
+                grade.
               </p>
             )}
             <Button primary onClick={() => setModal(null)}>

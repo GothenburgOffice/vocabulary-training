@@ -8,6 +8,8 @@ export type FeedbackInput = {
   explanationLanguage: string;
   source: string;
   reference: string;
+  // Further accepted answers: an answer matching one of them is correct and gets no note.
+  accepted?: string[];
   answer: string;
   correct: boolean;
   requireAccents: boolean;
@@ -18,7 +20,12 @@ export function shouldRequestFeedback(input: FeedbackInput): boolean {
   return (
     !input.correct &&
     !!input.answer.trim() &&
-    !isCorrect(input.answer, input.reference, input.caseSensitive, input.requireAccents)
+    !isCorrect(
+      input.answer,
+      [input.reference, ...(input.accepted ?? [])],
+      input.caseSensitive,
+      input.requireAccents,
+    )
   );
 }
 

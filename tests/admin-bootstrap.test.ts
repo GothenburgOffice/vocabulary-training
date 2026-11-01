@@ -1,14 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  EMPTY_WORKSPACE,
-  bootstrapAdmin,
-  hashPassword,
-  validAdminEmail,
-} from "../scripts/admin-bootstrap.mjs";
+import { bootstrapAdmin, hashPassword, validAdminEmail } from "../scripts/admin-bootstrap.mjs";
 import { verifyPassword } from "../lib/server/password.ts";
 import { credentialsSchema } from "../lib/validation.ts";
-import { emptyWorkspace } from "../lib/workspace.ts";
 
 // Answers the bootstrap's queries from a list of users and records the writes.
 function fakeClient(users: { email: string; is_admin: boolean }[]) {
@@ -36,10 +30,6 @@ test("bootstrap hashes passwords the way the app verifies them", async () => {
   assert.equal(await verifyPassword("another-password", hash), false);
 });
 
-test("bootstrap creates the same empty workspace as registration", () => {
-  assert.deepEqual(EMPTY_WORKSPACE, emptyWorkspace());
-});
-
 test("bootstrap creates the admin only while no admin exists", async () => {
   assert.equal(await bootstrapAdmin(fakeClient([]), {}), "skipped");
   const existing = fakeClient([{ email: "other@example.test", is_admin: true }]);
@@ -48,11 +38,11 @@ test("bootstrap creates the admin only while no admin exists", async () => {
 
   const fresh = fakeClient([]);
   assert.equal(await bootstrapAdmin(fresh, env), "created");
-  const [user, workspace] = fresh.writes;
+  const [user] = fresh.writes;
   assert.match(user.sql, /INSERT INTO users\(id,email,password_hash,is_admin\)/);
   assert.equal(user.params[1], "admin@example.test");
   assert(await verifyPassword(env.ADMIN_PASSWORD, user.params[2] as string));
-  assert.match(workspace.sql, /INSERT INTO workspaces/);
+  assert.equal(fresh.writes.length, 1);
 });
 
 test("bootstrap promotes an existing account without touching its password", async () => {

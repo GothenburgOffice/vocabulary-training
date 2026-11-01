@@ -1,9 +1,10 @@
 "use client";
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowRight, Check, LogOut, RefreshCw, Settings } from "lucide-react";
 import { BookMark } from "../lib/brand";
 import Workspace from "./Workspace";
-import type { WorkspaceData } from "../lib/workspace";
+import type { Review, Run, WorkspaceData, WorkspaceSync } from "../lib/workspace";
+import type { History, List } from "../lib/learning";
 import { NO_AI, type AiFeatures, type Language } from "../lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
 import { PASSWORD_MAX, PASSWORD_MIN } from "../lib/validation";
@@ -12,16 +13,24 @@ type Account = { id: string; email: string; is_admin?: boolean };
 type Loaded = {
   user: Account;
   data: WorkspaceData;
-  revision: number;
+  listRevisions: Record<string, number>;
   languages?: Language[];
   ai?: AiFeatures;
 };
-const fingerprint = (data: WorkspaceData) =>
-  JSON.stringify(data, (_key, value) =>
-    value && typeof value === "object" && !Array.isArray(value)
-      ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)))
-      : value,
-  );
+// One change to save, in the order Workspace made it.
+type Change =
+  | { kind: "list"; list: List }
+  | { kind: "review"; review: Review; saved: (history: History | null) => void }
+  | { kind: "run"; run: Run }
+  | { kind: "profile"; baseLanguage: string; learningLanguage: string };
+class RequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
 async function request(path: string, options?: RequestInit) {
   const response = await fetch(path, {
     ...options,
@@ -29,7 +38,7 @@ async function request(path: string, options?: RequestInit) {
     cache: "no-store",
   });
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || "The request failed.");
+  if (!response.ok) throw new RequestError(result.error || "The request failed.", response.status);
   return result;
 }
 
@@ -43,9 +52,9 @@ export default function AccountApp() {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("All changes saved");
   const [saveError, setSaveError] = useState("");
-  const revision = useRef(0);
-  const saved = useRef("");
-  const pending = useRef<WorkspaceData | null>(null);
+  // Changes not saved yet, oldest first, and each list's last saved revision.
+  const queue = useRef<Change[]>([]);
+  const revisions = useRef(new Map<string, number>());
   const saving = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
@@ -62,9 +71,8 @@ export default function AccountApp() {
       }
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
-      revision.current = result.revision;
-      saved.current = fingerprint(result.data);
-      pending.current = null;
+      revisions.current = new Map(Object.entries(result.listRevisions ?? {}));
+      queue.current = [];
       dirty.current = false;
       blocked.current = false;
       setStatus("All changes saved");
@@ -93,27 +101,75 @@ export default function AccountApp() {
     };
   }, []);
 
+  const send = useCallback(async (change: Change) => {
+    if (change.kind === "list") {
+      const { id, title, description, from, to, words } = change.list;
+      const result = await request(`/api/lists/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          revision: revisions.current.get(id) ?? null,
+          list: {
+            title,
+            description,
+            from,
+            to,
+            words: words.map((w) => ({
+              id: w.id,
+              front: w.front,
+              back: w.back,
+              accepted: w.accepted ?? [],
+            })),
+          },
+        }),
+      });
+      revisions.current.set(id, result.revision);
+    } else if (change.kind === "review") {
+      try {
+        const result = await request("/api/reviews", {
+          method: "POST",
+          body: JSON.stringify(change.review),
+        });
+        change.saved(result.history);
+      } catch (e) {
+        // The word was deleted in another tab: nothing left to schedule.
+        if (!(e instanceof RequestError && e.status === 404)) throw e;
+        change.saved(null);
+      }
+    } else if (change.kind === "run") {
+      const { run } = change;
+      await request("/api/runs", {
+        method: "POST",
+        body: JSON.stringify({
+          id: run.id,
+          listId: run.listId ?? null,
+          title: run.title,
+          mode: run.mode ?? "",
+          from: run.from,
+          to: run.to,
+          completedAt: run.completedAt,
+          results: run.results.map((r) => ({ ...r, answeredAt: r.answeredAt ?? run.completedAt })),
+        }),
+      });
+    } else {
+      const { baseLanguage, learningLanguage } = change;
+      await request("/api/profile", {
+        method: "PATCH",
+        body: JSON.stringify({ baseLanguage, learningLanguage }),
+      });
+    }
+  }, []);
+  // Sends queued changes one at a time, in order. A failed change stays first in the queue
+  // until an explicit retry; a conflict is never overwritten.
   const flush = useCallback(async () => {
     if (saving.current) return;
     saving.current = true;
     blocked.current = false;
     setSaveError("");
     try {
-      while (pending.current) {
-        const data = pending.current;
-        pending.current = null;
+      while (queue.current.length) {
         setStatus("Saving changes…");
-        try {
-          const result = await request("/api/workspace", {
-            method: "PUT",
-            body: JSON.stringify({ data, revision: revision.current }),
-          });
-          revision.current = result.revision;
-          saved.current = fingerprint(data);
-        } catch (e) {
-          pending.current ??= data;
-          throw e;
-        }
+        await send(queue.current[0]);
+        queue.current.shift();
       }
       dirty.current = false;
       setStatus("All changes saved");
@@ -125,11 +181,20 @@ export default function AccountApp() {
     } finally {
       saving.current = false;
     }
-  }, []);
-  const changed = useCallback(
-    (data: WorkspaceData) => {
-      if (fingerprint(data) === saved.current && !saving.current) return;
-      pending.current = data;
+  }, [send]);
+  const enqueue = useCallback(
+    (change: Change) => {
+      // A newer save of the same list or the profile replaces the last queued change when
+      // that is its earlier save, so nothing moves ahead of changes made in between. (The
+      // first entry may be in flight, so it is never replaced.)
+      const last = queue.current.length - 1;
+      const queued = queue.current[last];
+      const replaces =
+        last > 0 &&
+        ((change.kind === "list" && queued.kind === "list" && queued.list.id === change.list.id) ||
+          (change.kind === "profile" && queued.kind === "profile"));
+      if (replaces) queue.current[last] = change;
+      else queue.current.push(change);
       dirty.current = true;
       setStatus("Unsaved changes");
       if (timer.current) clearTimeout(timer.current);
@@ -140,6 +205,16 @@ export default function AccountApp() {
         }, 350);
     },
     [flush],
+  );
+  const sync = useMemo<WorkspaceSync>(
+    () => ({
+      saveList: (list) => enqueue({ kind: "list", list }),
+      review: (review) => new Promise((saved) => enqueue({ kind: "review", review, saved })),
+      completeRun: (run) => enqueue({ kind: "run", run }),
+      saveProfile: (baseLanguage, learningLanguage) =>
+        enqueue({ kind: "profile", baseLanguage, learningLanguage }),
+    }),
+    [enqueue],
   );
 
   async function authenticate(event: FormEvent) {
@@ -291,7 +366,7 @@ export default function AccountApp() {
         <Workspace
           key={loaded.user.id}
           initial={loaded.data}
-          onChange={changed}
+          sync={sync}
           languageList={loaded.languages}
         />
       </AiFeaturesContext.Provider>

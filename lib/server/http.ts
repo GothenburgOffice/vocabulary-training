@@ -54,11 +54,9 @@ export function cookieOptions(origin: string) {
   };
 }
 export async function body(request: Request, max = 2_000_000): Promise<unknown> {
-  if (Number(request.headers.get("content-length")) > max)
-    throw new HttpError(
-      413,
-      "This workspace is too large. Keep fewer than 100 lists and 200 sessions.",
-    );
+  const tooLarge = () =>
+    new HttpError(413, `This request is larger than ${(max / 1_000_000).toFixed(1)} MB.`);
+  if (Number(request.headers.get("content-length")) > max) throw tooLarge();
   const reader = request.body?.getReader();
   if (!reader) throw new HttpError(400, "A request body is required.");
   const parts: Uint8Array[] = [];
@@ -69,7 +67,7 @@ export async function body(request: Request, max = 2_000_000): Promise<unknown> 
     size += value.byteLength;
     if (size > max) {
       await reader.cancel();
-      throw new HttpError(413, "This workspace exceeds the 2 MB storage limit.");
+      throw tooLarge();
     }
     parts.push(value);
   }
