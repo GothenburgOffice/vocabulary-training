@@ -1,4 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap");
 /* On-demand pronunciation: small icon, full-size keyboard/touch target. */
 .word-with-audio,
 .answer-pronunciation,
@@ -64,7 +63,7 @@
   color: inherit;
 }
 :root {
-  --font-body: "Instrument Sans", system-ui, sans-serif;
+  --font-body: "Instrument Sans Variable", system-ui, sans-serif;
   --font-display: var(--font-body);
   --text-xs: 0.8125rem;
   --text-sm: 0.875rem;
