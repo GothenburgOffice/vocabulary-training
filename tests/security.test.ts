@@ -10,7 +10,13 @@ import {
   reviewSchema,
   runSaveSchema,
 } from "../lib/validation.ts";
-import { allowedOrigins, cookieOptions, json, requireOrigin } from "../lib/server/http.ts";
+import {
+  allowedOrigins,
+  clientIp,
+  cookieOptions,
+  json,
+  requireOrigin,
+} from "../lib/server/http.ts";
 
 test("salted password hashes verify without storing plaintext", async () => {
   const pass = "test-only-example-passphrase";
@@ -99,6 +105,22 @@ test("save requests protect types, limits and language pairs", () => {
       .success,
     false,
   );
+});
+test("the client IP comes only from the one header the operator trusts", () => {
+  const request = (headers: Record<string, string>) =>
+    new Request("http://localhost/api/auth", { headers });
+  const spoofed = request({ "x-forwarded-for": "203.0.113.9", "x-real-ip": "203.0.113.7" });
+  // Unset: nothing a client sends is trusted, so everyone shares the global limit.
+  assert.equal(clientIp(spoofed, {}), "");
+  assert.equal(clientIp(spoofed, { AUTH_TRUSTED_IP_HEADER: "X-Real-IP" }), "203.0.113.7");
+  assert.equal(
+    clientIp(request({ "x-real-ip": " 2001:db8::1 " }), { AUTH_TRUSTED_IP_HEADER: "x-real-ip" }),
+    "2001:db8::1",
+  );
+  // A list or a non-address is ignored rather than guessed from.
+  const env = { AUTH_TRUSTED_IP_HEADER: "x-forwarded-for" };
+  assert.equal(clientIp(request({ "x-forwarded-for": "203.0.113.9, 10.0.0.1" }), env), "");
+  assert.equal(clientIp(request({ "x-forwarded-for": "unknown" }), env), "");
 });
 test("allowed origins are the public origin plus exact aliases", () => {
   assert.deepEqual(allowedOrigins({ APP_ORIGIN: "https://example.com" }), ["https://example.com"]);

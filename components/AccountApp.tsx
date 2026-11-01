@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ArrowRight, Check, LogOut, RefreshCw, Settings } from "lucide-react";
+import { ArrowRight, Check, LogOut, RefreshCw, Settings, Shield } from "lucide-react";
 import { BookMark } from "../lib/brand";
 import Workspace from "./Workspace";
 import type { Review, Run, WorkspaceData, WorkspaceSync } from "../lib/workspace";
@@ -305,6 +305,13 @@ export default function AccountApp() {
                 {error}
               </p>
             )}
+            {action === "register" && (
+              <p className="auth-note">
+                By creating an account, you request the service. Read how your data is handled in{" "}
+                <a href="/privacy">Privacy and cookies</a>; this isn&apos;t consent to tracking or
+                marketing.
+              </p>
+            )}
             <button className="button primary" disabled={busy}>
               {busy ? "Please wait…" : action === "login" ? "Sign in" : "Create account"}
               <ArrowRight size={17} />
@@ -330,6 +337,10 @@ export default function AccountApp() {
             This first version has no email verification or password recovery. Keep your password
             safe.
           </p>
+          <p className="auth-note">
+            One essential sign-in cookie. No analytics, advertising or tracking.{" "}
+            <a href="/privacy">Privacy and cookies</a>
+          </p>
           {error && (
             <button className="text-button" onClick={() => void load()}>
               <RefreshCw size={15} /> Retry connection
@@ -350,6 +361,9 @@ export default function AccountApp() {
             <Settings size={15} /> Admin
           </a>
         )}
+        <a className="text-button" href="/privacy">
+          <Shield size={15} /> Privacy
+        </a>
         <button className="text-button" disabled={busy} onClick={() => void logout()}>
           <LogOut size={15} /> Sign out
         </button>

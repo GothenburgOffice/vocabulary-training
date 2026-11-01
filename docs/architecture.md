@@ -20,7 +20,8 @@ Only `lib/server/` and the migration script touch PostgreSQL or secrets.
 
 PostgreSQL holds `users` (with the profile's native and learning language),
 `sessions` (token hashes), `auth_limits` (sign-in throttling), the admin's
-`site_settings` and `languages`, and the user data in normalized tables:
+`site_settings` (encrypted Requesty keys and models, and the public privacy
+controller and contact) and `languages`, and the user data in normalized tables:
 
 | Table              | One row per                              | Notes                                                                            |
 | ------------------ | ---------------------------------------- | -------------------------------------------------------------------------------- |

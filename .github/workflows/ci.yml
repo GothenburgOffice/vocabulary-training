@@ -35,7 +35,8 @@ jobs:
       POSTGRES_PASSWORD: ci-only-disposable-password
       APP_PORT: 3013
       APP_ORIGIN: http://127.0.0.1:3013
-      ALLOW_REGISTRATION: "true"
+      # compose.test.yaml opens registration with a fake privacy contact, for the tests.
+      COMPOSE_FILE: compose.yaml:compose.test.yaml
       ADMIN_EMAIL: ci-admin@example.test
       ADMIN_PASSWORD: ci-only-disposable-admin-password
       TEST_ADMIN_EMAIL: ci-admin@example.test
@@ -82,7 +83,7 @@ jobs:
       POSTGRES_PASSWORD: ci-only-disposable-image-test-password
       APP_PORT: 3013
       APP_ORIGIN: http://127.0.0.1:3013
-      ALLOW_REGISTRATION: "true"
+      COMPOSE_FILE: compose.images.yaml:compose.test.yaml
       ADMIN_EMAIL: ci-admin@example.test
       ADMIN_PASSWORD: ci-only-disposable-admin-password
       TEST_ADMIN_EMAIL: ci-admin@example.test
@@ -102,12 +103,12 @@ jobs:
       - name: Build release candidate
         run: docker build --target production --label "org.opencontainers.image.revision=$GITHUB_SHA" --tag "$VOCABULARY_IMAGE" .
       - name: Test image-only Compose deployment
-        run: docker compose -f compose.images.yaml up -d --wait --wait-timeout 240
+        run: docker compose up -d --wait --wait-timeout 240
       - run: npm run test:integration
       - name: Verify release-image persistence
         run: |
           npx tsx tests/restart.mts prepare
-          docker compose -f compose.images.yaml restart app
+          docker compose restart app
           node scripts/wait-health.mjs http://127.0.0.1:3013/api/health
           npx tsx tests/restart.mts verify
       - name: Sign in to GHCR
@@ -143,7 +144,7 @@ jobs:
           fi
       - name: Container logs on failure
         if: failure()
-        run: docker compose -f compose.images.yaml logs --tail=100
+        run: docker compose logs --tail=100
       - name: Cleanup disposable image-test database
         if: always()
-        run: docker compose -f compose.images.yaml down -v
+        run: docker compose down -v
