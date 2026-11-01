@@ -11,3 +11,4 @@ graphify-out/
 *.log
 notes/
 .claude/settings.local.json
+.claude/memory/

@@ -20,3 +20,13 @@ services:
       # the integration tests then fail.
       REQUESTY_API_KEY: ${DEV_REQUESTY_API_KEY:-}
       REQUESTY_PLUS_API_KEY: ${DEV_REQUESTY_PLUS_API_KEY:-}
+      # Claude Code keeps its sign-in and settings in this volume across rebuilds.
+      CLAUDE_CONFIG_DIR: /root/.claude
+    volumes:
+      - claude-config:/root/.claude
+      # Claude Code's project memory lives in the gitignored .claude/memory/, so the
+      # host and the container share it. /app maps to the "-app" project folder.
+      - ./.claude/memory:/root/.claude/projects/-app/memory
+
+volumes:
+  claude-config:
