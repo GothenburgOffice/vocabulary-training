@@ -38,7 +38,7 @@ const VOICES: { match: RegExp; voices: string[]; note: string }[] = [
       "pf_dora",
       "pm_alex",
     ],
-    note: "The first letter is the language (a/b English, j Japanese, z Chinese, e Spanish, f French, h Hindi, i Italian, p Portuguese); f or m for female or male.",
+    note: "The first letter is the language (a/b English, j Japanese, z Mandarin, e Spanish, f French, h Hindi, i Italian, p Portuguese); f or m for female or male.",
   },
   {
     match: /orpheus/i,

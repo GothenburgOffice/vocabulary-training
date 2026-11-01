@@ -29,4 +29,5 @@ INSERT INTO languages(name, code, position) VALUES
   ('Spanish', 'es', 4),
   ('German', 'de', 5),
   ('Italian', 'it', 6),
-  ('Japanese', 'ja', 7);
+  ('Japanese', 'ja', 7),
+  ('Mandarin', 'zh', 8);

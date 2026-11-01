@@ -12,6 +12,7 @@ export const DEFAULT_LANGUAGES: Language[] = [
   { name: "German", code: "de", hidden: false },
   { name: "Italian", code: "it", hidden: false },
   { name: "Japanese", code: "ja", hidden: false },
+  { name: "Mandarin", code: "zh", hidden: false },
 ];
 
 // Which AI features this account can use: language notes, and speech per language name.
