@@ -164,8 +164,15 @@ export function saveList(
          VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO NOTHING RETURNING revision`,
         fields,
       );
-      if (!inserted.rowCount)
+      if (!inserted.rowCount) {
+        // Another account's list id is treated as unknown, as on update.
+        const own = await c.query("SELECT 1 FROM lists WHERE id=$1 AND user_id=$2", [
+          listId,
+          userId,
+        ]);
+        if (!own.rowCount) throw new HttpError(404, "List not found.");
         throw new HttpError(409, "This list already exists. Reload to see it.");
+      }
       saved = inserted.rows[0].revision;
     } else {
       // A changed language pair reaches the copies on words and reviews through ON UPDATE
@@ -234,11 +241,12 @@ export function saveList(
   });
 }
 
-// Applies one checked answer with the server's clock. Concurrent answers for the same word
-// wait for each other on the row lock, so every answer counts.
+// Applies one checked answer with the server's clock and returns the word's new state.
+// Concurrent answers for the same word wait for each other on the row lock, so every answer
+// counts; an answer whose id was already applied (a retried request) changes nothing.
 export function recordReview(
   userId: string,
-  { wordId, direction, correct }: z.infer<typeof reviewSchema>,
+  { id, wordId, direction, correct }: z.infer<typeof reviewSchema>,
 ) {
   return transaction(async (c) => {
     const word = await c.query(
@@ -259,11 +267,19 @@ export function recordReview(
       [wordId, prompt],
     );
     const row = current.rows[0];
-    const next = reviewed(
-      { correct: row.correct, wrong: row.wrong, streak: row.streak, due: Math.round(row.due) },
-      correct,
-      Date.now(),
+    const history = {
+      correct: row.correct,
+      wrong: row.wrong,
+      streak: row.streak,
+      due: Math.round(row.due),
+    };
+    const event = await c.query(
+      `INSERT INTO review_events (id, user_id, word_id, prompt, correct) VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (id) DO NOTHING`,
+      [id, userId, wordId, prompt, correct],
     );
+    if (!event.rowCount) return history;
+    const next = reviewed(history, correct, Date.now());
     await c.query(
       `UPDATE word_reviews SET correct=$3, wrong=$4, streak=$5, due_at=to_timestamp($6/1000.0)
        WHERE word_id=$1 AND prompt=$2`,
@@ -277,6 +293,8 @@ export function recordReview(
 // MAX_RUNS. Results link to words that still exist and keep their text either way.
 export function addRun(userId: string, run: z.infer<typeof runSaveSchema>) {
   return transaction(async (c) => {
+    // One session save at a time per account, so the MAX_RUNS limit holds across tabs.
+    await c.query("SELECT 1 FROM users WHERE id=$1 FOR UPDATE", [userId]);
     const inserted = await c.query(
       `INSERT INTO runs (id, user_id, native_language, learning_language, list_id, title, mode,
          completed_at)

@@ -28,6 +28,7 @@ PostgreSQL holds `users` (with the profile's native and learning language),
 | `words`            | word in a list: its native prompt        | `native_key`; `is_public` (#55)                                                  |
 | `accepted_answers` | answer accepted in the learning language | position 0 is the primary answer; `learning_key` for matching across lists (#56) |
 | `word_reviews`     | word and prompt (which side was shown)   | the current review state; no row means never answered that way                   |
+| `review_events`    | checked answer                           | the answer log: makes retries harmless, and is ready for #2                      |
 | `runs`             | completed practice session               | the newest 200 are kept until #54 decides retention                              |
 | `run_results`      | answer in a session                      | keeps the word's text, so history survives edits and deletions                   |
 
@@ -55,9 +56,11 @@ Saves are small and incremental:
 - `PUT /api/lists/:id` creates (`revision: null`) or replaces a list and its
   words, with the list's `revision`. A stale save gets 409, never an overwrite.
   Words keep their review state while their id stays.
-- `POST /api/reviews` records one checked answer. The server applies
-  `reviewed()` with its own clock, under a row lock, so answers from two tabs
-  both count.
+- `POST /api/reviews` records one checked answer, with an id the client makes
+  per answer. The server applies `reviewed()` with its own clock, under a row
+  lock, so answers from two tabs both count, and logs the answer in
+  `review_events`, so a retried request is counted once. It returns the new
+  state, which the tab takes unless a later answer for that word is pending.
 - `POST /api/runs` saves a completed session once; `PATCH /api/profile` saves
   the profile languages.
 - `GET /api/workspace` is the full dump, in the shape the client works with.

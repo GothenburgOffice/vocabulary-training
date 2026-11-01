@@ -105,8 +105,14 @@ test("real HTTP and PostgreSQL: accounts, ownership, persistence, conflicts, CSR
   );
   // Another account can't overwrite the list, take over its words or review them.
   assert.equal((await put(listId, { revision: 2, list }, cookie2)).status, 404);
+  assert.equal((await put(listId, { revision: null, list }, cookie2)).status, 404);
   assert.equal((await put(randomUUID(), { revision: null, list }, cookie2)).status, 409);
-  const othersReview = { wordId: list.words[0].id, direction: "forward", correct: true };
+  const othersReview = {
+    id: randomUUID(),
+    wordId: list.words[0].id,
+    direction: "forward",
+    correct: true,
+  };
   assert.equal((await api("/api/reviews", "POST", othersReview, cookie2)).status, 404);
   assert.equal((await api("/api/auth", "DELETE", {}, cookie)).status, 200);
   assert.equal((await api("/api/workspace", "GET", undefined, cookie)).status, 401);
@@ -165,14 +171,19 @@ test("real HTTP: lists, reviews, sessions and the profile are saved as rows", as
   assert.equal((await put(null, list(words))).status, 200);
 
   // Two tabs answering the same word at once: every answer counts.
-  const review = (wordId: string, correct: boolean) =>
-    api("/api/reviews", "POST", { wordId, direction: "forward", correct }, cookie);
+  const review = (wordId: string, correct: boolean, id = randomUUID()) =>
+    api("/api/reviews", "POST", { id, wordId, direction: "forward", correct }, cookie);
   const answers = await Promise.all([review(kept, true), review(kept, true), review(kept, false)]);
   assert.deepEqual(
     answers.map((a) => a.status),
     [200, 200, 200],
   );
-  assert.equal((await review(kept, true)).status, 200);
+  // A retried answer (same id, its response lost) is counted once.
+  const retried = randomUUID();
+  const first = await (await review(kept, true, retried)).json();
+  const again = await review(kept, true, retried);
+  assert.equal(again.status, 200);
+  assert.deepEqual((await again.json()).history, first.history);
   const load = async () =>
     (await (await api("/api/workspace", "GET", undefined, cookie)).json()).data;
   let dump = await load();

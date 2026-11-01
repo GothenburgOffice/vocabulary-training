@@ -31,8 +31,9 @@ export const listSaveSchema = z
       ),
   })
   .strict();
-// POST /api/reviews: one checked answer. The server applies reviewed() with its own clock.
-export const reviewSchema = z.object({ wordId: id, direction, correct: z.boolean() }).strict();
+// POST /api/reviews: one checked answer, with an id the client makes once per answer, so a
+// retry isn't counted twice. The server applies reviewed() with its own clock.
+export const reviewSchema = z.object({ id, wordId: id, direction, correct: z.boolean() }).strict();
 // POST /api/runs: a completed session, with the text of each word as it was practised.
 export const runSaveSchema = z
   .object({

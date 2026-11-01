@@ -113,6 +113,20 @@ CREATE TABLE word_reviews (
 );
 CREATE INDEX word_reviews_due_idx ON word_reviews (user_id, native_language, learning_language, due_at);
 
+-- One row per checked answer, written with its review state in one transaction. The
+-- client's id makes a retried request harmless, and the log is ready for a scheduling
+-- algorithm that learns from past answers (#2).
+CREATE TABLE review_events (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  word_id uuid NOT NULL REFERENCES words(id) ON DELETE CASCADE,
+  prompt text NOT NULL CHECK (prompt IN ('native', 'learning')),
+  correct boolean NOT NULL,
+  reviewed_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX review_events_word_idx ON review_events (word_id, prompt, reviewed_at);
+CREATE INDEX review_events_user_idx ON review_events (user_id);
+
 -- Completed practice sessions. Their pair and word text are history: they keep what was
 -- practised even after the list or word changes or is deleted.
 CREATE TABLE runs (

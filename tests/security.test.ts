@@ -61,8 +61,15 @@ test("save requests protect types, limits and language pairs", () => {
   assert.equal(save({ words: [{ ...word(), accepted: [""] }] }), false);
   assert.equal(save({ words: [{ ...word(), accepted: Array(21).fill("x") }] }), false);
 
-  const review = { wordId: crypto.randomUUID(), direction: "forward", correct: true };
+  const review = {
+    id: crypto.randomUUID(),
+    wordId: crypto.randomUUID(),
+    direction: "forward",
+    correct: true,
+  };
   assert(reviewSchema.safeParse(review).success);
+  // Every answer carries its own id, so retries can be recognised.
+  assert.equal(reviewSchema.safeParse({ ...review, id: undefined }).success, false);
   assert.equal(reviewSchema.safeParse({ ...review, direction: "sideways" }).success, false);
   // The server schedules; the client can't send history or due dates.
   assert.equal(reviewSchema.safeParse({ ...review, due: 0 }).success, false);

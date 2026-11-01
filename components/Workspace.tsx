@@ -101,6 +101,8 @@ export default function Workspace({
   const answerRef = useRef<HTMLInputElement>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDialogElement>(null);
+  // The id of the newest answer per word and direction (see submitAnswer).
+  const latestReview = useRef(new Map<string, string>());
   // The profile languages change in several places; save whenever the pair changes.
   const savedProfile = useRef(`${initial.baseLanguage}
 ${initial.learningLanguage}`);
@@ -361,7 +363,20 @@ ${learningLanguage}`;
             },
       ),
     );
-    sync?.review(current.id, direction, correct);
+    // Take the server's state once saved, so answers from other tabs show here too, unless a
+    // later answer for the same word and direction is still on its way.
+    const review = { id: crypto.randomUUID(), wordId: current.id, direction, correct };
+    const key = `${review.wordId}:${direction}`;
+    latestReview.current.set(key, review.id);
+    void sync?.review(review).then((history) => {
+      if (!history || latestReview.current.get(key) !== review.id) return;
+      setLists((ls) =>
+        ls.map((l) => ({
+          ...l,
+          words: l.words.map((w) => (w.id === review.wordId ? { ...w, [direction]: history } : w)),
+        })),
+      );
+    });
   }
   function next() {
     if (!list) return;

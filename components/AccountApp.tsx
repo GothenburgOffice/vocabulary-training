@@ -3,8 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { ArrowRight, Check, LogOut, RefreshCw, Settings } from "lucide-react";
 import { BookMark } from "../lib/brand";
 import Workspace from "./Workspace";
-import type { Run, WorkspaceData, WorkspaceSync } from "../lib/workspace";
-import type { Direction, List } from "../lib/learning";
+import type { Review, Run, WorkspaceData, WorkspaceSync } from "../lib/workspace";
+import type { History, List } from "../lib/learning";
 import { NO_AI, type AiFeatures, type Language } from "../lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
 import { PASSWORD_MAX, PASSWORD_MIN } from "../lib/validation";
@@ -20,7 +20,7 @@ type Loaded = {
 // One change to save, in the order Workspace made it.
 type Change =
   | { kind: "list"; list: List }
-  | { kind: "review"; wordId: string; direction: Direction; correct: boolean }
+  | { kind: "review"; review: Review; saved: (history: History | null) => void }
   | { kind: "run"; run: Run }
   | { kind: "profile"; baseLanguage: string; learningLanguage: string };
 class RequestError extends Error {
@@ -124,14 +124,17 @@ export default function AccountApp() {
       });
       revisions.current.set(id, result.revision);
     } else if (change.kind === "review") {
-      const { wordId, direction, correct } = change;
-      await request("/api/reviews", {
-        method: "POST",
-        body: JSON.stringify({ wordId, direction, correct }),
-      }).catch((e) => {
+      try {
+        const result = await request("/api/reviews", {
+          method: "POST",
+          body: JSON.stringify(change.review),
+        });
+        change.saved(result.history);
+      } catch (e) {
         // The word was deleted in another tab: nothing left to schedule.
         if (!(e instanceof RequestError && e.status === 404)) throw e;
-      });
+        change.saved(null);
+      }
     } else if (change.kind === "run") {
       const { run } = change;
       await request("/api/runs", {
@@ -181,14 +184,16 @@ export default function AccountApp() {
   }, [send]);
   const enqueue = useCallback(
     (change: Change) => {
-      // A newer save of the same list or profile replaces one that hasn't been sent yet.
-      // (The first entry may be in flight, so it is never replaced.)
-      const replaces = (queued: Change, index: number) =>
-        index > 0 &&
+      // A newer save of the same list or the profile replaces the last queued change when
+      // that is its earlier save, so nothing moves ahead of changes made in between. (The
+      // first entry may be in flight, so it is never replaced.)
+      const last = queue.current.length - 1;
+      const queued = queue.current[last];
+      const replaces =
+        last > 0 &&
         ((change.kind === "list" && queued.kind === "list" && queued.list.id === change.list.id) ||
           (change.kind === "profile" && queued.kind === "profile"));
-      const at = queue.current.findIndex(replaces);
-      if (at > 0) queue.current[at] = change;
+      if (replaces) queue.current[last] = change;
       else queue.current.push(change);
       dirty.current = true;
       setStatus("Unsaved changes");
@@ -204,8 +209,7 @@ export default function AccountApp() {
   const sync = useMemo<WorkspaceSync>(
     () => ({
       saveList: (list) => enqueue({ kind: "list", list }),
-      review: (wordId, direction, correct) =>
-        enqueue({ kind: "review", wordId, direction, correct }),
+      review: (review) => new Promise((saved) => enqueue({ kind: "review", review, saved })),
       completeRun: (run) => enqueue({ kind: "run", run }),
       saveProfile: (baseLanguage, learningLanguage) =>
         enqueue({ kind: "profile", baseLanguage, learningLanguage }),
