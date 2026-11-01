@@ -2,13 +2,14 @@
 services:
   app:
     # Reinstall dependencies only when the lockfile changed, before the dev server starts,
-    # so the shared node_modules volume never goes stale and npm never races `next dev`.
+    # so the shared node_modules volume never goes stale and npm never races `next dev`. A
+    # failed install stops here instead of starting the server on stale dependencies.
     command:
       - sh
       - -c
       - >-
-        cmp -s package-lock.json node_modules/.installed-lock ||
-        (npm ci && cp package-lock.json node_modules/.installed-lock);
+        { cmp -s package-lock.json node_modules/.installed-lock ||
+        { npm ci && cp package-lock.json node_modules/.installed-lock; }; } &&
         exec npm run dev
     environment:
       # Local development only: the integration tests register throwaway accounts.
