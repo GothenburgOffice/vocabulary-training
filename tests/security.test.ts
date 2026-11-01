@@ -5,11 +5,11 @@ import {
   credentialsSchema,
   PASSWORD_MAX,
   PASSWORD_MIN,
-  saveSchema,
-  workspaceSchema,
+  listSaveSchema,
+  profileSchema,
+  reviewSchema,
+  runSaveSchema,
 } from "../lib/validation.ts";
-import { emptyWorkspace } from "../lib/workspace.ts";
-import { makeWord } from "../lib/learning.ts";
 import { allowedOrigins, cookieOptions, json, requireOrigin } from "../lib/server/http.ts";
 
 test("salted password hashes verify without storing plaintext", async () => {
@@ -42,26 +42,51 @@ test("credentials enforce password size and normalize email", () => {
     false,
   );
 });
-test("workspace validation protects types, limits and language pairs", () => {
-  assert(workspaceSchema.safeParse(emptyWorkspace()).success);
+test("save requests protect types, limits and language pairs", () => {
+  const word = (front = "hej", back = "bonjour") => ({ id: crypto.randomUUID(), front, back });
+  const list = { title: "Test", description: "", from: "Swedish", to: "French", words: [word()] };
+  const save = (l: object, revision: number | null = null) =>
+    listSaveSchema.safeParse({ revision, list: { ...list, ...l } }).success;
+  assert(save({}));
+  assert(save({}, 3));
+  assert.equal(save({}, 0), false);
+  assert.equal(save({ to: "Swedish" }), false);
+  const w = word();
+  assert.equal(save({ words: [w, w] }), false);
+  assert.equal(save({ words: [word("")] }), false);
+  assert.equal(save({ words: [{ ...word(), id: "w-legacy" }] }), false);
+  assert.equal(save({ words: Array.from({ length: 1001 }, () => word()) }), false);
+  assert.equal(save({ words: [] }), false);
+
+  const review = { wordId: crypto.randomUUID(), direction: "forward", correct: true };
+  assert(reviewSchema.safeParse(review).success);
+  assert.equal(reviewSchema.safeParse({ ...review, direction: "sideways" }).success, false);
+  // The server schedules; the client can't send history or due dates.
+  assert.equal(reviewSchema.safeParse({ ...review, due: 0 }).success, false);
+
+  assert(profileSchema.safeParse({ baseLanguage: "Swedish", learningLanguage: "French" }).success);
   assert.equal(
-    workspaceSchema.safeParse({ ...emptyWorkspace(), learningLanguage: "Swedish" }).success,
+    profileSchema.safeParse({ baseLanguage: "Swedish", learningLanguage: "Swedish" }).success,
     false,
   );
-  assert.equal(saveSchema.safeParse({ revision: -1, data: emptyWorkspace() }).success, false);
-  const w = makeWord("hej", "bonjour", "same");
-  const l = { id: "l", title: "Test", description: "", from: "Swedish", to: "French", words: [w] };
-  assert(workspaceSchema.safeParse({ ...emptyWorkspace(), lists: [l] }).success);
-  assert.equal(workspaceSchema.safeParse({ ...emptyWorkspace(), lists: [l, l] }).success, false);
+
+  const run = {
+    id: crypto.randomUUID(),
+    listId: null,
+    title: "Test",
+    mode: "adaptive",
+    from: "Swedish",
+    to: "French",
+    completedAt: 1,
+    results: [
+      { word: word(), answer: "bonjour", correct: true, direction: "forward", answeredAt: 1 },
+    ],
+  };
+  assert(runSaveSchema.safeParse(run).success);
+  assert.equal(runSaveSchema.safeParse({ ...run, results: [] }).success, false);
   assert.equal(
-    workspaceSchema.safeParse({ ...emptyWorkspace(), lists: [{ ...l, words: [w, w] }] }).success,
-    false,
-  );
-  assert.equal(
-    workspaceSchema.safeParse({
-      ...emptyWorkspace(),
-      lists: [{ ...l, words: [{ ...w, front: "" }] }],
-    }).success,
+    runSaveSchema.safeParse({ ...run, results: [{ ...run.results[0], answer: "x".repeat(501) }] })
+      .success,
     false,
   );
 });

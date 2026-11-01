@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  directionOf,
+  learningKey,
+  promptOf,
   normalize,
   isCorrect,
   makeWord,
@@ -96,4 +99,28 @@ test("CSV handles old codes, quoting, commas and line endings", () => {
   ]);
   assert.throws(() => parseCSV('sv,fr\n"unfinished,bonjour'));
   assert.throws(() => parseCSV("sv,fr\nhello,bonjour,extra"));
+});
+
+test("learningKey matches the same word across lists without dropping accents", () => {
+  assert.equal(learningKey("  Le   Chat "), "le chat");
+  assert.equal(learningKey("Chat | minou"), "chat");
+  // NFD input (e + combining accent) gets the same key as the precomposed form.
+  assert.equal(learningKey("été"), learningKey("été"));
+  assert.notEqual(learningKey("pêche"), learningKey("péché"));
+  assert.notEqual(learningKey("pêche"), learningKey("peche"));
+});
+
+test("directions are stored as the side that was shown", () => {
+  assert.equal(promptOf("forward"), "native");
+  assert.equal(promptOf("reverse"), "learning");
+  assert.equal(directionOf(promptOf("forward")), "forward");
+  assert.equal(directionOf(promptOf("reverse")), "reverse");
+});
+
+test("new words get UUIDs, which the database uses as keys", () => {
+  assert.match(
+    makeWord().id,
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+  );
+  assert.equal(makeWord("a", "b", "given").id, "given");
 });

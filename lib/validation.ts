@@ -1,70 +1,64 @@
 import { z } from "zod";
 const text = z.string().trim().min(1).max(200);
 const language = z.string().trim().min(1).max(60);
-const history = z.object({
-  correct: z.number().int().min(0).max(1_000_000),
-  wrong: z.number().int().min(0).max(1_000_000),
-  streak: z.number().int().min(0).max(1_000_000),
-  due: z.number().int().min(0).max(8640000000000000),
-});
-const word = z.object({
-  id: z.string().min(1).max(100),
-  front: text,
-  back: text,
-  forward: history,
-  reverse: history,
-});
-const list = z
+const id = z.string().uuid();
+const direction = z.enum(["forward", "reverse"]);
+const timestamp = z.number().int().nonnegative().max(8640000000000000);
+
+// PUT /api/lists/:id: the whole list with its words, as the editor saves it. revision is the
+// one last loaded or saved, or null for a new list.
+export const listSaveSchema = z
   .object({
-    id: z.string().min(1).max(100),
+    revision: z.number().int().positive().nullable(),
+    list: z
+      .object({
+        title: text,
+        description: z.string().max(1000),
+        from: language,
+        to: language,
+        words: z
+          .array(z.object({ id, front: text, back: text }))
+          .min(1)
+          .max(1000),
+      })
+      .refine((l) => l.from !== l.to, "Languages must differ")
+      .refine(
+        (l) => new Set(l.words.map((w) => w.id)).size === l.words.length,
+        "Duplicate word identifiers",
+      ),
+  })
+  .strict();
+// POST /api/reviews: one checked answer. The server applies reviewed() with its own clock.
+export const reviewSchema = z.object({ wordId: id, direction, correct: z.boolean() }).strict();
+// POST /api/runs: a completed session, with the text of each word as it was practised.
+export const runSaveSchema = z
+  .object({
+    id,
+    listId: id.nullable(),
     title: text,
-    description: z.string().max(1000),
+    mode: z.string().max(40),
     from: language,
     to: language,
-    words: z.array(word).min(1).max(1000),
-  })
-  .refine((l) => l.from !== l.to, "Languages must differ")
-  .refine(
-    (l) => new Set(l.words.map((w) => w.id)).size === l.words.length,
-    "Duplicate word identifiers",
-  );
-export const workspaceSchema = z
-  .object({
-    baseLanguage: language,
-    learningLanguage: language,
-    lists: z.array(list).max(100),
-    runs: z
+    completedAt: timestamp,
+    results: z
       .array(
         z.object({
-          id: z.string().max(100).optional(),
-          completedAt: z.number().int().nonnegative().max(8640000000000000).optional(),
-          title: text,
-          from: language,
-          to: language,
-          results: z
-            .array(
-              z.object({
-                word,
-                answer: z.string().max(500),
-                correct: z.boolean(),
-                direction: z.enum(["forward", "reverse"]),
-              }),
-            )
-            .min(1)
-            .max(1000),
+          word: z.object({ id, front: text, back: text }),
+          answer: z.string().max(500),
+          correct: z.boolean(),
+          direction,
+          answeredAt: timestamp,
         }),
       )
-      .max(200),
+      .min(1)
+      .max(1000),
   })
-  .refine((w) => w.baseLanguage !== w.learningLanguage, "Languages must differ")
-  .refine(
-    (w) => new Set(w.lists.map((l) => l.id)).size === w.lists.length,
-    "Duplicate list identifiers",
-  );
-export const saveSchema = z.object({
-  revision: z.number().int().nonnegative(),
-  data: workspaceSchema,
-});
+  .refine((r) => r.from !== r.to, "Languages must differ");
+// PATCH /api/profile.
+export const profileSchema = z
+  .object({ baseLanguage: language, learningLanguage: language })
+  .strict()
+  .refine((p) => p.baseLanguage !== p.learningLanguage, "Languages must differ");
 // Only a fixed-length scrypt hash is stored, so the cap just bounds the hashing work.
 export const PASSWORD_MIN = 12;
 export const PASSWORD_MAX = 4096;

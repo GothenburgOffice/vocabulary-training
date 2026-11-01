@@ -11,13 +11,6 @@ export async function hashPassword(password) {
   const hash = await scrypt(password, salt, 64);
   return `scrypt:${salt}:${hash.toString("hex")}`;
 }
-// Same as emptyWorkspace() in lib/workspace.ts; also checked by the test.
-export const EMPTY_WORKSPACE = {
-  baseLanguage: "Swedish",
-  learningLanguage: "French",
-  lists: [],
-  runs: [],
-};
 
 // The sign-in email rule from credentialsSchema in lib/validation.ts (zod's email pattern, at
 // most 254 characters); also checked by the test.
@@ -48,6 +41,5 @@ export async function bootstrapAdmin(client, env = process.env) {
     email,
     await hashPassword(password),
   ]);
-  await client.query("INSERT INTO workspaces(user_id,data) VALUES($1,$2)", [id, EMPTY_WORKSPACE]);
   return "created";
 }

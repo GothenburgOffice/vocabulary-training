@@ -12,13 +12,25 @@ export type List = {
 export const freshHistory = (): History => ({ correct: 0, wrong: 0, streak: 0, due: 0 });
 export function makeWord(front = "", back = "", id = ""): Word {
   return {
-    id: id || `w-${Math.random().toString(36).slice(2)}`,
+    id: id || crypto.randomUUID(),
     front,
     back,
     forward: freshHistory(),
     reverse: freshHistory(),
   };
 }
+// The match key for the same word across lists (words.learning_key): the first form before
+// any "|" alternatives, trimmed, inner spaces collapsed, Unicode NFC and lowercase. Accents
+// stay, since they change meaning (pêche, péché). Derived from the stored text, never a
+// replacement for it.
+export function learningKey(text: string) {
+  return text.split("|")[0].trim().replace(/\s+/gu, " ").normalize("NFC").toLowerCase();
+}
+// Stored as which side was shown: "forward" shows the native side (front) and asks for the
+// learning side (back).
+export const promptOf = (direction: Direction) => (direction === "forward" ? "native" : "learning");
+export const directionOf = (prompt: string): Direction =>
+  prompt === "native" ? "forward" : "reverse";
 export function normalize(text: string, caseSensitive = false, accents = true) {
   // Compare common keyboard/typographic apostrophes equally, without changing
   // stored text, accents on letters, or distinct letter-like marks (e.g. ʻ).

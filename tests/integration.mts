@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { makeWord } from "../lib/learning.ts";
 const base = process.env.TEST_BASE_URL ?? "http://127.0.0.1:3013";
 const origin = process.env.TEST_ORIGIN ?? base;
 const headers = { "Content-Type": "application/json", Origin: origin };
@@ -68,33 +67,31 @@ test("real HTTP and PostgreSQL: accounts, ownership, persistence, conflicts, CSR
     assert.equal((await disabledAudio.json()).status, "disabled");
   }
   assert.equal(first.data.lists.length, 0);
+  assert.deepEqual([first.data.baseLanguage, first.data.learningLanguage], ["Swedish", "French"]);
+  const listId = randomUUID();
   const list = {
-    id: "one",
     title: "Integration",
     description: "",
     from: "Swedish",
     to: "French",
-    words: [makeWord("hej", "bonjour", "w1")],
+    words: [{ id: randomUUID(), front: "hej", back: "bonjour" }],
   };
-  const data = { ...first.data, lists: [list] };
-  const saved = await api("/api/workspace", "PUT", { revision: first.revision, data }, cookie);
-  assert.equal(saved.status, 200);
+  const put = (id: string, data: unknown, who = cookie, extra = {}) =>
+    api(`/api/lists/${id}`, "PUT", data, who, extra);
+  const saved = await put(listId, { revision: null, list });
+  assert.equal(saved.status, 200, await saved.clone().text());
+  assert.equal((await saved.json()).revision, 1);
+  // Creating it again, or saving from a stale revision, is a conflict, never an overwrite.
+  assert.equal((await put(listId, { revision: null, list })).status, 409);
+  assert.equal((await put(listId, { revision: 1, list })).status, 200);
+  assert.equal((await put(listId, { revision: 1, list })).status, 409);
   assert.equal(
-    (await api("/api/workspace", "PUT", { revision: first.revision, data }, cookie)).status,
-    409,
-  );
-  assert.equal(
-    (
-      await api("/api/workspace", "PUT", { revision: 1, data }, cookie, {
-        Origin: "https://attacker.invalid",
-      })
-    ).status,
+    (await put(listId, { revision: 2, list }, cookie, { Origin: "https://attacker.invalid" }))
+      .status,
     403,
   );
-  assert.equal(
-    (await api("/api/workspace", "PUT", { revision: 1, data: { bad: true } }, cookie)).status,
-    400,
-  );
+  assert.equal((await put(listId, { revision: 2, list: { bad: true } })).status, 400);
+  assert.equal((await put("not-a-uuid", { revision: null, list })).status, 404);
   const reg2 = await api("/api/auth", "POST", {
     action: "register",
     email: `other-${randomUUID()}@example.test`,
@@ -106,6 +103,11 @@ test("real HTTP and PostgreSQL: accounts, ownership, persistence, conflicts, CSR
     (await (await api("/api/workspace", "GET", undefined, cookie2)).json()).data.lists.length,
     0,
   );
+  // Another account can't overwrite the list, take over its words or review them.
+  assert.equal((await put(listId, { revision: 2, list }, cookie2)).status, 404);
+  assert.equal((await put(randomUUID(), { revision: null, list }, cookie2)).status, 409);
+  const othersReview = { wordId: list.words[0].id, direction: "forward", correct: true };
+  assert.equal((await api("/api/reviews", "POST", othersReview, cookie2)).status, 404);
   assert.equal((await api("/api/auth", "DELETE", {}, cookie)).status, 200);
   assert.equal((await api("/api/workspace", "GET", undefined, cookie)).status, 401);
   const bad = await api("/api/auth", "POST", {
@@ -119,13 +121,8 @@ test("real HTTP and PostgreSQL: accounts, ownership, persistence, conflicts, CSR
   const cookie3 = login.headers.get("set-cookie")!.split(";")[0];
   const persisted = await (await api("/api/workspace", "GET", undefined, cookie3)).json();
   assert.equal(persisted.data.lists[0].title, "Integration");
-  assert.equal(persisted.revision, 1);
-  const oversized = await api(
-    "/api/workspace",
-    "PUT",
-    { revision: 1, data: "x".repeat(2_000_001) },
-    cookie3,
-  );
+  assert.deepEqual(persisted.listRevisions, { [listId]: 2 });
+  const oversized = await put(listId, { revision: 2, list: "x".repeat(2_000_001) }, cookie3);
   assert.equal(oversized.status, 413);
   // Repeated attempts must produce a persistent, database-backed limit.
   const rateEmail = `rate-${randomUUID()}@example.test`;
@@ -138,6 +135,103 @@ test("real HTTP and PostgreSQL: accounts, ownership, persistence, conflicts, CSR
     }
   }
   assert(limited);
+});
+
+test("real HTTP: lists, reviews, sessions and the profile are saved as rows", async () => {
+  const reg = await api("/api/auth", "POST", {
+    action: "register",
+    email: `rows-${randomUUID()}@example.test`,
+    password: "integration-test-only-password",
+  });
+  assert.equal(reg.status, 200, await reg.clone().text());
+  const cookie = reg.headers.get("set-cookie")!.split(";")[0];
+  const listId = randomUUID();
+  const [kept, removed] = [randomUUID(), randomUUID()];
+  type Pair = { id: string; front: string; back: string };
+  const list = (words: Pair[], to = "French") => ({
+    title: "Rows",
+    description: "Integration",
+    from: "Swedish",
+    to,
+    words,
+  });
+  const words = [
+    { id: kept, front: "katt", back: "chat" },
+    { id: removed, front: "hund", back: "chien" },
+  ];
+  const put = (revision: number | null, data: object) =>
+    api(`/api/lists/${listId}`, "PUT", { revision, list: data }, cookie);
+  assert.equal((await put(null, list(words))).status, 200);
+
+  // Two tabs answering the same word at once: every answer counts.
+  const review = (wordId: string, correct: boolean) =>
+    api("/api/reviews", "POST", { wordId, direction: "forward", correct }, cookie);
+  const answers = await Promise.all([review(kept, true), review(kept, true), review(kept, false)]);
+  assert.deepEqual(
+    answers.map((a) => a.status),
+    [200, 200, 200],
+  );
+  assert.equal((await review(kept, true)).status, 200);
+  const load = async () =>
+    (await (await api("/api/workspace", "GET", undefined, cookie)).json()).data;
+  let dump = await load();
+  const history = dump.lists[0].words[0].forward;
+  assert.equal(history.correct + history.wrong, 4);
+  assert.equal(history.wrong, 1);
+  assert(history.due > Date.now());
+  assert.deepEqual(dump.lists[0].words[0].reverse, { correct: 0, wrong: 0, streak: 0, due: 0 });
+
+  // A session keeps the text it practised, also for words removed afterwards.
+  const run = {
+    id: randomUUID(),
+    listId,
+    title: "Rows",
+    mode: "adaptive",
+    from: "Swedish",
+    to: "French",
+    completedAt: Date.now(),
+    results: words.map((w, i) => ({
+      word: w,
+      answer: i ? "wrong" : w.back,
+      correct: !i,
+      direction: "forward",
+      answeredAt: Date.now(),
+    })),
+  };
+  assert.equal((await api("/api/runs", "POST", run, cookie)).status, 200);
+  // A retried request doesn't save the session twice.
+  assert.equal((await api("/api/runs", "POST", run, cookie)).status, 200);
+  // Changing the target language and removing a word: the pair follows to the kept word.
+  const changed = await put(1, list([words[0]], "Italian"));
+  assert.equal(changed.status, 200, await changed.clone().text());
+  assert.equal((await review(removed, true)).status, 404);
+  const profile = (learningLanguage: string) =>
+    api("/api/profile", "PATCH", { baseLanguage: "Swedish", learningLanguage }, cookie);
+  assert.equal((await profile("Italian")).status, 200);
+  assert.equal((await profile("Swedish")).status, 400);
+
+  dump = await load();
+  assert.equal(dump.learningLanguage, "Italian");
+  assert.equal(dump.lists[0].to, "Italian");
+  assert.deepEqual(
+    dump.lists[0].words.map((w: Pair) => w.id),
+    [kept],
+  );
+  const kept_ = dump.lists[0].words[0].forward;
+  assert.equal(kept_.correct + kept_.wrong, 4);
+  assert.equal(dump.runs.length, 1);
+  assert.equal(dump.runs[0].to, "French");
+  assert.deepEqual(
+    dump.runs[0].results.map((r: { word: Pair; correct: boolean }) => [
+      r.word.id,
+      r.word.back,
+      r.correct,
+    ]),
+    [
+      [kept, "chat", true],
+      ["", "chien", false],
+    ],
+  );
 });
 
 test("real HTTP: the admin area answers 404 to everyone but admins", async () => {

@@ -30,7 +30,9 @@ tests. Also run the integration test when API, auth or DB code changed.
 ## Code map
 
 - `lib/learning.ts`: pure matching, sampling, scheduling and CSV. Unit-test any change here.
-- `lib/validation.ts`: Zod schemas. Update them with any change to the workspace shape.
+- `lib/validation.ts`: Zod schemas for save requests. Update them with any change to the data shape.
+- `lib/server/workspace-store.ts`: every query on the user data tables (`lists`, `words`,
+  `word_reviews`, `runs`, `run_results`). Every query filters on `user_id`.
 - `lib/server/**`: server-only (`import "server-only"`). DB, sessions, Requesty clients.
 - `app/api/*/route.ts`: mutations call `requireOrigin` and then `requireUser`. Errors go through `HttpError`/`fail`.
 - `app/admin/`: the admin area, a shell (`layout.tsx`, `components/admin/AdminNav.tsx`)
@@ -64,7 +66,8 @@ tests. Also run the integration test when API, auth or DB code changed.
 - Lists belong to a base and target language pair. Changing the profile's base
   language never relabels or migrates lists. Base and target must differ.
 - Answer normalization never rewrites stored text. Accents are strict by default.
-- Saves carry a `revision`. A stale save must get 409, never overwrite.
+- List saves carry a `revision`. A stale save must get 409, never overwrite. Reviews are
+  applied on the server, so concurrent answers all count.
 - Keep the book mark beside the wordmark, and keep the one- and two-line
   wordmarks working at all sidebar widths.
 

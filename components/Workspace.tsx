@@ -32,7 +32,7 @@ import {
   type Direction,
   type List,
 } from "../lib/learning";
-import type { WorkspaceData, Result, Run } from "../lib/workspace";
+import type { WorkspaceData, Result, Run, WorkspaceSync } from "../lib/workspace";
 import { DEFAULT_LANGUAGES, languageCodes, pickerLanguages, type Language } from "../lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
 import LanguageNote from "./LanguageNote";
@@ -54,11 +54,12 @@ function Button({
 }
 export default function Workspace({
   initial,
-  onChange,
+  sync,
   languageList = DEFAULT_LANGUAGES,
 }: {
   initial: WorkspaceData;
-  onChange?: (data: WorkspaceData) => void;
+  // Receives each change to save. Without it (tests, previews), nothing is saved.
+  sync?: WorkspaceSync;
   languageList?: Language[];
 }) {
   const now = Date.now();
@@ -98,9 +99,16 @@ export default function Workspace({
   const answerRef = useRef<HTMLInputElement>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDialogElement>(null);
+  // The profile languages change in several places; save whenever the pair changes.
+  const savedProfile = useRef(`${initial.baseLanguage}
+${initial.learningLanguage}`);
   useEffect(() => {
-    onChange?.({ lists, runs, baseLanguage, learningLanguage });
-  }, [lists, runs, baseLanguage, learningLanguage, onChange]);
+    const profile = `${baseLanguage}
+${learningLanguage}`;
+    if (profile === savedProfile.current) return;
+    savedProfile.current = profile;
+    sync?.saveProfile(baseLanguage, learningLanguage);
+  }, [baseLanguage, learningLanguage, sync]);
   useEffect(() => {
     const media = window.matchMedia("(min-width: 681px)");
     const close = () => setNav(false);
@@ -206,7 +214,7 @@ export default function Workspace({
       target
         ? structuredClone(target)
         : {
-            id: `list-${Date.now()}`,
+            id: crypto.randomUUID(),
             title: "",
             description: "",
             from: baseLanguage,
@@ -294,6 +302,7 @@ export default function Workspace({
           ? ls.map((l) => (l.id === clean.id ? clean : l))
           : [...ls, clean],
       );
+      sync?.saveList(clean);
       setSelected(clean.id);
       setLearningLanguage(clean.to);
       setQuery("");
@@ -327,11 +336,12 @@ export default function Workspace({
     if (!list || !current || feedback || (!answer.trim() && !skip)) return;
     const expected = direction === "forward" ? current.back : current.front;
     const correct = !skip && isCorrect(answer, expected, caseSensitive, accents);
-    const result = {
-      word: structuredClone(current),
+    const result: Result = {
+      word: { id: current.id, front: current.front, back: current.back },
       answer: skip ? "Skipped" : answer.trim(),
       correct,
       direction,
+      answeredAt: now,
     };
     setFeedback({ ...result, skipped: skip });
     setResults((r) => [...r, result]);
@@ -349,23 +359,23 @@ export default function Workspace({
             },
       ),
     );
+    sync?.review(current.id, direction, correct);
   }
   function next() {
     if (!list) return;
     if (index + 1 >= queue.length) {
-      setRuns((r) =>
-        [
-          {
-            id: crypto.randomUUID(),
-            completedAt: now,
-            title: list.title,
-            from: list.from,
-            to: list.to,
-            results,
-          },
-          ...r,
-        ].slice(0, 200),
-      );
+      const run: Run = {
+        id: crypto.randomUUID(),
+        completedAt: now,
+        listId: list.id,
+        mode,
+        title: list.title,
+        from: list.from,
+        to: list.to,
+        results,
+      };
+      setRuns((r) => [run, ...r].slice(0, 200));
+      sync?.completeRun(run);
       setView("results");
     } else {
       setIndex((i) => i + 1);
@@ -400,7 +410,7 @@ export default function Workspace({
       if (!from || !to || words.some((w) => !w.front || !w.back))
         throw new Error("Language names and both sides of every pair are required.");
       setDraft({
-        id: `import-${Date.now()}`,
+        id: crypto.randomUUID(),
         title: "Imported word list",
         description: "",
         from,

@@ -23,7 +23,8 @@ Intended for controlled self-hosting. This is not a security audit.
 - SQL values use parameterized queries. Zod validates all saved workspace data.
 - Session expiry is checked on every request. Sign-out revokes the stored token.
 - Authentication throttles are shared across processes through PostgreSQL.
-- Revision checks prevent silent overwrites across tabs.
+- List revision checks prevent silent overwrites across tabs, and every user data query
+  filters on `user_id`, so one account can't read, change or take over another's rows.
 - The application container runs as a non-root user; PostgreSQL is not published
   to the host by Compose.
 - Response headers limit embedding, content sniffing and browser capabilities.
