@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { BookOpen, ArrowRight, Check, LogOut, RefreshCw } from "lucide-react";
+import { ArrowRight, Check, LogOut, RefreshCw } from "lucide-react";
+import { BookMark } from "../lib/brand";
 import Workspace from "./Workspace";
 import type { WorkspaceData } from "../lib/workspace";
 
@@ -179,7 +180,7 @@ export default function AccountApp() {
       <main className="auth-screen">
         <div className="auth-content">
           <div className="auth-brand">
-            <BookOpen aria-hidden="true" size={28} />
+            <BookMark aria-hidden="true" size={28} />
             <span>
               vocabulary<strong>.training</strong>
             </span>

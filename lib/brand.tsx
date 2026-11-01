@@ -6,6 +6,33 @@ export const BOOK_PATHS = [
   "M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z",
 ];
 
+/**
+ * The book mark as an inline icon (currentColor), used beside the wordmark instead of
+ * lucide's BookOpen so icon-library upgrades can't change the brand artwork.
+ */
+export function BookMark({
+  size = 24,
+  ...props
+}: { size?: number } & React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      {BOOK_PATHS.map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  );
+}
+
 /** White book on a rounded brand-blue square, for next/og ImageResponse. */
 export function BrandIcon({ size, mark = 0.62 }: { size: number; mark?: number }) {
   const markSize = Math.round(size * mark);
