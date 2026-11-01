@@ -51,7 +51,10 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const language = await parse(request, languageUpdateSchema);
-    if (!(await updateLanguage(language))) throw new HttpError(404, "Language not found.");
+    const result = await updateLanguage(language);
+    if (result === "missing") throw new HttpError(404, "Language not found.");
+    if (result === "stale")
+      throw new HttpError(409, "This language changed in another tab. Reload to see it.");
     return json({ languages: await readLanguagesView() });
   } catch (e) {
     return fail(duplicateCode(e));

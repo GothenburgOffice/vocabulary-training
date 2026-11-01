@@ -40,6 +40,8 @@ jobs:
       ADMIN_PASSWORD: ci-only-disposable-admin-password
       TEST_ADMIN_EMAIL: ci-admin@example.test
       TEST_ADMIN_PASSWORD: ci-only-disposable-admin-password
+      # Lets the integration test write and clear AI settings: only on these throwaway stacks.
+      TEST_WRITE_SITE_SETTINGS: "1"
       SETTINGS_ENCRYPTION_KEY: Y2ktb25seS1kaXNwb3NhYmxlLWVuY3J5cHRpb24ta2U=
     steps:
       - uses: actions/checkout@v7.0.1
@@ -85,6 +87,8 @@ jobs:
       ADMIN_PASSWORD: ci-only-disposable-admin-password
       TEST_ADMIN_EMAIL: ci-admin@example.test
       TEST_ADMIN_PASSWORD: ci-only-disposable-admin-password
+      # Lets the integration test write and clear AI settings: only on these throwaway stacks.
+      TEST_WRITE_SITE_SETTINGS: "1"
       SETTINGS_ENCRYPTION_KEY: Y2ktb25seS1kaXNwb3NhYmxlLWVuY3J5cHRpb24ta2U=
       VOCABULARY_IMAGE: vocabulary-training:publish
     steps:

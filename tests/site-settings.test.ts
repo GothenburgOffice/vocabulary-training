@@ -8,7 +8,7 @@ import {
   OTHER_LANGUAGE,
   pickerLanguages,
 } from "../lib/languages.ts";
-import { languageCreateSchema, tierUpdateSchema } from "../lib/admin/ai-settings.ts";
+import { languageCreateSchema, speechSchema, tierUpdateSchema } from "../lib/admin/ai-settings.ts";
 
 const env = { SETTINGS_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64") };
 const otherEnv = { SETTINGS_ENCRYPTION_KEY: Buffer.alloc(32, 8).toString("base64") };
@@ -56,6 +56,14 @@ test("admin input: codes are optional and normalized, Other is reserved, keys ar
   assert.equal(languageCreateSchema.safeParse({ name: "Dutch", code: "n" }).success, false);
   assert.equal(tierUpdateSchema.safeParse({ tier: "plus", apiKey: null }).success, true);
   assert.equal(tierUpdateSchema.safeParse({ tier: "gold" }).success, false);
+});
+
+test("admin input: policies work for language notes but are refused for speech", () => {
+  assert.equal(tierUpdateSchema.safeParse({ tier: "basic", model: "policy/notes" }).success, true);
+  const speech = (model: string) => speechSchema.safeParse({ model, voice: "", instructions: "" });
+  assert.equal(speech("openai/gpt-4o-mini-tts").success, true);
+  assert.equal(speech("").success, true);
+  assert.match(speech("policy/tts").error?.issues[0].message ?? "", /policies only work/);
 });
 
 test("the model list is sorted into chat and speech models, sending only the key", async () => {

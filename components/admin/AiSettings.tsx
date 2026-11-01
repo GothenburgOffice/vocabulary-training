@@ -55,12 +55,16 @@ function TierCard({
   const [status, setStatus] = useState("");
   const models = useModels();
   const listId = `chat-models-${tier}`;
+  // A plus tier without its own key loads models with the basic key, as AI requests do.
+  const usesBasicKey =
+    tier === "plus" && current.key.state === "unset" && view.tiers.basic.key.state === "set";
 
   async function save(update: { apiKey?: string | null; model?: string }) {
     setStatus("Saving…");
     try {
       onSaved(await adminRequest<AiSettingsView>("/api/admin/ai", "PUT", { tier, ...update }));
-      setApiKey("");
+      // Only a key save consumes the typed key; saving a model keeps it for "Save key".
+      if (update.apiKey !== undefined) setApiKey("");
       setStatus("Saved.");
     } catch (e) {
       setStatus((e as Error).message);
@@ -125,7 +129,7 @@ function TierCard({
         </button>
         <button
           className="button"
-          disabled={!apiKey.trim() && current.key.state !== "set"}
+          disabled={!apiKey.trim() && current.key.state !== "set" && !usesBasicKey}
           onClick={() => void models.load(apiKey.trim() ? { apiKey: apiKey.trim() } : { tier })}
         >
           Load models
@@ -133,7 +137,7 @@ function TierCard({
       </div>
       {(status || models.status) && (
         <p className="admin-status" role="status">
-          {status || models.status}
+          {[status, models.status].filter(Boolean).join(" ")}
         </p>
       )}
     </section>

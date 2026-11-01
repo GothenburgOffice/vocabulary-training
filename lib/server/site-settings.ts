@@ -36,10 +36,18 @@ type LanguageRow = {
   plus_speech_model: string;
   plus_speech_voice: string;
   plus_speech_instructions: string;
+  revision: string;
 };
+// updated_at in microseconds, as text: a language's revision for stale-save checks.
+const revision = "(extract(epoch FROM updated_at)*1000000)::bigint::text";
+async function readLanguageRows() {
+  const { rows } = await db.query<LanguageRow>(
+    `SELECT *, ${revision} AS revision FROM languages ORDER BY position, name`,
+  );
+  return rows;
+}
 async function readLanguages(): Promise<LanguageSettings[]> {
-  const { rows } = await db.query<LanguageRow>("SELECT * FROM languages ORDER BY position, name");
-  return rows.map((r) => ({
+  return (await readLanguageRows()).map((r) => ({
     name: r.name,
     code: r.code ?? "",
     hidden: r.hidden,
@@ -84,10 +92,15 @@ export async function readAiSettingsView(): Promise<AiSettingsView> {
   };
 }
 
-// The stored key of a tier, for loading its model list. Empty when unset or unreadable.
+// The key a tier's AI requests use, for loading its model list: plus falls back to the basic
+// key like aiConfig does. Empty when neither is set and readable.
 export async function storedApiKey(tier: Tier) {
-  const stored = (await readSettingsMap()).get(keyName(tier));
-  return (stored && decryptSecret(stored)) || "";
+  const settings = await readSettingsMap();
+  const key = (t: Tier) => {
+    const stored = settings.get(keyName(t));
+    return (stored && decryptSecret(stored)) || "";
+  };
+  return (tier === "plus" && key("plus")) || key("basic");
 }
 
 async function setSetting(key: string, value: string) {
@@ -106,12 +119,17 @@ export async function saveTier(tier: Tier, update: { model?: string; apiKey?: st
 }
 
 export async function readLanguagesView(): Promise<LanguageView[]> {
-  return (await readLanguages()).map(({ name, code, hidden, speech, plusSpeech }) => ({
-    name,
-    code,
-    hidden,
-    speech,
-    plusSpeech,
+  return (await readLanguageRows()).map((r) => ({
+    name: r.name,
+    revision: r.revision,
+    code: r.code ?? "",
+    hidden: r.hidden,
+    speech: { model: r.speech_model, voice: r.speech_voice, instructions: r.speech_instructions },
+    plusSpeech: {
+      model: r.plus_speech_model,
+      voice: r.plus_speech_voice,
+      instructions: r.plus_speech_instructions,
+    },
   }));
 }
 // Returns false when the name or code is already taken.
@@ -123,14 +141,18 @@ export async function addLanguage(name: string, code: string) {
   invalidateAiSettings();
   return result.rowCount === 1;
 }
-// Returns false when the language doesn't exist. Throws on a duplicate code (23505).
-export async function updateLanguage(language: LanguageView) {
+// "stale" when the language changed since `revision` was read. Throws on a duplicate code
+// (23505).
+export async function updateLanguage(
+  language: LanguageView,
+): Promise<"saved" | "missing" | "stale"> {
   const s: Speech = language.speech;
   const p: Speech = language.plusSpeech;
   const result = await db.query(
     `UPDATE languages SET code=NULLIF($2,''),hidden=$3,speech_model=$4,speech_voice=$5,
        speech_instructions=$6,plus_speech_model=$7,plus_speech_voice=$8,
-       plus_speech_instructions=$9,updated_at=now() WHERE name=$1`,
+       plus_speech_instructions=$9,updated_at=clock_timestamp()
+       WHERE name=$1 AND ${revision}=$10`,
     [
       language.name,
       language.code,
@@ -141,10 +163,13 @@ export async function updateLanguage(language: LanguageView) {
       p.model,
       p.voice,
       p.instructions,
+      language.revision,
     ],
   );
   invalidateAiSettings();
-  return result.rowCount === 1;
+  if (result.rowCount === 1) return "saved";
+  const exists = await db.query("SELECT 1 FROM languages WHERE name=$1", [language.name]);
+  return exists.rowCount ? "stale" : "missing";
 }
 // Positions follow `order`; languages it doesn't mention keep their place after those.
 export async function reorderLanguages(order: string[]) {

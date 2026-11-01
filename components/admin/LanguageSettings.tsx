@@ -103,10 +103,12 @@ function LanguageCard({
 }) {
   const [draft, setDraft] = useState(language);
   const [status, setStatus] = useState("");
-  const changed = JSON.stringify(draft) !== JSON.stringify(language);
+  // The draft is saved against the revision last loaded here, which moves on after each save.
+  const edited = { ...draft, revision: language.revision };
+  const changed = JSON.stringify(edited) !== JSON.stringify(language);
   async function save() {
     setStatus("Saving…");
-    setStatus((await onSave(draft)) ? "Saved." : "");
+    setStatus((await onSave(edited)) ? "Saved." : "");
   }
   return (
     <section className={`admin-card admin-language${language.hidden ? " is-hidden" : ""}`}>

@@ -25,7 +25,13 @@ export type AiSettingsView = {
   tiers: Record<Tier, TierView>;
 };
 
-export const speechSchema = z.object({ model, voice, instructions }).strict();
+// Speech calls go straight to a model: SpeechService refuses policies, so they're refused here
+// too instead of saving a setting that always fails.
+const speechModel = model.refine(
+  (value) => !value.startsWith("policy/"),
+  "Speech needs a model; Requesty policies only work for language notes.",
+);
+export const speechSchema = z.object({ model: speechModel, voice, instructions }).strict();
 export type Speech = z.infer<typeof speechSchema>;
 
 const languageName = z
@@ -42,9 +48,11 @@ const languageCode = z
   .regex(/^([a-z]{2,3}(-[a-z0-9]{2,8})?)?$/, "Use a code like sv or pt-br, or leave it empty.");
 
 export const languageCreateSchema = z.object({ name: languageName, code: languageCode }).strict();
+// revision is the one loaded with the language; a save made from an older one gets 409.
 export const languageUpdateSchema = z
   .object({
     name: z.string().min(1).max(60),
+    revision: z.string().regex(/^\d{1,20}$/),
     code: languageCode,
     hidden: z.boolean(),
     speech: speechSchema,

@@ -177,12 +177,18 @@ export default function Workspace({
           lists.filter((l) => l.from === profileBase && l.to !== profileBase).map((l) => l.to),
         ),
       ].sort();
+      // With every language hidden only "Other" is offered, so fall back to hidden ones too.
+      const nextLearning = targets.includes(learningLanguage)
+        ? learningLanguage
+        : targets[0] ||
+          languages.find((l) => l !== profileBase) ||
+          languageList.map((l) => l.name).find((l) => l !== profileBase);
+      if (!nextLearning) {
+        setError("There is no other language to learn with this base language yet.");
+        return;
+      }
       setBaseLanguage(profileBase);
-      setLearningLanguage(
-        targets.includes(learningLanguage)
-          ? learningLanguage
-          : targets[0] || languages.find((l) => l !== profileBase)!,
-      );
+      setLearningLanguage(nextLearning);
       setSelected("");
       setQuery("");
       setDirection("forward");
