@@ -253,6 +253,13 @@ test("real HTTP: lists, reviews, sessions and the profile are saved as rows", as
 
 test("real HTTP: the admin area answers 404 to everyone but admins", async () => {
   assert.equal((await api("/admin")).status, 404);
+  assert.equal((await api("/api/admin/privacy")).status, 404);
+  // The privacy page is public, and this stack has a privacy contact (registration works).
+  const privacyPage = await api("/privacy");
+  assert.equal(privacyPage.status, 200);
+  const privacyHtml = await privacyPage.text();
+  assert.match(privacyHtml, /Privacy and cookies/);
+  assert.match(privacyHtml, /Privacy contact/);
   const email = `not-admin-${randomUUID()}@example.test`;
   const reg = await api("/api/auth", "POST", {
     action: "register",
@@ -309,6 +316,7 @@ test("real HTTP: admin AI settings and languages, with dummy keys and no provide
     "TEST_WRITE_SITE_SETTINGS needs a stack without AI settings: this test clears them.",
   );
   const english = languages.find((l) => l.name === "English")!;
+  const privacy = await (await api("/api/admin/privacy", "GET", undefined, admin)).json();
   try {
     assert.equal((await api("/api/admin/ai")).status, 404);
     assert.equal(
@@ -357,9 +365,27 @@ test("real HTTP: admin AI settings and languages, with dummy keys and no provide
       me.languages.some((l: { name: string; hidden: boolean }) => l.name === name && l.hidden),
     );
     assert.equal(JSON.stringify(me).includes(dummyKey), false);
+
+    // Without a privacy contact, registration closes; an invalid email isn't saved.
+    const savePrivacy = (controllerName: string, contactEmail: string) =>
+      api("/api/admin/privacy", "PUT", { controllerName, contactEmail }, admin);
+    assert.equal((await savePrivacy("Example", "not-an-email")).status, 400);
+    const cleared = await savePrivacy("", "");
+    assert.equal(cleared.status, 200);
+    assert.equal((await cleared.json()).ready, false);
+    const closed = await api("/api/auth", "POST", {
+      action: "register",
+      email: `closed-${randomUUID()}@example.test`,
+      password: "integration-test-only-password",
+    });
+    assert.equal(closed.status, 403);
+    assert.match((await closed.json()).error, /privacy contact/);
   } finally {
-    // Back to no key, no models and English as it was, even after a failed assertion.
+    // Back to no key, no models and English and privacy as they were, even after a failed
+    // assertion.
     await api("/api/admin/ai", "PUT", { tier: "basic", apiKey: null, model: "" }, admin);
+    const { controllerName, contactEmail } = privacy;
+    await api("/api/admin/privacy", "PUT", { controllerName, contactEmail }, admin);
     const current = (await readLanguages()).find((l) => l.name === "English")!;
     await api("/api/admin/languages", "PUT", { ...english, revision: current.revision }, admin);
   }

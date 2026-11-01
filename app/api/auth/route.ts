@@ -12,6 +12,8 @@ import {
 import { cookieName, createSession, limitAuth, requireUser } from "../../../lib/server/auth";
 import { hashPassword, hashToken, verifyPassword } from "../../../lib/server/password";
 import { credentialsSchema } from "../../../lib/validation";
+import { privacyReady } from "../../../lib/admin/privacy";
+import { readPrivacy } from "../../../lib/server/site-settings";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function GET() {
@@ -33,6 +35,12 @@ export async function POST(request: Request) {
     if (action === "register") {
       if (process.env.ALLOW_REGISTRATION !== "true")
         throw new HttpError(403, "Registration is closed. Contact the site owner.");
+      // The email address is personal data: who is responsible for it must be published first.
+      if (!privacyReady(await readPrivacy()))
+        throw new HttpError(
+          403,
+          "Registration opens once the site owner has published a privacy contact.",
+        );
       const passwordHash = await hashPassword(password);
       userId = randomUUID();
       // The profile languages default in the users table; lists start empty.

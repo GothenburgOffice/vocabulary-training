@@ -39,6 +39,12 @@ Compose binds the app to loopback by default; a reverse proxy on the host can ro
 to it. Containerized proxies should use an internal Docker network rather than
 publishing the database.
 
+Registration stays closed until the privacy controller and contact are set (site
+settings, seeded from `PRIVACY_*` on the first start). They're shown on the public
+`/privacy` page, which also lists the one cookie and what is stored. The site sets
+no other cookies and stores nothing else in the browser, so it needs no cookie
+consent banner. Never fill the privacy details with made-up values.
+
 Keep registration closed unless it is intentionally needed. Registration has no
 email verification, invite mechanism or automated password recovery. A user can
 register an unverified email address; do not treat that as identity proof.

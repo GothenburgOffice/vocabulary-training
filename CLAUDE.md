@@ -64,6 +64,10 @@ tests. Also run the integration test when API, auth or DB code changed.
 - A feature without a key and a model is hidden. Speech is configured per language (six
   settings); plus falls back to basic. Tests use dummy keys and never call Requesty.
 - Languages are hidden, never deleted or renamed: saved lists store the name.
+- Registration needs the privacy controller and contact (site settings, seeded from
+  `PRIVACY_*`). Never fill them with made-up values; tests use `example.test` ones that
+  say they aren't an operator. Keep `/privacy` in step with what the app stores and sends,
+  and add no non-essential cookies or browser storage without a consent decision.
 - Lists belong to a base and target language pair. Changing the profile's base
   language never relabels or migrates lists. Base and target must differ.
 - Answer normalization never rewrites stored text. Accents are strict by default.

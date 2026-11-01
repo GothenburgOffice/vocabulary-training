@@ -1,11 +1,15 @@
 import "server-only";
 import type { AiSettingsView, LanguageView, Speech, Tier } from "../admin/ai-settings";
+import type { Privacy } from "../admin/privacy";
 import type { AiSettings, LanguageSettings } from "./ai-config";
 import { db } from "./db";
 import { decryptSecret, encryptionReady, encryptSecret } from "./secrets";
 
 const keyName = (tier: Tier) => `requesty.${tier}.api_key`;
 const modelName = (tier: Tier) => `requesty.${tier}.model`;
+// Also written by scripts/privacy-bootstrap.mjs.
+const PRIVACY_NAME = "privacy.controller_name";
+const PRIVACY_EMAIL = "privacy.contact_email";
 
 // Read on most requests, so cached briefly. Saves clear this process's cache at once; other
 // processes pick changes up within CACHE_MS.
@@ -184,4 +188,21 @@ export async function reorderLanguages(order: string[]) {
     order,
   ]);
   invalidateAiSettings();
+}
+
+// The public privacy details. Registration needs both (privacyReady).
+export async function readPrivacy(): Promise<Privacy> {
+  const settings = await readSettingsMap();
+  return {
+    controllerName: settings.get(PRIVACY_NAME) ?? "",
+    contactEmail: settings.get(PRIVACY_EMAIL) ?? "",
+  };
+}
+// Stored even when blank, so the first-start seed from .env never brings back a cleared value.
+export async function savePrivacy(privacy: Privacy) {
+  await db.query(
+    `INSERT INTO site_settings(key,value) VALUES ($1,$2),($3,$4)
+     ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=now()`,
+    [PRIVACY_NAME, privacy.controllerName, PRIVACY_EMAIL, privacy.contactEmail],
+  );
 }

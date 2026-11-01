@@ -24,5 +24,12 @@ services:
       # clone never removes it. /app maps to the "-app" project folder.
       - ${CLAUDE_MEMORY_DIR:-${HOME:-${USERPROFILE}}/.claude-memory/vocabulary-training}:/root/.claude/projects/-app/memory
 
+  migrate:
+    environment:
+      # Local development only: the integration tests register accounts, which needs a
+      # privacy contact. Clearly not a real operator; values in .env win.
+      PRIVACY_CONTROLLER_NAME: ${PRIVACY_CONTROLLER_NAME:-Local development, not a real operator}
+      PRIVACY_CONTACT_EMAIL: ${PRIVACY_CONTACT_EMAIL:-dev-privacy@example.test}
+
 volumes:
   claude-config:

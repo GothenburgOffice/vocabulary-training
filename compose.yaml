@@ -23,6 +23,8 @@ services:
       DATABASE_URL: postgresql://vocabulary:${POSTGRES_PASSWORD}@db:5432/vocabulary
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      PRIVACY_CONTROLLER_NAME: ${PRIVACY_CONTROLLER_NAME:-}
+      PRIVACY_CONTACT_EMAIL: ${PRIVACY_CONTACT_EMAIL:-}
     depends_on:
       db:
         condition: service_healthy

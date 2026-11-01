@@ -27,7 +27,10 @@ cp .env.example .env        # PowerShell: Copy-Item .env.example .env
 ```
 
 Edit `.env`: set a long random URL-safe `POSTGRES_PASSWORD`, and
-`ALLOW_REGISTRATION=true` while you create your account.
+`ALLOW_REGISTRATION=true` while you create your account. Registration also needs
+`PRIVACY_CONTROLLER_NAME` and `PRIVACY_CONTACT_EMAIL`: who runs the site and a
+privacy contact, shown on `/privacy`. Use real details; they're seeded on the first
+start and edited in **Admin → Privacy** after that.
 
 **From source:**
 
@@ -69,6 +72,8 @@ real data.** Both Compose files share the same project and volume name. Use
 | `ALLOW_REGISTRATION`      | `false`                 | Allow new accounts                                                              |
 | `ADMIN_EMAIL`             | empty                   | First admin, created on start while no admin exists                             |
 | `ADMIN_PASSWORD`          | empty                   | That admin's password (12–4096 characters), used only to create it              |
+| `PRIVACY_CONTROLLER_NAME` | empty                   | Who runs the site; seeded on first start, then edited in Admin → Privacy        |
+| `PRIVACY_CONTACT_EMAIL`   | empty                   | Privacy contact; registration stays closed until both are set                   |
 | `VOCABULARY_IMAGE`        | `…:latest`              | Image for `compose.images.yaml`; pin a `sha-<commit>` tag                       |
 | `SETTINGS_ENCRYPTION_KEY` | empty                   | 32 random bytes (base64) that encrypt the Requesty keys saved in the admin area |
 
@@ -89,7 +94,8 @@ npm run test:integration  # HTTP + PostgreSQL against the running dev server
 ```
 
 Registration is enabled inside the dev container so the integration test can
-create throwaway accounts. AI keys and models are set in the admin area, also in
+create throwaway accounts; the dev container seeds a clearly fake privacy contact
+for that, unless `.env` sets real ones. AI keys and models are set in the admin area, also in
 dev. Automated tests use dummy keys and never call Requesty: with AI configured, the
 integration test skips its "AI disabled" checks instead of making paid calls.
 Dependencies are reinstalled automatically on start when `package-lock.json`
