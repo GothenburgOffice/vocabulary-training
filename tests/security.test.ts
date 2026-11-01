@@ -1,7 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { hashPassword, hashToken, verifyPassword } from "../lib/server/password.ts";
-import { credentialsSchema, saveSchema, workspaceSchema } from "../lib/validation.ts";
+import {
+  credentialsSchema,
+  PASSWORD_MAX,
+  PASSWORD_MIN,
+  saveSchema,
+  workspaceSchema,
+} from "../lib/validation.ts";
 import { emptyWorkspace } from "../lib/workspace.ts";
 import { makeWord } from "../lib/learning.ts";
 import { allowedOrigins, cookieOptions, json, requireOrigin } from "../lib/server/http.ts";
@@ -114,4 +120,14 @@ test("the session cookie's Secure flag follows the request's origin, not APP_ORI
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
   }
+});
+test("passwords accept 12 to 4096 characters, with a clear message outside that", () => {
+  const parse = (password: string) =>
+    credentialsSchema.safeParse({ action: "register", email: "a@b.com", password });
+  assert(parse("x".repeat(PASSWORD_MIN)).success);
+  assert(parse("x".repeat(PASSWORD_MAX)).success);
+  const short = parse("x".repeat(PASSWORD_MIN - 1));
+  assert.equal(short.error?.issues[0].message, "Use a password of at least 12 characters.");
+  const long = parse("x".repeat(PASSWORD_MAX + 1));
+  assert.equal(long.error?.issues[0].message, "Use a password of at most 4096 characters.");
 });

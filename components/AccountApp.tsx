@@ -4,6 +4,7 @@ import { ArrowRight, Check, LogOut, RefreshCw } from "lucide-react";
 import { BookMark } from "../lib/brand";
 import Workspace from "./Workspace";
 import type { WorkspaceData } from "../lib/workspace";
+import { PASSWORD_MAX, PASSWORD_MIN } from "../lib/validation";
 
 type Account = { id: string; email: string };
 type Loaded = { user: Account; data: WorkspaceData; revision: number };
@@ -208,13 +209,13 @@ export default function AccountApp() {
               <input
                 required
                 type="password"
-                minLength={12}
-                maxLength={128}
+                minLength={PASSWORD_MIN}
+                maxLength={PASSWORD_MAX}
                 autoComplete={action === "login" ? "current-password" : "new-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              <small>Use 12 to 128 characters. A passphrase works well.</small>
+              <small>Use at least {PASSWORD_MIN} characters. A passphrase works well.</small>
             </label>
             {error && (
               <p className="error" role="alert">
