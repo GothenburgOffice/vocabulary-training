@@ -40,8 +40,11 @@ tests. Also run the integration test when API, auth or DB code changed.
 
 ## Rules that must not regress
 
-- Grading, statistics and scheduling are deterministic. AI never grades,
-  accepts alternatives or edits words.
+- AI does what the owner has asked it to do on the site, and nothing more. So far
+  that's word audio and language notes on wrong answers. New AI features are agreed
+  in an issue first.
+- Grading, statistics and scheduling stay deterministic: an answer's grade never
+  depends on an AI response.
 - AI language notes are requested **only** for wrong, non-skipped answers, and
   this is enforced in the UI, the route and the adapter. Never send account
   IDs or whole lists to a provider.
