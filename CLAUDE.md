@@ -52,7 +52,9 @@ browser tests when UI code changed.
 
 ## Rules that must not regress
 
-- Each AI call has one job. Keep it to that job:
+- AI features are explicitly scoped. Don't add an AI call, or change what an existing one
+  does, receives or decides, without an owner decision recorded in a `decision` issue.
+  The current calls, each with one job:
   - **Language notes** (`/api/feedback`): a short comment on a wrong, non-skipped
     answer. It's requested only for those, enforced in the UI, the route and the
     adapter.
