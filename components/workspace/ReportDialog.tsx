@@ -54,7 +54,7 @@ export default function ReportDialog({
   if (state === "sent")
     return (
       <>
-        <p role="status">Thank you. The site’s administrators will look at this result.</p>
+        <p role="status">Report sent. Thank you.</p>
         <div className="inline-actions">
           <Button onClick={onClose}>Close</Button>
         </div>
@@ -96,10 +96,7 @@ export default function ReportDialog({
           ))}
         </select>
       </label>
-      <p className="field-help">
-        The report keeps the word, the language, the model and the request that was sent. It is not
-        sent to the AI provider.
-      </p>
+      <p className="field-help">Sent anonymously to the site’s administrators.</p>
       {error && (
         <p className="error" role="alert">
           {error}

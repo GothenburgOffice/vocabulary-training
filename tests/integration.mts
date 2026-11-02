@@ -622,7 +622,7 @@ test("real HTTP: a 4096-character password registers and signs in; longer gets a
   assert.equal((await tooLong.json()).error, "Use a password of at most 4096 characters.");
 });
 
-test("real HTTP: AI result reports are saved once per result and account, and checked", async () => {
+test("real HTTP: AI result reports are saved once per result, anonymously, and checked", async () => {
   const report = {
     activityId: `int-${randomUUID().slice(0, 8)}`,
     kind: "note",
@@ -654,10 +654,10 @@ test("real HTTP: AI result reports are saved once per result and account, and ch
   assert.deepEqual(await (await api("/api/reports", "POST", report, cookie)).json(), {
     status: "duplicate",
   });
-  // Another account's result with the same browser id is its own report.
+  // Reports carry no account, so the result's random id alone makes it the same report.
   const other = await register();
   assert.deepEqual(await (await api("/api/reports", "POST", report, other)).json(), {
-    status: "saved",
+    status: "duplicate",
   });
 
   // A reason for audio does not apply to a note, and unknown fields are refused.

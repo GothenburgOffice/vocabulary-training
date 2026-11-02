@@ -58,10 +58,9 @@ export default async function PrivacyPage() {
             many letters it sent and when, kept for 90 days to limit misuse. Not the text itself.
           </li>
           <li>
-            AI result reports, only if you send one: the word, its language, the model and voice,
-            the request that was sent to the AI provider (for a language note, that includes your
-            answer), the reason you chose and when. The site&apos;s administrators can read them.
-            They are kept until an administrator deletes them, and are deleted with your account.
+            Reports of a wrong AI result, if you send one: the result (the word, its language, the
+            model and the request that was sent) and the reason you chose. They are stored without
+            your account, so they can&apos;t be linked back to you.
           </li>
           <li>
             Sign-in sessions, stored only as hashes of their tokens. Sign-in attempt limits use
@@ -84,9 +83,8 @@ export default async function PrivacyPage() {
           hour and never written to disk.
         </p>
         <p>
-          So you can report a wrong result, the page keeps your last 20 AI results in its memory
-          while you are signed in. They are not saved in your browser and are gone when you reload
-          or sign out. A report is stored on this site only; it is never sent to the AI provider.
+          The page keeps your last 20 AI results in memory so you can report one; reloading or
+          signing out clears them. Reports are never sent to the AI provider.
         </p>
 
         <h2>The cookie and your browser</h2>
