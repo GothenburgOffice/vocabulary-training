@@ -4,6 +4,7 @@ import {
   test,
   expect,
   createList,
+  openAccount,
   done,
   openMenu,
   prompt,
@@ -52,6 +53,7 @@ test("unfinished rows stay unsaved, and leaving with them asks first", async ({ 
   await done(page);
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("heading", { name: "Leave with unfinished edits?" })).toBeVisible();
+  await expect(dialog.getByRole("listitem")).toHaveText(["1 word pair missing a word"]);
   await dialog.getByRole("button", { name: "Keep editing" }).click();
   await page.getByLabel("Translation 2").fill("merci");
   await saved(page);
@@ -237,4 +239,82 @@ test("a delete refused because another tab changed the list doesn't block saving
 
   await page.reload();
   await expect(page.locator(".list-row")).toHaveText([/Changed first/, /Still saving/]);
+});
+
+test("deleting a list from the editor isn't undone by a save still waiting", async ({ page }) => {
+  await page.goto("/");
+  await createList(page, "Gone", [["hej", "bonjour"]]);
+  await page.getByRole("button", { name: "Edit list" }).click();
+  await page.getByLabel("List name").fill("Gone for good");
+  // Straight away, before the autosave runs.
+  await page.getByRole("button", { name: "Delete list" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Delete list" }).click();
+  await expect(page.getByText("List deleted.")).toBeVisible();
+  await saved(page);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Your first French words start here." }),
+  ).toBeVisible();
+});
+
+test("every way out of the editor shows the list as edited", async ({ page }) => {
+  await page.goto("/");
+  await createList(page, "Moving", [["hej", "bonjour"]]);
+  await page.getByRole("button", { name: "Edit list" }).click();
+  await page.getByLabel("List learning language").selectOption("German");
+  // Leave through the sidebar at once: the library follows the list to German.
+  await openMenu(page);
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("button", { name: "My word lists" })
+    .click();
+  await expect(page.getByRole("heading", { name: "Your German workspace." })).toBeVisible();
+  await expect(page.getByText("Inside Moving")).toBeVisible();
+
+  // Practice from the editor uses the words just added.
+  await page.getByRole("button", { name: "Edit list" }).click();
+  await page.getByRole("button", { name: "Add a word pair" }).click();
+  await page.getByLabel("First language word 2").fill("tack");
+  await page.getByLabel("Translation 2").fill("danke");
+  await openMenu(page);
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("button", { name: "Practice" })
+    .click();
+  await expect(page.getByText("Word 1 of 2")).toBeVisible();
+});
+
+test("leaving a new list asks first, even without a name", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New word list" }).click();
+  await page.getByLabel("A short description").fill("Words for the trip");
+  await expect(saveState(page)).toHaveText(/Unsaved changes/);
+  await page.getByRole("main").getByRole("button", { name: "My word lists" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("listitem")).toHaveText([
+    "this new list, which isn't created until you press Add words",
+  ]);
+  await dialog.getByRole("button", { name: "Leave anyway" }).click();
+  await saved(page);
+});
+
+test("pasted words over 200 characters are refused on import", async ({ page }) => {
+  await page.goto("/");
+  await createList(page, "Long", [["hej", "bonjour"]]);
+  await page.getByRole("button", { name: "Edit list" }).click();
+  await page.getByRole("button", { name: "Paste a list instead" }).click();
+  await page
+    .getByLabel("One word pair per line, separated by a tab or semicolon")
+    .fill(`hej;bonjour\nlång;${"x".repeat(201)}`);
+  await page.getByRole("button", { name: "Import" }).click();
+  await expect(errorIn(page)).toHaveText("Line 2: keep each word to 200 characters or fewer.");
+});
+
+test("the base language can't change while a list is being edited", async ({ page }) => {
+  await page.goto("/");
+  await createList(page, "Locked", [["hej", "bonjour"]]);
+  await page.getByRole("button", { name: "Edit list" }).click();
+  const account = await openAccount(page);
+  await expect(account.getByLabel("Native / base language")).toBeDisabled();
+  await expect(account).toContainText("Leave the list editor before changing your base language.");
 });

@@ -2404,3 +2404,7 @@ main > .save-error {
   flex-wrap: wrap;
   gap: 4px 20px;
 }
+.lost-edits {
+  margin: 0 0 20px;
+  padding-left: 20px;
+}

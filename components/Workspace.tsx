@@ -92,7 +92,11 @@ export default function Workspace({
   const [editing, setEditing] = useState<List | null>(null);
   const [modal, setModal] = useState<Modal | null>(null);
   // Whether leaving the list editor would lose edits, and where leaving it was headed.
-  const [editorLosable, setEditorLosable] = useState(false);
+  const [editorLost, setEditorLost] = useState<string[]>([]);
+  // The editor's latest draft, so every way out of it (Done, the sidebar, the logo) shows it.
+  const editorDraft = useRef<List | null>(null);
+  // Lists being deleted: a save the editor still had waiting must not recreate them.
+  const deletedIds = useRef(new Set<string>());
   const [leaving, setLeaving] = useState<{ to: View | "practice"; list?: List } | null>(null);
   // The list the delete dialog asks about.
   const [deleting, setDeleting] = useState<List | null>(null);
@@ -155,6 +159,8 @@ ${learningLanguage}`;
   function saveProfile(profileBase: string) {
     if (view === "test")
       throw new Error("End your practice session before changing your base language.");
+    if (view === "editor")
+      throw new Error("Leave the list editor before changing your base language.");
     if (profileBase !== baseLanguage) {
       const targets = [
         ...new Set(
@@ -198,6 +204,7 @@ ${learningLanguage}`;
   }
   // The editor autosaves through this; it never leaves the editor.
   function saveList(saved: List) {
+    if (deletedIds.current.has(saved.id)) return;
     setLists((ls) =>
       ls.some((l) => l.id === saved.id)
         ? ls.map((l) => (l.id === saved.id ? saved : l))
@@ -207,8 +214,8 @@ ${learningLanguage}`;
   }
   // Leaving the editor saves what's waiting (ListEditor does that as it closes), but would drop
   // unfinished rows or pasted text, so it asks first when there are any.
-  function leaveEditor(to: View | "practice", edited?: List) {
-    if (editorLosable) {
+  function leaveEditor(to: View | "practice", edited = editorDraft.current ?? undefined) {
+    if (editorLost.length) {
       setLeaving({ to, list: edited });
       setModal("leave");
       return;
@@ -222,15 +229,15 @@ ${learningLanguage}`;
       setLearningLanguage(edited.to);
       setQuery("");
     }
-    if (to === "practice") startTest();
+    if (to === "practice") startTest(false, edited);
     else {
       setView(to);
       setNav(false);
       setNotice(null);
     }
   }
-  function changePending(pending: boolean, losable: boolean) {
-    setEditorLosable(losable);
+  function changePending(pending: boolean, lost: string[]) {
+    setEditorLost(lost);
     sync?.pending(pending);
   }
   function askDelete(target: List) {
@@ -238,9 +245,11 @@ ${learningLanguage}`;
     setModal("delete");
   }
   function deleteList(target: List) {
+    deletedIds.current.add(target.id);
     setLists((ls) => ls.filter((l) => l.id !== target.id));
     void sync?.deleteList(target.id).then((deleted) => {
       if (deleted) return;
+      deletedIds.current.delete(target.id);
       // This tab's copy is stale, so saving it would get 409 too; a reload shows the newer one.
       setLists((ls) => (ls.some((l) => l.id === target.id) ? ls : [...ls, target]));
       setNotice({
@@ -253,14 +262,18 @@ ${learningLanguage}`;
     setModal(null);
     setNotice({ text: "List deleted." });
   }
-  function startTest(onlyMistakes = false) {
-    if (!list?.words.length) {
+  // Practises the selected list, or `target` (the list just edited, not selected yet).
+  function startTest(onlyMistakes = false, target = list) {
+    if (!target?.words.length) {
       setView("library");
       setNav(false);
       return;
     }
     const mistakes = onlyMistakes ? practice.results : undefined;
-    dispatch({ type: "start", queue: practiceQueue(list.words, settings, Date.now(), mistakes) });
+    dispatch({
+      type: "start",
+      queue: practiceQueue(target.words, settings, Date.now(), mistakes),
+    });
     setView("test");
     setNotice(null);
     setNav(false);
@@ -427,6 +440,9 @@ ${learningLanguage}`;
             onSave={saveList}
             onDone={(edited) => leaveEditor("library", edited)}
             onPending={changePending}
+            onDraft={(draft) => {
+              editorDraft.current = draft;
+            }}
             onDelete={() => {
               const saved = lists.find((l) => l.id === editing.id);
               if (saved) askDelete(saved);
@@ -495,7 +511,13 @@ ${learningLanguage}`;
             account={account}
             baseLanguage={baseLanguage}
             languageList={languageList}
-            practising={view === "test"}
+            locked={
+              view === "test"
+                ? "End your practice session before changing your base language."
+                : view === "editor"
+                  ? "Leave the list editor before changing your base language."
+                  : ""
+            }
             onSave={saveProfile}
           />
         )}
@@ -532,6 +554,7 @@ ${learningLanguage}`;
         )}
         {modal === "leave" && (
           <LeaveDialog
+            lost={editorLost}
             onStay={() => {
               setModal(null);
               setLeaving(null);

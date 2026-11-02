@@ -8,13 +8,14 @@ export default function ProfileDialog({
   account,
   baseLanguage,
   languageList,
-  practising,
+  locked,
   onSave,
 }: {
   account?: WorkspaceAccount;
   baseLanguage: string;
   languageList: Language[];
-  practising: boolean;
+  // Why the base language can't change right now, or "".
+  locked: string;
   // Applies a picked base language (and closes); throws an Error to show when it can't.
   onSave: (baseLanguage: string) => void;
 }) {
@@ -59,7 +60,7 @@ export default function ProfileDialog({
         <select
           aria-label="Native / base language"
           value={baseLanguage}
-          disabled={practising}
+          disabled={!!locked}
           onChange={(e) => pick(e.target.value)}
         >
           {pickerLanguages(languageList, [baseLanguage]).map((l) => (
@@ -82,9 +83,7 @@ export default function ProfileDialog({
           </p>
         </div>
       </div>
-      {practising && (
-        <p className="error">End your practice session before changing your base language.</p>
-      )}
+      {locked && <p className="error">{locked}</p>}
       {error && (
         <p className="error" role="alert">
           {error}

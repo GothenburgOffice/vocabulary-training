@@ -31,6 +31,7 @@ export default function ListEditor({
   onDone,
   onDelete,
   onPending,
+  onDraft,
 }: {
   // A copy of the list as opened, or a new one (possibly with imported words).
   initial: List;
@@ -43,9 +44,11 @@ export default function ListEditor({
   // Back to the library, showing this list.
   onDone: (list: List) => void;
   onDelete: () => void;
-  // Edits not saved yet (unfinished rows, pasted text, a change waiting to save), and whether
-  // leaving would lose some: everything waiting is saved as the editor closes, the rest isn't.
-  onPending: (pending: boolean, losable: boolean) => void;
+  // Whether there are edits not saved yet, and what leaving now would lose: a change waiting to
+  // save is saved as the editor closes, but these can't be.
+  onPending: (pending: boolean, lost: string[]) => void;
+  // The list as it would be saved now, so any way out of the editor can show it.
+  onDraft: (list: List) => void;
 }) {
   const [draft, setDraft] = useState(initial);
   // A new list is only created once it has a name ("Add words").
@@ -62,9 +65,19 @@ export default function ListEditor({
   const next = saveable(draft);
   const tooMany = next.words.length > MAX_WORDS;
   const unfinished = draft.words.filter((w) => !complete(w) && (w.front || w.back)).length;
-  const waiting = created ? !tooMany && !same(next, saved) : !!draft.title.trim();
-  const losable = unfinished > 0 || tooMany || (pasting && bulk !== bulkStart) || !created;
-  const pending = waiting || (losable && (created || !!draft.title.trim()));
+  const pasteChanged = pasting && bulk !== bulkStart;
+  const waiting = !same(next, saved) && (!created || !tooMany);
+  const lost = [
+    ...(!created && waiting
+      ? ["this new list, which isn't created until you press Add words"]
+      : []),
+    ...(unfinished ? [`${unfinished} word pair${unfinished === 1 ? "" : "s"} missing a word`] : []),
+    ...(pasteChanged ? ["the pasted text, which isn't imported"] : []),
+    ...(created && tooMany
+      ? ["your changes since the last save: over 1,000 word pairs can't be saved"]
+      : []),
+  ];
+  const pending = waiting || lost.length > 0;
 
   function save(list: List) {
     setSaved(list);
@@ -80,11 +93,17 @@ export default function ListEditor({
     return () => clearTimeout(timer);
   }, [draft, created]);
   useEffect(() => () => saveWaiting(), []);
-  const reportPending = useEffectEvent((value: boolean, lost: boolean) => onPending(value, lost));
+  const reportPending = useEffectEvent(() => onPending(pending, lost));
+  const lostKey = lost.join("\n");
   useEffect(() => {
-    reportPending(pending, pending && losable);
-  }, [pending, losable]);
-  useEffect(() => () => reportPending(false, false), []);
+    reportPending();
+  }, [pending, lostKey]);
+  const clearPending = useEffectEvent(() => onPending(false, []));
+  useEffect(() => () => clearPending(), []);
+  const reportDraft = useEffectEvent(() => onDraft(next));
+  useEffect(() => {
+    reportDraft();
+  }, [draft]);
 
   function changeWord(id: string, key: "front" | "back", value: string) {
     setDraft((d) => ({
@@ -125,6 +144,8 @@ export default function ListEditor({
               `Line ${i + 1}: separate a complete word pair with a tab or semicolon.`,
             );
           const [front, back] = [cells[0].trim(), cells[1].trim()];
+          if (front.length > 200 || back.length > 200)
+            throw new Error(`Line ${i + 1}: keep each word to 200 characters or fewer.`);
           return (
             draft.words.find((w) => w.front === front && w.back === back) || makeWord(front, back)
           );

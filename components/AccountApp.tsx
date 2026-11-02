@@ -81,10 +81,13 @@ export default function AccountApp() {
 
   // Shows the workspace the server returns, or the sign-in screen when signed out. State
   // changes only once the server answers; `load` shows the loading screen first.
+  // A result that arrives after `current()` turns false is dropped: applying it would reset the
+  // save queue under edits made since (a load must never discard unsaved changes).
   const open = useCallback(
-    () =>
+    (current: () => boolean = () => true) =>
       readWorkspace()
         .then((result) => {
+          if (!current()) return;
           if (result) {
             revisions.current = new Map(Object.entries(result.listRevisions ?? {}));
             queue.current = [];
@@ -95,10 +98,13 @@ export default function AccountApp() {
           }
           setLoaded(result);
         })
-        .catch((e) =>
-          setError((e as Error).message || "Could not load your workspace. Please retry."),
-        )
-        .finally(() => setLoading(false)),
+        .catch((e) => {
+          if (current())
+            setError((e as Error).message || "Could not load your workspace. Please retry.");
+        })
+        .finally(() => {
+          if (current()) setLoading(false);
+        }),
     [],
   );
   const load = useCallback(async () => {
@@ -106,9 +112,14 @@ export default function AccountApp() {
     setError("");
     await open();
   }, [open]);
-  // The first render already shows the loading screen.
+  // The first render already shows the loading screen. Strict Mode runs this twice in
+  // development; only the last run's result is used.
   useEffect(() => {
-    void open();
+    let current = true;
+    void open(() => current);
+    return () => {
+      current = false;
+    };
   }, [open]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
