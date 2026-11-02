@@ -251,6 +251,64 @@ test("real HTTP: lists, reviews, sessions and the profile are saved as rows", as
   );
 });
 
+test("real HTTP: deleting a list removes its words and keeps completed sessions", async () => {
+  const register = async (name: string) => {
+    const reg = await api("/api/auth", "POST", {
+      action: "register",
+      email: `${name}-${randomUUID()}@example.test`,
+      password: "integration-test-only-password",
+    });
+    assert.equal(reg.status, 200, await reg.clone().text());
+    return reg.headers.get("set-cookie")!.split(";")[0];
+  };
+  const [cookie, other] = [await register("delete"), await register("delete-other")];
+  const listId = randomUUID();
+  const word = { id: randomUUID(), front: "katt", back: "chat" };
+  const list = { title: "Doomed", description: "", from: "Swedish", to: "French", words: [word] };
+  const put = (revision: number | null) =>
+    api(`/api/lists/${listId}`, "PUT", { revision, list }, cookie);
+  const remove = (data: unknown, who = cookie, extra = {}) =>
+    api(`/api/lists/${listId}`, "DELETE", data, who, extra);
+  assert.equal((await put(null)).status, 200);
+  const run = {
+    id: randomUUID(),
+    listId,
+    title: "Doomed",
+    mode: "adaptive",
+    from: "Swedish",
+    to: "French",
+    completedAt: Date.now(),
+    results: [
+      { word, answer: "chat", correct: true, direction: "forward", answeredAt: Date.now() },
+    ],
+  };
+  assert.equal((await api("/api/runs", "POST", run, cookie)).status, 200);
+  assert.equal((await put(1)).status, 200);
+
+  // Changed in another tab since revision 1: refused, like a stale save.
+  assert.equal((await remove({ revision: 1 })).status, 409);
+  assert.equal((await remove({})).status, 400);
+  assert.equal((await remove({ revision: 2 }, other)).status, 404);
+  assert.equal(
+    (await remove({ revision: 2 }, cookie, { Origin: "https://attacker.invalid" })).status,
+    403,
+  );
+  assert.equal((await remove({ revision: 2 })).status, 200);
+  assert.equal((await remove({ revision: 2 })).status, 404);
+  assert.equal((await put(2)).status, 404);
+  const review = { id: randomUUID(), wordId: word.id, direction: "forward", correct: true };
+  assert.equal((await api("/api/reviews", "POST", review, cookie)).status, 404);
+
+  const dump = (await (await api("/api/workspace", "GET", undefined, cookie)).json()).data;
+  assert.equal(dump.lists.length, 0);
+  assert.equal(dump.runs.length, 1);
+  assert.equal(dump.runs[0].listId, undefined);
+  assert.deepEqual(
+    dump.runs[0].results.map((r: { word: { front: string; back: string } }) => r.word),
+    [{ id: "", front: "katt", back: "chat" }],
+  );
+});
+
 test("real HTTP: the admin area answers 404 to everyone but admins", async () => {
   assert.equal((await api("/admin")).status, 404);
   assert.equal((await api("/api/admin/registration")).status, 404);

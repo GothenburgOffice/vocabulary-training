@@ -31,6 +31,9 @@ export const listSaveSchema = z
       ),
   })
   .strict();
+// DELETE /api/lists/:id: the revision last loaded or saved, so a list changed in another tab
+// isn't deleted unseen.
+export const listDeleteSchema = z.object({ revision: z.number().int().positive() }).strict();
 // POST /api/reviews: one checked answer, with an id the client makes once per answer, so a
 // retry isn't counted twice. The server applies reviewed() with its own clock.
 export const reviewSchema = z.object({ id, wordId: id, direction, correct: z.boolean() }).strict();

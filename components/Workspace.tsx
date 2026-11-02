@@ -16,6 +16,7 @@ import type { WorkspaceData, Run, WorkspaceSync } from "../lib/workspace";
 import { DEFAULT_LANGUAGES, languageCodes, pickerLanguages, type Language } from "../lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
 import RequestyAttribution from "./RequestyAttribution";
+import DeleteDialog from "./workspace/DeleteDialog";
 import Dialog from "./workspace/Dialog";
 import ExitDialog from "./workspace/ExitDialog";
 import HelpDialog from "./workspace/HelpDialog";
@@ -36,6 +37,7 @@ const DIALOG_TITLES: Record<Modal, string> = {
   language: "Make room for another language.",
   import: "Bring your words along.",
   exit: "Leave this practice session?",
+  delete: "Delete this word list?",
   help: "A smarter mix, not a black box.",
 };
 
@@ -69,6 +71,8 @@ export default function Workspace({
   // The list open in the editor, as it was when opened.
   const [editing, setEditing] = useState<List | null>(null);
   const [modal, setModal] = useState<Modal | null>(null);
+  // The list the delete dialog asks about.
+  const [deleting, setDeleting] = useState<List | null>(null);
   const [nav, setNav] = useState(false);
   const [notice, setNotice] = useState("");
   // The id of the newest answer per word and direction (see check).
@@ -178,6 +182,18 @@ ${learningLanguage}`;
     setQuery("");
     setView("library");
     setNotice("List updated. See the account bar for save status.");
+  }
+  function askDelete(target: List) {
+    setDeleting(target);
+    setModal("delete");
+  }
+  function deleteList(target: List) {
+    setLists((ls) => ls.filter((l) => l.id !== target.id));
+    sync?.deleteList(target.id);
+    setSelected("");
+    setView("library");
+    setModal(null);
+    setNotice("List deleted. See the account bar for save status.");
   }
   function startTest(onlyMistakes = false) {
     if (!list?.words.length) {
@@ -310,6 +326,7 @@ ${learningLanguage}`;
             onEdit={edit}
             onImport={() => setModal("import")}
             onExport={exportList}
+            onDelete={askDelete}
             onSettings={(change) => setSettings((s) => ({ ...s, ...change }))}
             onStart={() => startTest()}
           />
@@ -324,6 +341,10 @@ ${learningLanguage}`;
             languages={languages}
             onSave={saveList}
             onCancel={() => navigate("library")}
+            onDelete={() => {
+              const saved = lists.find((l) => l.id === editing.id);
+              if (saved) askDelete(saved);
+            }}
           />
         )}
         {view === "test" && list && current && (
@@ -408,6 +429,13 @@ ${learningLanguage}`;
               setView("editor");
               setModal(null);
             }}
+          />
+        )}
+        {modal === "delete" && deleting && (
+          <DeleteDialog
+            list={deleting}
+            onCancel={() => setModal(null)}
+            onDelete={() => deleteList(deleting)}
           />
         )}
         {modal === "help" && (

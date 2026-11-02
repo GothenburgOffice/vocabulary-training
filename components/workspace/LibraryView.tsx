@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronRight, Download, Plus, Search, Upload } from "lucide-react";
+import { ArrowRight, ChevronRight, Download, Plus, Search, Trash2, Upload } from "lucide-react";
 import { BookMark } from "../../lib/brand";
 import { listStats, type List } from "../../lib/learning";
 import type { PracticeSettings } from "../../lib/practice";
@@ -19,6 +19,7 @@ export default function LibraryView({
   onEdit,
   onImport,
   onExport,
+  onDelete,
   onSettings,
   onStart,
 }: {
@@ -36,6 +37,7 @@ export default function LibraryView({
   onEdit: (list?: List) => void;
   onImport: () => void;
   onExport: () => void;
+  onDelete: (list: List) => void;
   onSettings: (change: Partial<PracticeSettings>) => void;
   onStart: () => void;
 }) {
@@ -179,6 +181,9 @@ export default function LibraryView({
                 <div className="inline-actions">
                   <button className="text-button" onClick={onExport}>
                     <Download size={15} /> Export
+                  </button>
+                  <button className="text-button" onClick={() => onDelete(list)}>
+                    <Trash2 size={15} /> Delete
                   </button>
                   <button className="text-button" onClick={() => onEdit(list)}>
                     Edit list <ArrowRight size={15} />

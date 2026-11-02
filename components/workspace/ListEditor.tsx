@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { ArrowLeft, ArrowLeftRight, Check, Plus, X } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, Check, Plus, Trash2, X } from "lucide-react";
 import { makeWord, type List } from "../../lib/learning";
 import Button from "./Button";
 
@@ -11,6 +11,7 @@ export default function ListEditor({
   languages,
   onSave,
   onCancel,
+  onDelete,
 }: {
   // A copy of the list to edit, or a new one.
   initial: List;
@@ -21,6 +22,8 @@ export default function ListEditor({
   // Receives the checked, trimmed list.
   onSave: (list: List) => void;
   onCancel: () => void;
+  // Asks to delete the saved list; only offered for one.
+  onDelete: () => void;
 }) {
   const [draft, setDraft] = useState(initial);
   const [inputMode, setInputMode] = useState<"pairs" | "bulk">("pairs");
@@ -240,6 +243,11 @@ export default function ListEditor({
           </p>
         )}
         <div className="editor-bottom">
+          {!isNew && (
+            <button type="button" className="text-button delete-list" onClick={onDelete}>
+              <Trash2 size={15} /> Delete list
+            </button>
+          )}
           <Button type="button" onClick={onCancel}>
             Cancel
           </Button>

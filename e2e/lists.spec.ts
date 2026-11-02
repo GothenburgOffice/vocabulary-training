@@ -97,3 +97,33 @@ test("CSV: import with alternative answers, practise them and export", async ({ 
   );
   await expect(page.getByText("CSV exported.")).toBeVisible();
 });
+
+test("deleting a list asks first, then removes it for good", async ({ page }) => {
+  await page.goto("/");
+  await createList(page, "Doomed", [["hej", "bonjour"]]);
+  const dialog = page.getByRole("dialog");
+
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(dialog).toContainText("Doomed and its 1 word will be deleted");
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText("Inside Doomed")).toBeVisible();
+
+  // A new list has nothing to delete yet; a saved one can be deleted from the editor.
+  await page.getByRole("button", { name: "New word list" }).click();
+  await expect(page.getByRole("button", { name: "Delete list" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("button", { name: "Edit list" }).click();
+  await page.getByRole("button", { name: "Delete list" }).click();
+  await dialog.getByRole("button", { name: "Delete list" }).click();
+  await expect(page.getByText("List deleted.")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Your first French words start here." }),
+  ).toBeVisible();
+  await saved(page);
+
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Your first French words start here." }),
+  ).toBeVisible();
+});

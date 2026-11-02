@@ -20,6 +20,7 @@ type Loaded = {
 // One change to save, in the order Workspace made it.
 type Change =
   | { kind: "list"; list: List }
+  | { kind: "delete"; listId: string }
   | { kind: "review"; review: Review; saved: (history: History | null) => void }
   | { kind: "run"; run: Run }
   | { kind: "profile"; baseLanguage: string; learningLanguage: string };
@@ -135,6 +136,22 @@ export default function AccountApp() {
         }),
       });
       revisions.current.set(id, result.revision);
+    } else if (change.kind === "delete") {
+      const { listId } = change;
+      const revision = revisions.current.get(listId);
+      // A list never saved has nothing on the server to delete.
+      if (revision !== undefined) {
+        try {
+          await request(`/api/lists/${listId}`, {
+            method: "DELETE",
+            body: JSON.stringify({ revision }),
+          });
+        } catch (e) {
+          // Already deleted in another tab.
+          if (!(e instanceof RequestError && e.status === 404)) throw e;
+        }
+      }
+      revisions.current.delete(listId);
     } else if (change.kind === "review") {
       try {
         const result = await request("/api/reviews", {
@@ -221,6 +238,7 @@ export default function AccountApp() {
   const sync = useMemo<WorkspaceSync>(
     () => ({
       saveList: (list) => enqueue({ kind: "list", list }),
+      deleteList: (listId) => enqueue({ kind: "delete", listId }),
       review: (review) => new Promise((saved) => enqueue({ kind: "review", review, saved })),
       completeRun: (run) => enqueue({ kind: "run", run }),
       saveProfile: (baseLanguage, learningLanguage) =>

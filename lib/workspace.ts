@@ -30,6 +30,7 @@ export type Review = { id: string; wordId: string; direction: Direction; correct
 // How Workspace reports each change to save; AccountApp sends them to the API in order.
 export type WorkspaceSync = {
   saveList: (list: List) => void;
+  deleteList: (listId: string) => void;
   // Resolves with the word's state on the server once saved, or null if the word is gone.
   review: (review: Review) => Promise<History | null>;
   completeRun: (run: Run) => void;

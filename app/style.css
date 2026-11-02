@@ -435,6 +435,13 @@ main {
 .button.primary:disabled:hover {
   background: var(--blue);
 }
+.button.danger {
+  background: var(--red);
+  color: #fff;
+}
+.button.danger:hover {
+  background: #86302e;
+}
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -877,7 +884,15 @@ footer button {
   padding-top: 24px;
   border-top: 1px solid var(--border);
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
+  gap: 12px;
+}
+/* With Delete on the left, Cancel stays beside Save. */
+.editor-bottom .delete-list {
+  margin-right: auto;
+  color: var(--red);
+  white-space: nowrap;
 }
 .bulk-label textarea {
   line-height: 1.9;
@@ -1477,6 +1492,10 @@ dialog > .button {
   }
   .editor-bottom .button {
     font-size: var(--text-xs);
+  }
+  .editor-bottom .delete-list {
+    flex-basis: 100%;
+    justify-content: flex-start;
   }
   .test-panel {
     margin: 24px auto;
