@@ -1,6 +1,6 @@
 "use client";
 import { useContext, useEffect, useReducer, useRef, useState } from "react";
-import { Check, ChevronDown, CircleHelp, X } from "lucide-react";
+import { Check, ChevronDown, CircleAlert, CircleHelp, X } from "lucide-react";
 import { BookMark } from "../lib/brand";
 import { encodeCSV, makeWord, reviewed, type List } from "../lib/learning";
 import {
@@ -74,7 +74,8 @@ export default function Workspace({
   // The list the delete dialog asks about.
   const [deleting, setDeleting] = useState<List | null>(null);
   const [nav, setNav] = useState(false);
-  const [notice, setNotice] = useState("");
+  // A short message under the page; a warning when something didn't happen as asked.
+  const [notice, setNotice] = useState<{ text: string; warning?: boolean } | null>(null);
   // The id of the newest answer per word and direction (see check).
   const latestReview = useRef(new Map<string, string>());
   // The profile languages change in several places; save whenever the pair changes.
@@ -110,7 +111,7 @@ ${learningLanguage}`;
     }
     setView(next);
     setNav(false);
-    setNotice("");
+    setNotice(null);
   }
   function changeLearningLanguage(value: string) {
     if (value === "__add__") {
@@ -121,7 +122,7 @@ ${learningLanguage}`;
     setSelected("");
     setQuery("");
     setSettings((s) => ({ ...s, direction: "forward" }));
-    setNotice("");
+    setNotice(null);
     setNav(false);
   }
   function saveProfile(profileBase: string) {
@@ -150,9 +151,9 @@ ${learningLanguage}`;
     }
     setModal(null);
     setNav(false);
-    setNotice(
-      "Profile updated. Existing lists have not been changed. See the account bar for save status.",
-    );
+    setNotice({
+      text: "Profile updated. Existing lists have not been changed. See the account bar for save status.",
+    });
   }
   function edit(target?: List) {
     setEditing(
@@ -168,7 +169,7 @@ ${learningLanguage}`;
           },
     );
     setView("editor");
-    setNotice("");
+    setNotice(null);
   }
   function saveList(saved: List) {
     setLists((ls) =>
@@ -181,7 +182,7 @@ ${learningLanguage}`;
     setLearningLanguage(saved.to);
     setQuery("");
     setView("library");
-    setNotice("List updated. See the account bar for save status.");
+    setNotice({ text: "List updated. See the account bar for save status." });
   }
   function askDelete(target: List) {
     setDeleting(target);
@@ -189,11 +190,19 @@ ${learningLanguage}`;
   }
   function deleteList(target: List) {
     setLists((ls) => ls.filter((l) => l.id !== target.id));
-    sync?.deleteList(target.id);
+    void sync?.deleteList(target.id).then((deleted) => {
+      if (deleted) return;
+      // This tab's copy is stale, so saving it would get 409 too; a reload shows the newer one.
+      setLists((ls) => (ls.some((l) => l.id === target.id) ? ls : [...ls, target]));
+      setNotice({
+        text: `Another tab changed “${target.title}”, so it wasn't deleted. Reload this tab to see the latest version.`,
+        warning: true,
+      });
+    });
     setSelected("");
     setView("library");
     setModal(null);
-    setNotice("List deleted. See the account bar for save status.");
+    setNotice({ text: "List deleted. See the account bar for save status." });
   }
   function startTest(onlyMistakes = false) {
     if (!list?.words.length) {
@@ -204,7 +213,7 @@ ${learningLanguage}`;
     const mistakes = onlyMistakes ? practice.results : undefined;
     dispatch({ type: "start", queue: practiceQueue(list.words, settings, Date.now(), mistakes) });
     setView("test");
-    setNotice("");
+    setNotice(null);
     setNav(false);
   }
   function check(skipped: boolean) {
@@ -278,7 +287,9 @@ ${learningLanguage}`;
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setNotice("CSV exported. It includes language names and word pairs, not review history.");
+    setNotice({
+      text: "CSV exported. It includes language names and word pairs, not review history.",
+    });
   }
   return (
     <div className="app-shell">
@@ -378,13 +389,16 @@ ${learningLanguage}`;
           />
         )}
         {notice && (
-          <div role="status" className="notice">
-            <Check size={16} />
-            <span>{notice}</span>
+          <div
+            role={notice.warning ? "alert" : "status"}
+            className={notice.warning ? "notice warning" : "notice"}
+          >
+            {notice.warning ? <CircleAlert size={16} /> : <Check size={16} />}
+            <span>{notice.text}</span>
             <button
               className="icon-button"
               aria-label="Dismiss notice"
-              onClick={() => setNotice("")}
+              onClick={() => setNotice(null)}
             >
               <X size={16} />
             </button>

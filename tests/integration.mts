@@ -289,6 +289,25 @@ test("real HTTP: deleting a list removes its words and keeps completed sessions"
   assert.equal((await remove({ revision: 1 })).status, 409);
   assert.equal((await remove({})).status, 400);
   assert.equal((await remove({ revision: 2 }, other)).status, 404);
+  // Nor can it delete another account's list, which stays.
+  const othersId = randomUUID();
+  const othersList = { ...list, words: [{ ...word, id: randomUUID() }] };
+  const othersPut = await api(
+    `/api/lists/${othersId}`,
+    "PUT",
+    { revision: null, list: othersList },
+    other,
+  );
+  assert.equal(othersPut.status, 200);
+  assert.equal(
+    (await api(`/api/lists/${othersId}`, "DELETE", { revision: 1 }, cookie)).status,
+    404,
+  );
+  const othersData = (await (await api("/api/workspace", "GET", undefined, other)).json()).data;
+  assert.deepEqual(
+    othersData.lists.map((l: { id: string }) => l.id),
+    [othersId],
+  );
   assert.equal(
     (await remove({ revision: 2 }, cookie, { Origin: "https://attacker.invalid" })).status,
     403,
