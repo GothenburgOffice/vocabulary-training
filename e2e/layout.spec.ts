@@ -98,3 +98,15 @@ test("the save status shows without opening the menu", async ({ page }) => {
   await expect(saveState(page)).toHaveAccessibleName(/./);
   await expect(page.getByRole("status").filter({ hasText: "All changes saved" })).toHaveCount(1);
 });
+
+test("the practice mode help is next to the practice mode", async ({ page }) => {
+  await page.goto("/");
+  await createList(page, "Help", [["hej", "bonjour"]]);
+  await page.getByRole("button", { name: "How Smart mix and Random order work" }).click();
+  await expect(
+    page.getByRole("dialog").getByRole("heading", { name: "A smarter mix, not a black box." }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  // The label still belongs to the select.
+  await expect(page.getByLabel("Practice mode")).toHaveValue("adaptive");
+});

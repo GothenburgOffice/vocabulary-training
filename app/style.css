@@ -93,68 +93,6 @@
   --radius-sm: 6px;
   --radius-md: 10px;
 }
-.workspace-footer {
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: var(--space-6);
-}
-.footer-overview {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-2);
-  padding-top: var(--space-2);
-}
-.requesty-attribution {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-1);
-  max-width: 100%;
-  color: var(--muted);
-}
-.requesty-link {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 44px;
-  padding: var(--space-1) 0;
-  color: var(--text);
-  text-decoration: none;
-  border-radius: var(--radius-sm);
-}
-.requesty-link > span {
-  font-size: var(--text-xs);
-}
-.requesty-link img {
-  display: block;
-  object-fit: contain;
-  flex-shrink: 0;
-}
-.requesty-link > svg {
-  color: var(--muted);
-  flex-shrink: 0;
-}
-.requesty-link:hover > span {
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-.requesty-link:focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 5px;
-}
-.requesty-link:active {
-  color: var(--blue-hover);
-}
-.requesty-tagline {
-  font-size: var(--text-xs);
-  color: var(--text);
-  line-height: 1.5;
-}
-.requesty-attribution small {
-  font-size: var(--text-xs);
-  line-height: 1.5;
-}
 * {
   box-sizing: border-box;
   margin: 0;
@@ -2330,8 +2268,15 @@ nav button {
 .save-state.failed {
   color: var(--red);
 }
-.side-bottom > .save-state {
-  padding: 0 12px 10px;
+/* Under the main navigation, lined up with its items (icon, gap, text size), but not a link. */
+.sidebar > .save-state {
+  min-height: 40px;
+  gap: 12px;
+  padding: 0 12px;
+  font-size: var(--text-sm);
+}
+.sidebar > .save-state > svg {
+  flex: 0 0 auto;
 }
 .mobile-bar .save-state {
   margin-left: auto;
@@ -2527,4 +2472,64 @@ main > .save-error {
 .lost-edits {
   margin: 0 0 20px;
   padding-left: 20px;
+}
+
+/* "AI features by Requesty" above the account box, with its referral marked. Qualified with
+   .side-bottom so the sidebar's own link styles don't apply. */
+.requesty-attribution {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 12px 8px;
+  color: var(--muted);
+}
+.side-bottom .requesty-link {
+  display: inline-flex;
+  padding: 0;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  min-height: 28px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+.side-bottom .requesty-link:hover {
+  background: none;
+}
+.requesty-link img {
+  display: block;
+  flex-shrink: 0;
+}
+.requesty-link:hover > span {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.requesty-link:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+.requesty-attribution small {
+  font-size: 0.625rem;
+  line-height: 1.2;
+}
+/* A field label with a help button beside it (the button isn't inside the label). */
+.field-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.field-help-button {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  min-height: 24px;
+  color: var(--muted);
+  border-radius: 50%;
+}
+.field-help-button:hover {
+  color: var(--blue);
+  background: var(--soft);
 }

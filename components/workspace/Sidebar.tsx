@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useContext } from "react";
 import {
   ChevronRight,
   CircleHelp,
@@ -10,6 +11,8 @@ import {
 } from "lucide-react";
 import { BookMark } from "../../lib/brand";
 import type { SaveState } from "../../lib/workspace";
+import { AiFeaturesContext } from "../AiFeatures";
+import RequestyAttribution from "../RequestyAttribution";
 import SaveStatus from "./SaveStatus";
 import type { View } from "./views";
 
@@ -49,6 +52,7 @@ export default function Sidebar({
   onPractice: () => void;
   onHelp: () => void;
 }) {
+  const ai = useContext(AiFeaturesContext);
   // The language pair only changes from the lists and history views.
   const locked = view !== "library" && view !== "history";
   return (
@@ -122,11 +126,12 @@ export default function Sidebar({
           <span className="nav-count">{runCount || ""}</span>
         </button>
       </nav>
+      {save && <SaveStatus state={save} iconSize={18} />}
       <div className="side-bottom">
-        {save && <SaveStatus state={save} />}
         <button onClick={onHelp}>
           <CircleHelp size={18} /> How practice works
         </button>
+        {(ai.languageNotes || ai.speech.length > 0) && <RequestyAttribution />}
         <button className="account-row" onClick={onProfile} aria-label="Open profile">
           <span className="avatar">
             <UserRound size={16} />

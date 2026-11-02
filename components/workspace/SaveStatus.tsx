@@ -11,11 +11,19 @@ const ICONS = { saved: Check, unsaved: CircleDot, saving: LoaderCircle, failed: 
 
 // Whether the workspace is saved. `compact` shows only the icon; the text stays for screen
 // readers and as a tooltip.
-export default function SaveStatus({ state, compact }: { state: SaveState; compact?: boolean }) {
+export default function SaveStatus({
+  state,
+  compact,
+  iconSize = 14,
+}: {
+  state: SaveState;
+  compact?: boolean;
+  iconSize?: number;
+}) {
   const Icon = ICONS[state];
   return (
     <span className={`save-state ${state}`} role="status" title={LABELS[state]}>
-      <Icon size={14} aria-hidden="true" />
+      <Icon size={iconSize} aria-hidden="true" />
       <span className={compact ? "visually-hidden" : undefined}>{LABELS[state]}</span>
     </span>
   );
