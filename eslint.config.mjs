@@ -7,11 +7,5 @@ export default defineConfig([
   ...nextVitals,
   ...nextTs,
   prettier,
-  {
-    rules: {
-      // Existing effects reset state on prop changes; keep visible until those components are refactored.
-      "react-hooks/set-state-in-effect": "warn",
-    },
-  },
   globalIgnores([".next/**", "out/**", "next-env.d.ts", "test-results/**", "playwright-report/**"]),
 ]);

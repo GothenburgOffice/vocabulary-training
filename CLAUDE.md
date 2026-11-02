@@ -42,8 +42,10 @@ browser tests when UI code changed.
   with one module per section. To add a section: `app/admin/<slug>/page.tsx` (calls
   `adminPage()`), components in `components/admin/`, API in `app/api/admin/<slug>/`
   (`requireOrigin`, then `requireAdmin`), and an entry in `lib/admin/sections.ts`.
-- `components/Workspace.tsx`: the whole UI, a client component. It and the
-  components it renders must not import server code.
+- `components/Workspace.tsx`: the signed-in UI, a client component. It holds the shared
+  state and every change it saves; the views and dialogs in `components/workspace/` render
+  and report back. A practice session is `lib/practice.ts` (a reducer, grading and the
+  queue; unit-test changes there). None of these may import server code.
 - `e2e/`: Playwright browser tests. `fixtures.ts` signs each test in as a fresh account and
   has the shared steps; AI routes are mocked there, never called.
 - `db/migrations/NNN_name.sql`: **append-only**. Never edit an applied migration; add a new file.

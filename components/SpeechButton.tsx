@@ -6,15 +6,14 @@ import { AiFeaturesContext } from "./AiFeatures";
 
 let activePlayback: AbortController | undefined;
 
-export default function SpeechButton({
-  text,
-  language,
-  label,
-}: {
-  text: string;
-  language: string;
-  label?: string;
-}) {
+type Props = { text: string; language: string; label?: string };
+
+// A new phrase or language remounts the button, so no state or playback carries over.
+export default function SpeechButton(props: Props) {
+  return <SpeechControl key={`${props.language}\n${pronunciationText(props.text)}`} {...props} />;
+}
+
+function SpeechControl({ text, language, label }: Props) {
   const ai = useContext(AiFeaturesContext);
   const [state, setState] = useState<"idle" | "loading" | "playing">("idle");
   const [error, setError] = useState("");
@@ -24,13 +23,11 @@ export default function SpeechButton({
   const accessibleLabel = label || `Play ${spoken} in ${language}`;
   useEffect(() => {
     mounted.current = true;
-    setState("idle");
-    setError("");
     return () => {
       mounted.current = false;
       current.current?.abort();
     };
-  }, [spoken, language]);
+  }, []);
 
   async function play() {
     if (state === "playing") {

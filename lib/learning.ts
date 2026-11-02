@@ -90,6 +90,15 @@ export function randomOrder(words: Word[], random = Math.random) {
   }
   return ids;
 }
+// Per list and direction: words established (3+ correct in a row) and words studied before
+// that are due for review now.
+export function listStats(list: Pick<List, "words">, direction: Direction, now: number) {
+  const histories = list.words.map((w) => w[direction]);
+  return {
+    learned: histories.filter((h) => h.streak >= 3).length,
+    due: histories.filter((h) => h.due > 0 && h.due <= now).length,
+  };
+}
 export function reviewed(previous: History, correct: boolean, now: number): History {
   const streak = correct ? previous.streak + 1 : 0;
   const days = correct ? Math.min(30, 2 ** (streak - 1)) : 0;

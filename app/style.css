@@ -321,50 +321,6 @@ textarea::placeholder {
   font-weight: 500;
   color: var(--blue);
 }
-.workspace-button {
-  text-align: left;
-  border-radius: 6px;
-  line-height: 1.5;
-}
-.workspace-button:hover {
-  color: var(--blue);
-}
-.language-context {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  border-bottom: 1px solid var(--border);
-  padding: 24px 0;
-}
-.base-context > span {
-  display: block;
-  color: var(--muted);
-  font-size: var(--text-xs);
-}
-.base-context .text-button {
-  font-size: var(--text-sm);
-  justify-content: flex-start;
-  min-height: 36px;
-}
-.language-context > .field {
-  width: 220px;
-  gap: 6px;
-}
-.language-context > svg {
-  color: var(--muted);
-  margin-top: 16px;
-}
-.language-context > p {
-  margin-left: auto;
-  color: var(--text);
-  font-size: var(--text-sm);
-  text-align: right;
-}
-.language-context > p small {
-  display: block;
-  color: var(--muted);
-  margin-top: 4px;
-}
 .practice-empty > svg {
   color: var(--blue);
   margin: 8px 0 20px;
@@ -419,16 +375,6 @@ nav button:hover,
 .nav-count {
   margin-left: auto;
   font-size: var(--text-xs);
-}
-.sidebar-note {
-  margin: 48px 12px 0;
-  font-size: var(--text-xs);
-  font-weight: 500;
-}
-.sidebar-note p {
-  color: var(--muted);
-  font-weight: 400;
-  margin-top: 8px;
 }
 .side-bottom {
   margin-top: auto;
@@ -618,17 +564,6 @@ main {
   gap: 14px;
   min-width: 0;
   flex: 1;
-}
-.language-mark {
-  font-weight: 500;
-  font-size: var(--text-base);
-  color: #586778;
-  display: grid;
-  place-items: center;
-  background: #e8ecf2;
-  min-width: 40px;
-  height: 44px;
-  border-radius: 4px;
 }
 .list-name strong {
   font-size: var(--text-sm);
@@ -936,11 +871,6 @@ footer button {
 }
 .pair-row .icon-button {
   min-width: 32px;
-}
-.editor-hint {
-  font-size: var(--text-xs);
-  margin-top: 24px;
-  color: var(--muted);
 }
 .editor-bottom {
   margin-top: 24px;
@@ -1395,9 +1325,6 @@ dialog > .button {
   .sidebar.open .side-bottom {
     margin-top: 40px;
   }
-  .sidebar-note {
-    margin-top: 32px;
-  }
   .sidebar.open nav button {
     min-height: 48px;
   }
@@ -1455,11 +1382,6 @@ dialog > .button {
   .list-row {
     padding: 14px 8px;
     gap: 6px;
-  }
-  .language-mark {
-    min-width: 32px;
-    height: 38px;
-    font-size: var(--text-sm);
   }
   .list-name {
     gap: 10px;
@@ -1633,35 +1555,7 @@ dialog > .button {
   padding-top: 12px;
   min-height: 56px;
 }
-@media (max-width: 1000px) {
-  .language-context > p {
-    display: none;
-  }
-  .language-context > .field {
-    flex: 1;
-    width: auto;
-    max-width: 260px;
-  }
-}
 @media (max-width: 680px) {
-  .language-context {
-    gap: 14px;
-    align-items: center;
-    padding: 20px 0;
-  }
-  .base-context {
-    flex: 0 0 112px;
-  }
-  .language-context > .field {
-    min-width: 0;
-  }
-  .language-context > svg {
-    width: 15px;
-  }
-  .language-context select {
-    font-size: var(--text-sm);
-    padding: 10px 8px;
-  }
   .mobile-bar > strong {
     font-size: var(--text-base);
     letter-spacing: -0.5px;
@@ -1734,9 +1628,6 @@ dialog > .button {
   color: var(--muted);
   line-height: 1.5;
 }
-.sidebar-note {
-  margin-top: 28px;
-}
 .mobile-wordmark {
   display: flex;
   align-items: center;
@@ -1761,9 +1652,6 @@ dialog > .button {
   }
   .sidebar.open .side-bottom {
     margin-top: 24px;
-  }
-  .sidebar.open .sidebar-note {
-    margin-top: 20px;
   }
   .mobile-bar {
     gap: 8px;
