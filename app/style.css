@@ -2482,7 +2482,7 @@ main > .save-error {
   gap: 2px;
   /* Allowed narrower than its content, so the logo inside can shrink. */
   min-width: 0;
-  margin: 4px 12px 8px;
+  margin: 0 12px;
   color: var(--muted);
 }
 .side-bottom .requesty-link {
@@ -2492,7 +2492,8 @@ main > .save-error {
   align-items: center;
   gap: 6px;
   width: fit-content;
-  min-height: 28px;
+  /* As tall as the sidebar's other items: it is a touch target in the phone menu too. */
+  min-height: 40px;
   color: var(--muted);
   font-size: var(--text-xs);
   text-decoration: none;
