@@ -46,6 +46,9 @@ test("language notes only after wrong answers, answer audio only after grading",
   if (await close.isVisible()) await close.click();
   await page.getByLabel("Session size").selectOption("1000");
   await page.getByRole("button", { name: "Start practice" }).click();
+  await expect(
+    page.getByText("Audio and language notes are AI-generated and can make mistakes."),
+  ).toBeVisible();
 
   const note = page.getByRole("complementary", { name: "AI language note" });
   const answerAudio = page.getByRole("button", { name: "Play answer word" });
@@ -102,11 +105,34 @@ test("without AI features there are no speaker buttons, notes or AI requests", a
   await expect(page.locator(".speech-button")).toHaveCount(0);
   await expect(page.getByRole("link", { name: /^AI features by Requesty/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Start practice" }).click();
+  await expect(
+    page.getByText("Audio and language notes are AI-generated and can make mistakes."),
+  ).toHaveCount(0);
   await answer(page, "mercy");
   await expect(page.getByText("Not quite.")).toBeVisible();
   await expect(page.locator(".speech-button")).toHaveCount(0);
   await expect(page.getByRole("complementary", { name: "AI language note" })).toHaveCount(0);
   expect(requests).toEqual([]);
+});
+
+test("speech for an unrelated language does not show the practice disclaimer", async ({ page }) => {
+  await setAi(page, { languageNotes: false, speech: ["Japanese"] });
+  await page.goto("/");
+  await createList(page, "Unrelated speech", [["tack", "merci"]]);
+  await page.getByRole("button", { name: "Start practice" }).click();
+  await expect(
+    page.getByText("Audio and language notes are AI-generated and can make mistakes."),
+  ).toHaveCount(0);
+});
+
+test("speech for a language in the practice pair shows the disclaimer", async ({ page }) => {
+  await setAi(page, { languageNotes: false, speech: ["Swedish"] });
+  await page.goto("/");
+  await createList(page, "Pair speech", [["tack", "merci"]]);
+  await page.getByRole("button", { name: "Start practice" }).click();
+  await expect(
+    page.getByText("Audio and language notes are AI-generated and can make mistakes."),
+  ).toBeVisible();
 });
 
 test("a second clip while one loads says so, and the first one still plays", async ({ page }) => {

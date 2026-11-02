@@ -161,6 +161,11 @@ export default function PracticeSession({
           />
         )}
         <p className="test-tip">Press Enter to check, then Enter again for the next word.</p>
+        {(ai.languageNotes || ai.speech.includes(list.from) || ai.speech.includes(list.to)) && (
+          <p className="test-tip ai-disclaimer">
+            Audio and language notes are AI-generated and can make mistakes.
+          </p>
+        )}
       </section>
     </>
   );
