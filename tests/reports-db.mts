@@ -34,7 +34,16 @@ test(
       voice: "test-voice",
       tier: "basic",
     };
-    await recordActivity(user, input);
+    const privateFields = {
+      ...input,
+      apiKey: "synthetic-secret-not-activity",
+      audio: Buffer.from("synthetic-audio-not-activity"),
+      prompt: "synthetic-full-prompt-not-activity",
+      instructions: "synthetic-instructions-not-activity",
+      answer: "synthetic-learner-answer-not-activity",
+      comment: "synthetic-generated-comment-not-activity",
+    };
+    await recordActivity(user, privateFields);
     const [first] = await readRecentActivity(user);
     assert.deepEqual(
       { ...first, id: undefined, createdAt: undefined },
@@ -58,6 +67,17 @@ test(
     assert.deepEqual(saved.activity, first);
     assert.equal(saved.reason, "pronunciation");
     assert.notEqual(saved.id, first.id);
+    for (const value of [first, saved]) {
+      const serialized = JSON.stringify(value);
+      for (const forbidden of ["apiKey", "audio", "prompt", "instructions", "answer", "comment"]) {
+        assert.equal(serialized.includes(`"${forbidden}"`), false);
+        assert.equal(serialized.includes(`synthetic-${forbidden}`), false);
+      }
+      assert.equal(serialized.includes("synthetic-secret-not-activity"), false);
+      assert.equal(serialized.includes("synthetic-full-prompt-not-activity"), false);
+      assert.equal(serialized.includes("synthetic-learner-answer-not-activity"), false);
+      assert.equal(serialized.includes("synthetic-generated-comment-not-activity"), false);
+    }
 
     await recordActivity(other, input);
     const [others] = await readRecentActivity(other);
@@ -66,11 +86,27 @@ test(
       [[user, other]],
     );
     assert.deepEqual(await readRecentActivity(user), []);
+    // Loading activity also expires only this account's rows.
+    assert.equal(
+      (await db.query("SELECT 1 FROM ai_activity WHERE id = $1", [first.id])).rowCount,
+      0,
+    );
+    assert.equal(
+      (await db.query("SELECT 1 FROM ai_activity WHERE id = $1", [others.id])).rowCount,
+      1,
+    );
     await assert.rejects(createReport(other, others.id, "other"), { status: 404 });
+    const expiredOnRecord = randomUUID();
+    await db.query(
+      `INSERT INTO ai_activity (id, user_id, kind, word, language, model, voice, tier, created_at)
+       VALUES ($1, $2, 'speech', 'old', 'French', 'synthetic/tts', NULL, 'basic',
+               now() - interval '61 minutes')`,
+      [expiredOnRecord, user],
+    );
     await recordActivity(user, { ...input, kind: "note", model: "synthetic/note", voice: null });
     // Recording prunes only the recording account. A report remains intact without its log.
     assert.equal(
-      (await db.query("SELECT 1 FROM ai_activity WHERE id = $1", [first.id])).rowCount,
+      (await db.query("SELECT 1 FROM ai_activity WHERE id = $1", [expiredOnRecord])).rowCount,
       0,
     );
     assert.equal(

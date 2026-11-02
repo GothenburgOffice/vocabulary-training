@@ -55,7 +55,10 @@ export async function recordActivity(userId: string, input: Omit<Activity, "id" 
 
 export async function readRecentActivity(userId: string): Promise<Activity[]> {
   const { rows } = await db.query<ActivityRow>(
-    `SELECT id, kind, word, language, model, voice, tier, created_at
+    `WITH expired AS (
+       DELETE FROM ai_activity WHERE user_id = $1 AND created_at <= now() - interval '1 hour'
+     )
+     SELECT id, kind, word, language, model, voice, tier, created_at
      FROM ai_activity
      WHERE user_id = $1 AND created_at > now() - interval '1 hour'
      ORDER BY created_at DESC, id DESC LIMIT 100`,
