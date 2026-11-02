@@ -27,21 +27,51 @@ export const DEFAULT_LIMITS: AiLimits = {
   speechBlockMs: 10_000,
 };
 
-// A setting's value: a whole number from 0 up, or the default.
-function count(settings: Map<string, string>, key: string, fallback: number) {
+// The range each limit may take: what the database is read with, and what admin may save, so
+// any value shown can also be saved.
+export const LIMIT_BOUNDS = {
+  letters: { min: 0, max: 999_999_999 },
+  cooldownMs: { min: 0, max: 600_000 },
+  blockSeconds: { min: 1, max: 300 },
+};
+
+// A setting's value: a whole number within its bounds, or the default.
+function count(
+  settings: Map<string, string>,
+  key: string,
+  fallback: number,
+  bounds: { min: number; max: number },
+) {
   const value = settings.get(key)?.trim();
-  return value && /^\d{1,9}$/.test(value) ? Number(value) : fallback;
+  if (!value || !/^\d{1,9}$/.test(value)) return fallback;
+  const number = Number(value);
+  return number >= bounds.min && number <= bounds.max ? number : fallback;
 }
 function kind(settings: Map<string, string>, name: AiKind): KindLimits {
   const d = DEFAULT_LIMITS[name];
   const key = (rest: string) => `limits.${name}.${rest}`;
   return {
-    lettersPerMinute: count(settings, key("letters_per_minute"), d.lettersPerMinute),
+    lettersPerMinute: count(
+      settings,
+      key("letters_per_minute"),
+      d.lettersPerMinute,
+      LIMIT_BOUNDS.letters,
+    ),
     lettersPerDay: {
-      basic: count(settings, key("letters_per_day.basic"), d.lettersPerDay.basic),
-      plus: count(settings, key("letters_per_day.plus"), d.lettersPerDay.plus),
+      basic: count(
+        settings,
+        key("letters_per_day.basic"),
+        d.lettersPerDay.basic,
+        LIMIT_BOUNDS.letters,
+      ),
+      plus: count(
+        settings,
+        key("letters_per_day.plus"),
+        d.lettersPerDay.plus,
+        LIMIT_BOUNDS.letters,
+      ),
     },
-    cooldownMs: count(settings, key("cooldown_ms"), d.cooldownMs),
+    cooldownMs: count(settings, key("cooldown_ms"), d.cooldownMs, LIMIT_BOUNDS.cooldownMs),
   };
 }
 export function parseLimits(settings: Map<string, string>): AiLimits {
@@ -49,8 +79,12 @@ export function parseLimits(settings: Map<string, string>): AiLimits {
     speech: kind(settings, "speech"),
     note: kind(settings, "note"),
     speechBlockMs:
-      count(settings, "limits.speech.request_block_seconds", DEFAULT_LIMITS.speechBlockMs / 1000) *
-      1000,
+      count(
+        settings,
+        "limits.speech.request_block_seconds",
+        DEFAULT_LIMITS.speechBlockMs / 1000,
+        LIMIT_BOUNDS.blockSeconds,
+      ) * 1000,
   };
 }
 // An unknown account type gets the basic budget.

@@ -27,6 +27,18 @@ test("limits come from site settings, with defaults for anything missing or inva
   assert.equal(limits.speechBlockMs, 4000);
   assert.equal(limits.note.cooldownMs, 0);
   assert.equal(limits.note.lettersPerMinute, DEFAULT_LIMITS.note.lettersPerMinute);
+  // Values outside what admin may save fall back too, so whatever is shown can be saved.
+  const outside = parseLimits(
+    new Map([
+      ["limits.speech.cooldown_ms", "900000"],
+      ["limits.speech.request_block_seconds", "0"],
+      ["limits.note.letters_per_minute", "0"],
+    ]),
+  );
+  assert.equal(outside.speech.cooldownMs, DEFAULT_LIMITS.speech.cooldownMs);
+  assert.equal(outside.speechBlockMs, DEFAULT_LIMITS.speechBlockMs);
+  // 0 letters is a valid limit: no limit.
+  assert.equal(outside.note.lettersPerMinute, 0);
 });
 
 test("speech and notes have separate budgets, per account type", () => {

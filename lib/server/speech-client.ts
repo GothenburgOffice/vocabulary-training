@@ -90,7 +90,9 @@ export async function requestSpeech(
 // How long a clip stays in memory; /privacy promises it, so expiry deletes it on a timer.
 const CACHE_MS = 60 * 60_000;
 // Private, bounded, one-process demo cache. Never persist words/audio to disk.
-// One speech request at a time per account (#82). Another request while one is in flight is
+// One speech request at a time per account (#82), per server process: the app runs as one
+// process, so that's per account. With several processes, each would keep its own turns (the
+// letter budgets stay shared, in the database); a shared lease would be needed then. Another request while one is in flight is
 // refused as "busy", so the first one plays instead of being dropped for the latest click,
 // unless the first has waited `blockMs`: then it is abandoned (aborted, so it stops costing)
 // and the new one goes ahead. A cooldown between requests catches scripted use.
@@ -128,7 +130,9 @@ const NO_GUARD: SpeechGuard = { blockMs: 10_000, cooldownMs: 500 };
 // Account scope prevents another user from retrieving a cached private word.
 export class SpeechService {
   private entries = new Map<string, { audio: SpeechAudio; expires: number }>();
-  private pending = new Map<string, Promise<SpeechAudio>>();
+  // Requests in flight, with when they started: a duplicate shares one while it is younger than
+  // the block, and replaces it after (a request that stuck).
+  private pending = new Map<string, { task: Promise<SpeechAudio>; started: number }>();
   private bytes = 0;
   private gate = new SpeechGate();
   constructor(
@@ -177,7 +181,8 @@ export class SpeechService {
       return { ...existing.audio, cache: "hit" as const };
     }
     const running = this.pending.get(key);
-    if (running) return { ...(await running), cache: "hit" as const };
+    if (running && now - running.started < guard.blockMs)
+      return { ...(await running.task), cache: "hit" as const };
     if (existing) {
       this.bytes -= existing.audio.bytes.byteLength;
       this.entries.delete(key);
@@ -205,10 +210,11 @@ export class SpeechService {
         return audio;
       })
       .finally(() => {
-        this.pending.delete(key);
+        // A newer request may have replaced this one under the same key.
+        if (this.pending.get(key)?.task === task) this.pending.delete(key);
         turn.release();
       });
-    this.pending.set(key, task);
+    this.pending.set(key, { task, started: now });
     return { ...(await task), cache: "miss" as const };
   }
 }

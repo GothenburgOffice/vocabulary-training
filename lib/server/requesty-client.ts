@@ -54,12 +54,8 @@ export async function readRequestyJSON(response: Response, max: number): Promise
   }
 }
 
-export async function requestLanguageComment(
-  input: FeedbackInput,
-  config: Config,
-  transport: Fetcher = fetch,
-) {
-  if (!shouldRequestFeedback(input)) throw new FeedbackNotNeeded();
+// Refuses a configuration no request could use, before anything is charged or sent.
+export function checkFeedbackConfig(config: Config) {
   const policy = config.model.startsWith("policy/");
   if (
     !config.apiKey ||
@@ -68,6 +64,15 @@ export async function requestLanguageComment(
     (policy && !/^policy\/[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(config.model))
   )
     throw new FeedbackUnavailable("configuration");
+}
+
+export async function requestLanguageComment(
+  input: FeedbackInput,
+  config: Config,
+  transport: Fetcher = fetch,
+) {
+  if (!shouldRequestFeedback(input)) throw new FeedbackNotNeeded();
+  checkFeedbackConfig(config);
   const signal = AbortSignal.timeout(FEEDBACK_TIMEOUT_MS);
   const headers = { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" };
   try {
