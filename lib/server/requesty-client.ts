@@ -66,6 +66,21 @@ export function checkFeedbackConfig(config: Config) {
     throw new FeedbackUnavailable("configuration");
 }
 
+// The chat request a language note sends. The route returns it to the learner as the prompt
+// of that note (#95); it holds no key or header.
+export function languageCommentRequest(input: FeedbackInput, config: Config) {
+  return {
+    model: config.model,
+    messages: feedbackMessages(input),
+    max_tokens: 768,
+    // Some free providers still spend tokens on reasoning at "none". The
+    // visible comment has its own independent 240-character hard cap.
+    reasoning_effort: "none",
+    temperature: 0.2,
+    stream: false,
+  };
+}
+
 export async function requestLanguageComment(
   input: FeedbackInput,
   config: Config,
@@ -83,16 +98,7 @@ export async function requestLanguageComment(
         signal,
         redirect: "error",
         cache: "no-store",
-        // Some free providers still spend tokens on reasoning at "none". The
-        // visible comment has its own independent 240-character hard cap.
-        body: JSON.stringify({
-          model: config.model,
-          messages: feedbackMessages(input),
-          max_tokens: 768,
-          reasoning_effort: "none",
-          temperature: 0.2,
-          stream: false,
-        }),
+        body: JSON.stringify(languageCommentRequest(input, config)),
       }),
       16_000,
     )) as { choices?: { message?: { content?: unknown } }[] };
