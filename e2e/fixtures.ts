@@ -26,6 +26,8 @@ export const test = base.extend<{ account: Account }>({
 
 // On a phone the sidebar is behind the Menu button.
 export async function openMenu(page: Page) {
+  // Wait for the workspace, or a page still loading would look like a desktop.
+  await expect(page.locator(".app-shell")).toBeAttached();
   const menu = page.getByRole("button", { name: "Menu" });
   if (await menu.isVisible()) await menu.click();
 }
