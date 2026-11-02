@@ -1,4 +1,14 @@
-import { ArrowRight, ChevronRight, Download, Plus, Search, Trash2, Upload } from "lucide-react";
+import {
+  ArrowRight,
+  ChevronDown,
+  ChevronRight,
+  Download,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+} from "lucide-react";
+import { useState } from "react";
 import { BookMark } from "../../lib/brand";
 import { listStats, listTitle, type List } from "../../lib/learning";
 import type { PracticeSettings } from "../../lib/practice";
@@ -43,6 +53,8 @@ export default function LibraryView({
   onStart: () => void;
   onHelp: () => void;
 }) {
+  const [expandedListId, setExpandedListId] = useState<string | null>(null);
+  const expanded = list?.id === expandedListId;
   const { direction } = settings;
   const stats = lists.map((l) => listStats(l, direction, now));
   const totalWords = lists.reduce((sum, l) => sum + l.words.length, 0);
@@ -201,7 +213,7 @@ export default function LibraryView({
                 <span>{list.to}</span>
                 <span>Practice state</span>
               </div>
-              {list.words.slice(0, 5).map((w) => (
+              {list.words.slice(0, expanded ? undefined : 5).map((w) => (
                 <div className="word-row" key={w.id}>
                   <span className="word-with-audio">
                     <span>{w.front}</span>
@@ -220,11 +232,20 @@ export default function LibraryView({
                   </span>
                 </div>
               ))}
-              {list.words.length > 5 && (
-                <button className="text-button all-words" onClick={() => onEdit(list)}>
-                  View all {list.words.length} words <ChevronRight size={14} />
+              <div className="word-preview-actions">
+                {list.words.length > 5 && !expanded && (
+                  <button className="text-button" onClick={() => setExpandedListId(list.id)}>
+                    View all {list.words.length} words <ChevronDown size={14} />
+                  </button>
+                )}
+                <button
+                  className="text-button"
+                  aria-label="Edit this word list"
+                  onClick={() => onEdit(list)}
+                >
+                  Edit list <ArrowRight size={15} />
                 </button>
-              )}
+              </div>
             </section>
           )}
         </div>

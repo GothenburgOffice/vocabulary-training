@@ -16,6 +16,52 @@ import {
 // Next.js adds its own (empty) alert for route announcements.
 const errorIn = (page: Page) => page.getByRole("main").getByRole("alert");
 
+test("view all words expands the preview in place, and both edit controls open the list", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const pairs: [string, string][] = Array.from({ length: 7 }, (_, i) => [
+    `ord ${i + 1}`,
+    `mot ${i + 1}`,
+  ]);
+  await createList(page, "Complete", pairs);
+  const rows = page.locator(".word-preview .word-row");
+  const topEdit = page.getByRole("button", { name: "Edit list" });
+  const bottomEdit = page.getByRole("button", { name: "Edit this word list" });
+  await expect(rows).toHaveCount(5);
+  await expect(topEdit).toHaveCount(1);
+  await expect(bottomEdit).toBeVisible();
+  const expand = page.getByRole("button", { name: "View all 7 words" });
+  await expect(expand.locator("svg")).toHaveClass(/lucide-chevron-down/);
+  await expand.click();
+  await expect(rows).toHaveText(pairs.map(([front, back]) => new RegExp(`${front}\\s*${back}`)));
+  await expect(expand).toHaveCount(0);
+  await expect(page.getByLabel("List name")).toHaveCount(0);
+
+  await bottomEdit.click();
+  await expect(page.getByLabel("List name")).toHaveValue("Complete");
+  await expect(page.getByLabel("First language word 7")).toHaveValue("ord 7");
+  await done(page);
+  await topEdit.click();
+  await expect(page.getByLabel("List name")).toHaveValue("Complete");
+  await done(page);
+
+  await createList(page, "Other", pairs.slice(0, 6));
+  await expect(rows).toHaveCount(5);
+  await page.getByRole("button", { name: "View all 6 words" }).click();
+  await expect(rows).toHaveCount(6);
+  await page.getByRole("button", { name: /^Complete 7 words/ }).click();
+  await expect(rows).toHaveCount(5);
+  await page.getByRole("button", { name: "View all 7 words" }).click();
+  await expect(rows).toHaveCount(7);
+
+  await createList(page, "Short", pairs.slice(0, 5));
+  await expect(rows).toHaveCount(5);
+  await expect(page.getByRole("button", { name: /View all .* words/ })).toHaveCount(0);
+  await bottomEdit.click();
+  await expect(page.getByLabel("List name")).toHaveValue("Short");
+});
+
 test("a new list starts with its name, then saves pairs as they're typed", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "New word list" }).click();

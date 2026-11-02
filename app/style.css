@@ -716,8 +716,13 @@ main {
 .state.established {
   color: var(--green);
 }
-.all-words {
+.word-preview-actions {
+  display: flex;
+  gap: 16px;
   margin-top: 12px;
+}
+.word-preview-actions > :last-child {
+  margin-left: auto;
 }
 footer {
   display: flex;
