@@ -2,13 +2,13 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Download,
   Plus,
   Search,
   Trash2,
   Upload,
 } from "lucide-react";
-import { useState } from "react";
 import { BookMark } from "../../lib/brand";
 import { listStats, listTitle, type List } from "../../lib/learning";
 import type { PracticeSettings } from "../../lib/practice";
@@ -24,6 +24,8 @@ export default function LibraryView({
   query,
   now,
   settings,
+  previewCount,
+  onPreviewCount,
   onQuery,
   onSelect,
   onEdit,
@@ -42,6 +44,8 @@ export default function LibraryView({
   query: string;
   now: number;
   settings: PracticeSettings;
+  previewCount: number;
+  onPreviewCount: (count: number) => void;
   onQuery: (query: string) => void;
   onSelect: (id: string) => void;
   // Without a list, opens a new one.
@@ -53,8 +57,7 @@ export default function LibraryView({
   onStart: () => void;
   onHelp: () => void;
 }) {
-  const [expandedListId, setExpandedListId] = useState<string | null>(null);
-  const expanded = list?.id === expandedListId;
+  const expanded = previewCount > 5;
   const { direction } = settings;
   const stats = lists.map((l) => listStats(l, direction, now));
   const totalWords = lists.reduce((sum, l) => sum + l.words.length, 0);
@@ -213,38 +216,79 @@ export default function LibraryView({
                 <span>{list.to}</span>
                 <span>Practice state</span>
               </div>
-              {list.words.slice(0, expanded ? undefined : 5).map((w) => (
-                <div className="word-row" key={w.id}>
-                  <span className="word-with-audio">
-                    <span>{w.front}</span>
-                    <SpeechButton wordId={w.id} part="native" text={w.front} language={list.from} />
-                  </span>
-                  <span className="word-with-audio">
-                    <span>{w.back}</span>
-                    <SpeechButton wordId={w.id} part="learning" text={w.back} language={list.to} />
-                  </span>
-                  <span className={`state ${w[direction].streak >= 3 ? "established" : ""}`}>
-                    {w[direction].streak >= 3
-                      ? "Established"
-                      : w[direction].correct + w[direction].wrong === 0
-                        ? "New word"
-                        : "Learning"}
-                  </span>
-                </div>
-              ))}
+              <div id={`preview-words-${list.id}`}>
+                {list.words.slice(0, previewCount).map((w) => (
+                  <div className="word-row" key={w.id}>
+                    <span className="word-with-audio">
+                      <span>{w.front}</span>
+                      <SpeechButton
+                        wordId={w.id}
+                        part="native"
+                        text={w.front}
+                        language={list.from}
+                      />
+                    </span>
+                    <span className="word-with-audio">
+                      <span>{w.back}</span>
+                      <SpeechButton
+                        wordId={w.id}
+                        part="learning"
+                        text={w.back}
+                        language={list.to}
+                      />
+                    </span>
+                    <span className={`state ${w[direction].streak >= 3 ? "established" : ""}`}>
+                      {w[direction].streak >= 3
+                        ? "Established"
+                        : w[direction].correct + w[direction].wrong === 0
+                          ? "New word"
+                          : "Learning"}
+                    </span>
+                  </div>
+                ))}
+              </div>
               <div className="word-preview-actions">
-                {list.words.length > 5 && !expanded && (
-                  <button className="text-button" onClick={() => setExpandedListId(list.id)}>
-                    View all {list.words.length} words <ChevronDown size={14} />
+                {list.words.length > 5 && (
+                  <button
+                    className="text-button"
+                    aria-expanded={expanded}
+                    aria-controls={`preview-words-${list.id}`}
+                    onClick={() => onPreviewCount(expanded ? 5 : Math.min(100, list.words.length))}
+                  >
+                    {expanded ? (
+                      <>
+                        Show fewer <ChevronUp size={14} />
+                      </>
+                    ) : (
+                      <>
+                        {list.words.length > 100
+                          ? `View first 100 of ${list.words.length} words`
+                          : `View all ${list.words.length} words`}
+                        <ChevronDown size={14} />
+                      </>
+                    )}
                   </button>
                 )}
-                <button
-                  className="text-button"
-                  aria-label="Edit this word list"
-                  onClick={() => onEdit(list)}
-                >
-                  Edit list <ArrowRight size={15} />
-                </button>
+                {expanded && list.words.length > 100 && (
+                  <button
+                    className="text-button"
+                    aria-controls={`preview-words-${list.id}`}
+                    aria-disabled={previewCount >= list.words.length}
+                    onClick={() => {
+                      if (previewCount < list.words.length)
+                        onPreviewCount(Math.min(previewCount + 100, list.words.length));
+                    }}
+                  >
+                    {previewCount < list.words.length
+                      ? `Show ${Math.min(100, list.words.length - previewCount)} more words`
+                      : `All ${list.words.length} words shown`}
+                  </button>
+                )}
+                {expanded && list.words.length > 5 && (
+                  <button className="text-button word-preview-edit" onClick={() => onEdit(list)}>
+                    Edit list <ArrowRight size={15} />
+                  </button>
+                )}
               </div>
             </section>
           )}

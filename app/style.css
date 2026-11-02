@@ -718,10 +718,11 @@ main {
 }
 .word-preview-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   margin-top: 12px;
 }
-.word-preview-actions > :last-child {
+.word-preview-edit {
   margin-left: auto;
 }
 footer {
