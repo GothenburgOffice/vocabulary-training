@@ -400,6 +400,49 @@ test("real HTTP: the admin area answers 404 to everyone but admins", async () =>
   const page = await api("/admin", "GET", undefined, adminCookie);
   assert.equal(page.status, 200);
   assert.match(await page.text(), /Overview/);
+
+  assert.equal((await api("/api/admin/users", "GET", undefined, cookie)).status, 404);
+  const usersResponse = await api("/api/admin/users", "GET", undefined, adminCookie);
+  assert.equal(usersResponse.status, 200, await usersResponse.clone().text());
+  const users = await usersResponse.json();
+  const managed = users.accounts.find((account: { email: string }) => account.email === email);
+  assert.ok(managed);
+  assert.equal(managed.id, me.user.id);
+  assert.ok(managed.created_at);
+  assert.ok(managed.last_sign_in_at);
+  assert.equal(managed.ai_tier, "basic");
+  assert.equal(managed.is_admin, false);
+  assert.equal(managed.speech_calls_day, 0);
+  assert.equal(managed.note_calls_90, 0);
+  assert.ok(users.limits.speech.lettersPerDay.basic > 0);
+
+  assert.equal(
+    (
+      await api("/api/admin/users", "PATCH", { userId: me.user.id, tier: "plus" }, adminCookie, {
+        Origin: "https://attacker.invalid",
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (await api("/api/admin/users", "PATCH", { userId: me.user.id, tier: "invalid" }, adminCookie))
+      .status,
+    400,
+  );
+  assert.equal(
+    (await api("/api/admin/users", "PATCH", { userId: me.user.id, tier: "plus" }, adminCookie))
+      .status,
+    200,
+  );
+  assert.equal(
+    (await api("/api/admin/users", "DELETE", { userId: admin.user.id }, adminCookie)).status,
+    400,
+  );
+  assert.equal(
+    (await api("/api/admin/users", "DELETE", { userId: me.user.id }, adminCookie)).status,
+    200,
+  );
+  assert.equal((await api("/api/workspace", "GET", undefined, cookie)).status, 401);
 });
 
 test("real HTTP: admin AI settings and languages, with dummy keys and no provider calls", async () => {

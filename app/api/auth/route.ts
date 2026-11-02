@@ -66,6 +66,7 @@ export async function POST(request: Request) {
       if (!user || !valid) throw new HttpError(401, "Email or password is incorrect.");
       userId = user.id;
     }
+    await db.query("UPDATE users SET last_sign_in_at=now() WHERE id=$1", [userId!]);
     const token = await createSession(userId!);
     const response = json({ user: { id: userId!, email } });
     response.cookies.set(cookieName, token, cookieOptions(origin));

@@ -56,10 +56,14 @@ export default async function PrivacyPage() {
           <li>
             AI usage: for each language note and audio request that reaches the AI provider, how
             many letters it sent and when, kept for 90 days to limit misuse. Not the text itself.
+            The site administrator can review these counts by account to operate the service and
+            investigate misuse.
           </li>
           <li>
-            Sign-in sessions, stored only as hashes of their tokens. Sign-in attempt limits use
-            hashed identifiers, never your email address or IP address.
+            Sign-in sessions, stored only as hashes of their tokens. The time of your last
+            successful sign-in is kept with your account so the administrator can manage accounts;
+            it is deleted with your account. Sign-in attempt limits use hashed identifiers, never
+            your email address or IP address.
           </li>
         </ul>
         <p>

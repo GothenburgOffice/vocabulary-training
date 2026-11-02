@@ -277,3 +277,82 @@ test("AI limits are edited and saved together, and reset to the defaults", async
   await expect(page.getByRole("status")).toHaveText("Saved.");
   expect(saves[1]).toEqual(defaults);
 });
+
+test("users can be filtered, re-typed and deleted with E2E cleanup", async ({ page }) => {
+  const viewerId = "7199f62c-4c8b-43a6-8ca6-9711c6bffb04";
+  const testId = "a620960f-133c-4e1b-8cf6-04bf2d37e8cd";
+  const learnerId = "523c4025-e0ca-4898-9d65-a36cf00c424f";
+  const account = (id: string, email: string) => ({
+    id,
+    email,
+    created_at: "2026-10-01T10:00:00.000Z",
+    last_sign_in_at: null,
+    ai_tier: "basic" as const,
+    is_admin: false,
+    speech_calls_day: 2,
+    speech_letters_day: 120,
+    speech_calls_week: 3,
+    speech_letters_week: 180,
+    speech_calls_90: 4,
+    speech_letters_90: 240,
+    note_calls_day: 1,
+    note_letters_day: 40,
+    note_calls_week: 2,
+    note_letters_week: 80,
+    note_calls_90: 3,
+    note_letters_90: 120,
+  });
+  let accounts = [
+    account(testId, "e2e-test@example.test"),
+    account(learnerId, "learner@example.test"),
+  ];
+  const limits = {
+    speech: {
+      lettersPerMinute: 1200,
+      lettersPerDay: { basic: 100000, plus: 300000 },
+      cooldownMs: 500,
+    },
+    note: {
+      lettersPerMinute: 3000,
+      lettersPerDay: { basic: 100000, plus: 300000 },
+      cooldownMs: 3000,
+    },
+    speechBlockMs: 10000,
+  };
+  await page.route("/api/admin/users", async (route) => {
+    const request = route.request();
+    if (request.method() === "PATCH") {
+      const { userId, tier } = request.postDataJSON();
+      accounts = accounts.map((user) => (user.id === userId ? { ...user, ai_tier: tier } : user));
+      return route.fulfill({ json: { ok: true } });
+    }
+    if (request.method() === "DELETE") {
+      const data = request.postDataJSON();
+      if (data.testAccounts) {
+        accounts = accounts.filter((user) => !user.email.startsWith("e2e-"));
+        return route.fulfill({ json: { deleted: 1 } });
+      }
+      accounts = accounts.filter((user) => user.id !== data.userId);
+      return route.fulfill({ json: { deleted: 1 } });
+    }
+    return route.fulfill({ json: { viewerId, accounts, limits } });
+  });
+
+  await page.goto("/admin/users");
+  await expect(page.locator(".user-card")).toHaveCount(2);
+  await page.locator(".user-usage summary").first().click();
+  await expect(page.getByText("2 calls · 120 / 100,000 letters").first()).toBeVisible();
+  await page.getByLabel("Account type for learner@example.test").selectOption("plus");
+  await expect(page.getByLabel("Account type for learner@example.test")).toHaveValue("plus");
+
+  await page.getByLabel("Account filter").selectOption("test");
+  await expect(page.locator(".user-card")).toHaveCount(1);
+  await expect(page.getByText("e2e-test@example.test")).toBeVisible();
+  page.once("dialog", (dialog) => {
+    expect(dialog.message()).toContain("Permanently delete 1 E2E test accounts");
+    void dialog.accept();
+  });
+  await page.getByRole("button", { name: "Delete test accounts (1)" }).click();
+  await expect(page.getByText("Deleted 1 E2E test accounts.")).toBeVisible();
+  await expect(page.locator(".user-card")).toHaveCount(0);
+});
