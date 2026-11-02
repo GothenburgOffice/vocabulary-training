@@ -4,6 +4,7 @@ import {
   ChevronRight,
   CircleHelp,
   FolderOpen,
+  Flag,
   History as HistoryIcon,
   ListChecks,
   UserRound,
@@ -32,6 +33,7 @@ export default function Sidebar({
   onNavigate,
   onPractice,
   onHelp,
+  onReport,
 }: {
   open: boolean;
   view: View;
@@ -51,6 +53,7 @@ export default function Sidebar({
   onNavigate: (view: View) => void;
   onPractice: () => void;
   onHelp: () => void;
+  onReport?: () => void;
 }) {
   const ai = useContext(AiFeaturesContext);
   // The language pair only changes from the lists and history views.
@@ -128,6 +131,11 @@ export default function Sidebar({
       </nav>
       {save && <SaveStatus state={save} iconSize={18} />}
       <div className="side-bottom">
+        {onReport && (
+          <button onClick={onReport}>
+            <Flag size={18} /> Report an issue
+          </button>
+        )}
         <button onClick={onHelp}>
           <CircleHelp size={18} /> How practice works
         </button>

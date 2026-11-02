@@ -2,6 +2,7 @@ import { letterCount, noteInput } from "../../../lib/ai-words";
 import { shouldRequestFeedback } from "../../../lib/feedback";
 import { requireUser } from "../../../lib/server/auth";
 import { aiConfig } from "../../../lib/server/ai-config";
+import { recordActivity } from "../../../lib/server/activity-reports";
 import { chargeLetters, readLimits } from "../../../lib/server/ai-limits";
 import { feedbackRequestSchema } from "../../../lib/server/feedback-input";
 import { body, fail, HttpError, json, requireOrigin } from "../../../lib/server/http";
@@ -47,6 +48,14 @@ export async function POST(request: Request) {
       siteLimits,
     );
     const comment = await requestLanguageComment(input, provider);
+    await recordActivity(user.id, {
+      kind: "note",
+      word: input.reference,
+      language: input.targetLanguage,
+      model: provider.model,
+      voice: null,
+      tier: user.ai_tier,
+    });
     return json({ status: "ready", comment });
   } catch (error) {
     if (error instanceof FeedbackNotNeeded) return json({ status: "not-needed" });

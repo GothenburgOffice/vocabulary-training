@@ -277,3 +277,42 @@ test("AI limits are edited and saved together, and reset to the defaults", async
   await expect(page.getByRole("status")).toHaveText("Saved.");
   expect(saves[1]).toEqual(defaults);
 });
+
+test("reports show action details and prune only after confirmation", async ({ page }) => {
+  let pruned = false;
+  const report = {
+    id: "report-1",
+    reason: "pronunciation",
+    createdAt: "2026-11-02T20:05:00.000Z",
+    activity: {
+      id: "action-1",
+      kind: "speech",
+      word: "bonjour",
+      language: "French",
+      model: "test/speech",
+      voice: "test-voice",
+      tier: "basic",
+      createdAt: "2026-11-02T20:00:00.000Z",
+    },
+  };
+  await page.route("/api/admin/reports", (route) => {
+    if (route.request().method() === "DELETE") {
+      pruned = true;
+      return route.fulfill({ json: { deleted: 1 } });
+    }
+    return route.fulfill({ json: { reports: pruned ? [] : [report] } });
+  });
+  await page.goto("/admin/reports");
+  await expect(page.getByRole("heading", { name: "Reports", exact: true })).toBeVisible();
+  await expect(page.getByText("bonjour", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Model: test\/speech/)).toContainText("Voice: test-voice");
+  const prune = page.getByRole("button", { name: "Prune reports older than 15 days" });
+  page.once("dialog", (dialog) => void dialog.dismiss());
+  await prune.click();
+  expect(pruned).toBe(false);
+  page.once("dialog", (dialog) => void dialog.accept());
+  await prune.click();
+  await expect(page.getByRole("status")).toHaveText("Deleted 1 report older than 15 days.");
+  await expect(page.getByText("No reports yet.")).toBeVisible();
+  expect(pruned).toBe(true);
+});

@@ -43,6 +43,19 @@ A word with several accepted answers speaks its primary answer.
 - Generated voices are not reliable pronunciation teachers, especially outside
   English.
 
+## Reporting a problem
+
+The lower sidebar has one **Report an issue** entry. Choose a speech or
+language-note action from the last hour and a fixed reason. Recent activity stores
+the text read or word, language, configured model and voice, tier and time, tied to
+the account. Expired activity is cleaned up when activity is used. It stores no
+audio, provider keys or generated language notes.
+
+A report keeps a copy of those details for **Admin → Reports**, even after the
+recent activity expires. The admin can permanently prune reports older than
+15 days. Reports and activity are deleted with the account. Reporting makes no
+provider request and never affects grading. See `/privacy` for retention details.
+
 ## Tiers
 
 Each account has an `ai_tier`, `basic` (default) or `plus`. Each tier has its own

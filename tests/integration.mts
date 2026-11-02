@@ -12,6 +12,121 @@ async function api(path: string, method = "GET", data?: unknown, cookie = "", ex
   });
 }
 
+test("real HTTP: reports require authentication, ownership, fixed reasons and admin access", async () => {
+  const activityId = randomUUID();
+  const report = { activityId, reason: "other" };
+  assert.equal((await api("/api/reports")).status, 401);
+  assert.equal((await api("/api/reports", "POST", report)).status, 401);
+  assert.equal((await api("/api/admin/reports")).status, 404);
+  assert.equal((await api("/api/admin/reports", "DELETE", {})).status, 404);
+  for (const path of ["/api/reports", "/api/admin/reports"])
+    assert.equal(
+      (
+        await api(path, path.includes("/admin/") ? "DELETE" : "POST", report, "", {
+          Origin: "https://attacker.invalid",
+        })
+      ).status,
+      403,
+    );
+  const registered = await api("/api/auth", "POST", {
+    action: "register",
+    email: `reporter-${randomUUID()}@example.test`,
+    password: "integration-test-only-password",
+  });
+  assert.equal(registered.status, 200, await registered.clone().text());
+  const cookie = registered.headers.get("set-cookie")!.split(";")[0];
+  assert.deepEqual(await (await api("/api/reports", "GET", undefined, cookie)).json(), {
+    activities: [],
+  });
+  assert.equal((await api("/api/reports", "POST", report, cookie)).status, 404);
+  for (const data of [
+    { activityId, reason: "free text" },
+    { ...report, word: "untrusted metadata" },
+    { activityId: "not-an-id", reason: "other" },
+  ])
+    assert.equal((await api("/api/reports", "POST", data, cookie)).status, 400);
+  assert.equal((await api("/api/admin/reports", "GET", undefined, cookie)).status, 404);
+  assert.equal((await api("/api/admin/reports", "DELETE", {}, cookie)).status, 404);
+  if (process.env.TEST_ADMIN_EMAIL && process.env.TEST_ADMIN_PASSWORD) {
+    const login = await api("/api/auth", "POST", {
+      action: "login",
+      email: process.env.TEST_ADMIN_EMAIL,
+      password: process.env.TEST_ADMIN_PASSWORD,
+    });
+    assert.equal(login.status, 200);
+    const admin = login.headers.get("set-cookie")!.split(";")[0];
+    const listed = await api("/api/admin/reports", "GET", undefined, admin);
+    assert.equal(listed.status, 200);
+    assert.ok(Array.isArray((await listed.json()).reports));
+    assert.equal(
+      (
+        await api("/api/admin/reports", "DELETE", {}, admin, {
+          Origin: "https://attacker.invalid",
+        })
+      ).status,
+      403,
+    );
+    const pruned = await api("/api/admin/reports", "DELETE", {}, admin);
+    assert.equal(pruned.status, 200);
+    assert.equal(typeof (await pruned.json()).deleted, "number");
+  }
+});
+
+test(
+  "real HTTP and PostgreSQL: reports snapshot only the account's recent activity",
+  { skip: process.env.TEST_REPORTS_DATABASE !== "1" },
+  async (t) => {
+    const { default: pg } = await import("pg");
+    const pool = new pg.Pool();
+    const email = `report-snapshot-${randomUUID()}@example.test`;
+    const othersEmail = `report-foreign-${randomUUID()}@example.test`;
+    t.after(async () => {
+      await pool.query("DELETE FROM users WHERE email = ANY($1::text[])", [[email, othersEmail]]);
+      await pool.end();
+    });
+    const register = async (email: string) => {
+      const response = await api("/api/auth", "POST", {
+        action: "register",
+        email,
+        password: "integration-test-only-password",
+      });
+      assert.equal(response.status, 200);
+      return response.headers.get("set-cookie")!.split(";")[0];
+    };
+    const cookie = await register(email);
+    const otherCookie = await register(othersEmail);
+    const user = (await pool.query("SELECT id FROM users WHERE email = $1", [email])).rows[0].id;
+    const id = randomUUID();
+    // Seed a completed action, never a provider call; the store test covers recording it.
+    await pool.query(
+      `INSERT INTO ai_activity (id, user_id, kind, word, language, model, voice, tier)
+       VALUES ($1, $2, 'speech', 'bonjour', 'French', 'synthetic/tts', 'Test', 'basic')`,
+      [id, user],
+    );
+    const recent = await (await api("/api/reports", "GET", undefined, cookie)).json();
+    assert.equal(recent.activities.length, 1);
+    const activity = recent.activities[0];
+    assert.equal(activity.id, id);
+    assert.equal(activity.word, "bonjour");
+    assert.deepEqual(await (await api("/api/reports", "GET", undefined, otherCookie)).json(), {
+      activities: [],
+    });
+    const data = { activityId: id, reason: "pronunciation" };
+    assert.equal((await api("/api/reports", "POST", data, otherCookie)).status, 404);
+    const submitted = await api("/api/reports", "POST", data, cookie);
+    assert.equal(submitted.status, 201, await submitted.clone().text());
+    const report = (await submitted.json()).report;
+    assert.deepEqual(report.activity, activity);
+    assert.equal(report.reason, "pronunciation");
+    assert.equal((await api("/api/reports", "POST", data, cookie)).status, 409);
+    await pool.query("DELETE FROM ai_activity WHERE id = $1", [id]);
+    assert.equal(
+      (await pool.query("SELECT word FROM issue_reports WHERE id = $1", [report.id])).rows[0].word,
+      "bonjour",
+    );
+  },
+);
+
 test("real HTTP and PostgreSQL: accounts, ownership, persistence, conflicts, CSRF and logout", async () => {
   const password = "integration-test-only-password";
   const email = `integration-${randomUUID()}@example.test`;

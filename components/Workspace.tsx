@@ -36,6 +36,7 @@ import ListEditor from "./workspace/ListEditor";
 import NewLanguageDialog from "./workspace/NewLanguageDialog";
 import PracticeSession from "./workspace/PracticeSession";
 import ProfileDialog from "./workspace/ProfileDialog";
+import ReportDialog from "./workspace/ReportDialog";
 import ResultsView from "./workspace/ResultsView";
 import SaveStatus from "./workspace/SaveStatus";
 import Sidebar from "./workspace/Sidebar";
@@ -50,6 +51,7 @@ const DIALOG_TITLES: Record<Modal, string> = {
   delete: "Delete this word list?",
   leave: "Leave with unfinished edits?",
   help: "A smarter mix, not a black box.",
+  report: "Report an issue",
 };
 
 // The signed-in app: holds the workspace state shared between views and reports each change
@@ -391,6 +393,7 @@ ${learningLanguage}`;
               : startTest()
         }
         onHelp={() => setModal("help")}
+        onReport={account ? () => setModal("report") : undefined}
       />
       <header className="mobile-bar">
         <Link
@@ -555,6 +558,7 @@ ${learningLanguage}`;
         {modal === "help" && (
           <HelpDialog speech={ai.speech.length > 0} onClose={() => setModal(null)} />
         )}
+        {modal === "report" && <ReportDialog />}
         {modal === "leave" && (
           <LeaveDialog
             lost={editorLost}

@@ -58,6 +58,17 @@ export default async function PrivacyPage() {
             many letters it sent and when, kept for 90 days to limit misuse. Not the text itself.
           </li>
           <li>
+            Recent speech and language-note activity, tied to your account, so you can select an
+            action from the last hour to report a problem: the text read or word, language, model,
+            voice, account tier and time. Expired activity is cleaned up when activity is used.
+          </li>
+          <li>
+            If you report a problem, your chosen reason and a copy of that action’s details are
+            saved for the site admin. Reports stay until the admin deletes them or your account is
+            deleted. The admin can prune reports older than 15 days. No audio is saved, and reports
+            are never sent to an AI provider or used to grade answers.
+          </li>
+          <li>
             Sign-in sessions, stored only as hashes of their tokens. Sign-in attempt limits use
             hashed identifiers, never your email address or IP address.
           </li>

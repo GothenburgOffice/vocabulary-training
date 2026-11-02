@@ -10,6 +10,7 @@ const ROUTES = [
   "/",
   "/privacy",
   "/admin/languages",
+  "/admin/reports",
   "/api/health",
   "/api/auth",
   "/api/workspace",
@@ -19,6 +20,8 @@ const ROUTES = [
   "/api/profile",
   "/api/feedback",
   "/api/speech",
+  "/api/reports",
+  "/api/admin/reports",
   "/api/admin/languages",
 ];
 
