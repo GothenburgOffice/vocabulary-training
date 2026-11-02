@@ -11,11 +11,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 EXPOSE 3000
 CMD ["npm", "run", "dev"]
 
-# The VS Code dev container only: development plus tools for working inside it. Installed
-# before the source is copied so the layer stays cached. psql 18 (matching the database) and
-# gh come from the PostgreSQL project's and GitHub's signed apt repositories, since Debian's
-# are a major version behind. /app is a bind mount from the host, so git would otherwise
-# refuse it as owned by another user.
+# The VS Code dev container only: development plus tools for working inside it, and the
+# headless Chromium that the browser tests (npm run test:e2e) use. Installed before the source
+# is copied so the layer stays cached. psql 18 (matching the database) and gh come from the
+# PostgreSQL project's and GitHub's signed apt repositories, since Debian's are a major version
+# behind. /app is a bind mount from the host, so git would otherwise refuse it as owned by
+# another user.
 FROM dependencies AS devcontainer
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends ca-certificates curl \
@@ -31,6 +32,7 @@ RUN apt-get update \
     && apt-get update \
     && apt-get install --yes --no-install-recommends \
         gh git jq less openssh-client postgresql-client-18 procps ripgrep \
+    && npx playwright install --with-deps --only-shell chromium \
     && rm -rf /var/lib/apt/lists/* \
     && git config --system --add safe.directory /app
 COPY . .

@@ -11,4 +11,5 @@ maintainer approved your plan in the issue, will be reviewed. See CONTRIBUTING.m
 
 - [ ] `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test`
 - [ ] `npm run test:integration` (if API, auth or database code changed)
+- [ ] `npm run test:e2e` (if the UI changed)
 - [ ] AI assistance disclosed (tool, and what you verified yourself), or none used

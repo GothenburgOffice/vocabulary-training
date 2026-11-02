@@ -21,11 +21,13 @@ npm run format          # Prettier; CI runs format:check
 npm run typecheck
 npm test                # unit tests: tsx --test tests/*.test.ts
 npm run test:integration  # needs the running stack; uses TEST_BASE_URL
+npm run test:e2e        # Playwright browser tests (e2e/); same stack and TEST_BASE_URL
 npm run build
 ```
 
 Before finishing a change, run lint, format:check, typecheck and the unit
-tests. Also run the integration test when API, auth or DB code changed.
+tests. Also run the integration test when API, auth or DB code changed, and the
+browser tests when UI code changed.
 
 ## Code map
 
@@ -42,6 +44,8 @@ tests. Also run the integration test when API, auth or DB code changed.
   (`requireOrigin`, then `requireAdmin`), and an entry in `lib/admin/sections.ts`.
 - `components/Workspace.tsx`: the whole UI, a client component. It and the
   components it renders must not import server code.
+- `e2e/`: Playwright browser tests. `fixtures.ts` signs each test in as a fresh account and
+  has the shared steps; AI routes are mocked there, never called.
 - `db/migrations/NNN_name.sql`: **append-only**. Never edit an applied migration; add a new file.
 
 ## Rules that must not regress

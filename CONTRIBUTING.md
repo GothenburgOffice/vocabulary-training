@@ -21,7 +21,7 @@ That includes unsolicited fixes, refactors, dependency bumps and typo-only chang
 
 - Link the issue (`Closes #123`) and keep the change limited to it.
 - Branch from an up-to-date `main`. Merging needs passing CI and an up-to-date branch.
-- Before pushing, run `npm run format`, `npm run lint`, `npm run typecheck` and `npm test`. Run `npm run test:integration` too if you changed API, auth or database code.
+- Before pushing, run `npm run format`, `npm run lint`, `npm run typecheck` and `npm test`. Run `npm run test:integration` too if you changed API, auth or database code, and `npm run test:e2e` if you changed the UI.
   The [dev container](README.md#development) has everything set up.
 - Add or update tests for behavior changes.
 - Follow the rules in [CLAUDE.md](CLAUDE.md), for example: grading stays

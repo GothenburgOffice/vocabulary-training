@@ -89,7 +89,14 @@ npm run format:check      # npm run format to fix
 npm run typecheck
 npm test                  # unit tests
 npm run test:integration  # HTTP + PostgreSQL against the running dev server
+npm run test:e2e          # browser tests (Playwright) against the running dev server
 ```
+
+The browser tests click through the main flows in headless Chromium, at desktop
+and phone (375 px) widths, with a fresh account per test. They mock the AI
+routes, so they never call Requesty. `npx playwright test --ui` is handy for
+watching one run. After a Playwright update, rebuild the container to get the
+matching Chromium.
 
 Registration is enabled inside the dev container so the integration test can
 create throwaway accounts: the dev database starts with registration open and a
