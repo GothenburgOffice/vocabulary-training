@@ -54,6 +54,10 @@ export default async function PrivacyPage() {
             newest 200 completed practice sessions.
           </li>
           <li>
+            AI usage: for each language note and audio request that reaches the AI provider, how
+            many letters it sent and when, kept for 90 days to limit misuse. Not the text itself.
+          </li>
+          <li>
             Sign-in sessions, stored only as hashes of their tokens. Sign-in attempt limits use
             hashed identifiers, never your email address or IP address.
           </li>
@@ -69,8 +73,9 @@ export default async function PrivacyPage() {
           If this site has language notes or word audio turned on, the text a request needs is sent
           through Requesty, an AI gateway, to the AI provider that runs the model. For a language
           note, that is the word, its accepted answers, your answer and the language names. For
-          audio, it is only the word you clicked. Your email address and account are never sent.
-          Audio is kept in the server&apos;s memory for up to an hour and never written to disk.
+          audio, it is only the word you clicked, or a word&apos;s accepted answers. Your email
+          address and account are never sent. Audio is kept in the server&apos;s memory for up to an
+          hour and never written to disk.
         </p>
 
         <h2>The cookie and your browser</h2>

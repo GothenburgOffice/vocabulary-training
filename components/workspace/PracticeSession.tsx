@@ -70,6 +70,8 @@ export default function PracticeSession({
             <span>{forward ? word.front : word.back}</span>
             <SpeechButton
               key={`${word.id}-${direction}`}
+              wordId={word.id}
+              part={forward ? "native" : "learning"}
               text={forward ? word.front : word.back}
               language={forward ? list.from : list.to}
               label="Play question word"
@@ -111,9 +113,12 @@ export default function PracticeSession({
                   {feedback.correct ? "Answer: " : "Correct answer: "}
                   {answersFor(word, direction).join(" / ")}
                 </span>
+                {/* Every accepted answer is read, as listed (#79). */}
                 <SpeechButton
                   key={`${word.id}-${direction}-answer`}
-                  text={forward ? word.back : word.front}
+                  wordId={word.id}
+                  part={forward ? "answers" : "native"}
+                  text={answersFor(word, direction).join("; ")}
                   language={forward ? list.to : list.from}
                   label="Play answer word"
                 />
@@ -139,6 +144,8 @@ export default function PracticeSession({
         {feedback && ai.languageNotes && (
           <LanguageNote
             skipped={!!feedback.skipped}
+            wordId={word.id}
+            direction={direction}
             input={{
               sourceLanguage: forward ? list.from : list.to,
               targetLanguage: forward ? list.to : list.from,

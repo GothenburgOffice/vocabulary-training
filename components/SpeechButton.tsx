@@ -1,19 +1,23 @@
 "use client";
 import { useContext, useEffect, useRef, useState } from "react";
 import { LoaderCircle, Square, Volume2 } from "lucide-react";
+import type { SpeechPart } from "../lib/ai-words";
 import { pronunciationText, SPEECH_TIMEOUT_MS } from "../lib/speech";
 import { AiFeaturesContext } from "./AiFeatures";
 
-let activePlayback: AbortController | undefined;
+// The clip playing now, anywhere on the page: a newly arriving clip stops it.
+let playing: AbortController | undefined;
 
-type Props = { text: string; language: string; label?: string };
+// The server reads the stored word (#82): the button names it and which of its texts to read.
+// `text` and `language` are for the button's label and whether speech is on for it.
+type Props = { wordId: string; part: SpeechPart; text: string; language: string; label?: string };
 
 // A new phrase or language remounts the button, so no state or playback carries over.
 export default function SpeechButton(props: Props) {
   return <SpeechControl key={`${props.language}\n${pronunciationText(props.text)}`} {...props} />;
 }
 
-function SpeechControl({ text, language, label }: Props) {
+function SpeechControl({ wordId, part, text, language, label }: Props) {
   const ai = useContext(AiFeaturesContext);
   const [state, setState] = useState<"idle" | "loading" | "playing">("idle");
   const [error, setError] = useState("");
@@ -34,10 +38,10 @@ function SpeechControl({ text, language, label }: Props) {
       current.current?.abort();
       return;
     }
-    activePlayback?.abort();
+    // A clip still loading elsewhere isn't cancelled: the server answers "busy" to this click and
+    // the first clip plays when it arrives.
     const controller = new AbortController();
     current.current = controller;
-    activePlayback = controller;
     let url: string | undefined;
     let player: HTMLAudioElement | undefined;
     let finished = false;
@@ -60,7 +64,7 @@ function SpeechControl({ text, language, label }: Props) {
         URL.revokeObjectURL(url);
         url = undefined;
       }
-      if (activePlayback === controller) activePlayback = undefined;
+      if (playing === controller) playing = undefined;
       if (current.current === controller && mounted.current) setState("idle");
     };
     controller.signal.addEventListener("abort", stop, { once: true });
@@ -72,19 +76,26 @@ function SpeechControl({ text, language, label }: Props) {
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
         signal: controller.signal,
-        body: JSON.stringify({ text: spoken, language }),
+        body: JSON.stringify({ wordId, part }),
       });
-      if (!response.ok)
+      if (!response.ok) {
+        const status =
+          response.status === 429 ? (await response.json().catch(() => ({}))).status : "";
         throw new Error(
-          response.status === 429
-            ? "Audio limit reached. Try again soon."
-            : "Audio unavailable. Try again.",
+          status === "busy"
+            ? "Audio request already in progress. Try again soon."
+            : status === "limited"
+              ? "Audio limit reached. Try again soon."
+              : "Audio unavailable. Try again.",
         );
+      }
       if (!response.headers.get("content-type")?.startsWith("audio/"))
         throw new Error("Audio unavailable. Try again.");
       const blob = await response.blob();
       if (!blob.size || blob.size > 4_000_000) throw new Error("Audio unavailable. Try again.");
       if (controller.signal.aborted) return;
+      playing?.abort();
+      playing = controller;
       url = URL.createObjectURL(blob);
       player = new Audio(url);
       player.onended = () => {

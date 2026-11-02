@@ -21,10 +21,8 @@ test("real HTTP and PostgreSQL: accounts, ownership, persistence, conflicts, CSR
     (await api("/api/health")).headers.get("content-security-policy") ?? "",
     /media-src 'self' blob:/,
   );
-  assert.equal(
-    (await api("/api/speech", "POST", { text: "hello", language: "English" })).status,
-    401,
-  );
+  const someWord = { wordId: randomUUID(), part: "native" };
+  assert.equal((await api("/api/speech", "POST", someWord)).status, 401);
   const reg = await api("/api/auth", "POST", { action: "register", email, password });
   assert.equal(reg.status, 200, await reg.clone().text());
   const rawCookie = reg.headers.get("set-cookie")!;
@@ -34,38 +32,24 @@ test("real HTTP and PostgreSQL: accounts, ownership, persistence, conflicts, CSR
   const first = await (await api("/api/workspace", "GET", undefined, cookie)).json();
   assert.equal(
     (
-      await api("/api/speech", "POST", { text: "hello", language: "English" }, cookie, {
+      await api("/api/speech", "POST", someWord, cookie, {
         Origin: "https://attacker.invalid",
       })
     ).status,
     403,
   );
   assert.equal(
-    (
-      await api(
-        "/api/speech",
-        "POST",
-        { text: "hello", language: "English", model: "paid/model" },
-        cookie,
-      )
-    ).status,
+    (await api("/api/speech", "POST", { ...someWord, model: "paid/model" }, cookie)).status,
     400,
   );
   // The server lists its languages and this account's AI features, never keys or models.
   assert(first.languages.some((l: { name: string }) => l.name === "English"));
   assert.equal(JSON.stringify(first).includes("model"), false);
-  // Only check the disabled path when English has no speech, so a dev stack with a real key
-  // never makes a paid call here.
-  if (!first.ai.speech.includes("English")) {
-    const disabledAudio = await api(
-      "/api/speech",
-      "POST",
-      { text: "hello", language: "English" },
-      cookie,
-    );
-    assert.equal(disabledAudio.status, 503);
-    assert.equal((await disabledAudio.json()).status, "disabled");
-  }
+  // Text is never taken from the client (#82): the old request shape is refused.
+  assert.equal(
+    (await api("/api/speech", "POST", { text: "hello", language: "English" }, cookie)).status,
+    400,
+  );
   assert.equal(first.data.lists.length, 0);
   assert.deepEqual([first.data.baseLanguage, first.data.learningLanguage], ["Swedish", "French"]);
   const listId = randomUUID();
@@ -114,6 +98,45 @@ test("real HTTP and PostgreSQL: accounts, ownership, persistence, conflicts, CSR
     correct: true,
   };
   assert.equal((await api("/api/reviews", "POST", othersReview, cookie2)).status, 404);
+
+  // The AI endpoints read words by id from the account's own lists (#82): another account's
+  // word, or none, is 404 before any AI setting is even looked at, so no provider is called.
+  const ownWord = list.words[0].id;
+  const note = (wordId: string, answer: string, who = cookie) =>
+    api(
+      "/api/feedback",
+      "POST",
+      { wordId, direction: "forward", answer, requireAccents: true, caseSensitive: false },
+      who,
+    );
+  assert.equal(
+    (await api("/api/speech", "POST", { wordId: ownWord, part: "native" }, cookie2)).status,
+    404,
+  );
+  assert.equal((await api("/api/speech", "POST", someWord, cookie)).status, 404);
+  assert.equal((await note(ownWord, "salut", cookie2)).status, 404);
+  assert.equal((await note(randomUUID(), "salut")).status, 404);
+  assert.equal(
+    (await api("/api/feedback", "POST", { wordId: ownWord, answer: "x", source: "hej" }, cookie))
+      .status,
+    400,
+  );
+  // The grade is worked out on the server: a correct answer needs no note.
+  assert.equal((await (await note(ownWord, " BONJOUR ")).json()).status, "not-needed");
+  // Only check the disabled paths when this stack has no AI configured, so a dev stack with a
+  // real key never makes a paid call here.
+  if (!first.ai.speech.includes("Swedish")) {
+    const disabledAudio = await api(
+      "/api/speech",
+      "POST",
+      { wordId: ownWord, part: "native" },
+      cookie,
+    );
+    assert.equal(disabledAudio.status, 503);
+    assert.equal((await disabledAudio.json()).status, "disabled");
+  }
+  if (!first.ai.languageNotes)
+    assert.equal((await (await note(ownWord, "salut")).json()).status, "disabled");
   assert.equal((await api("/api/auth", "DELETE", {}, cookie)).status, 200);
   assert.equal((await api("/api/workspace", "GET", undefined, cookie)).status, 401);
   const bad = await api("/api/auth", "POST", {
