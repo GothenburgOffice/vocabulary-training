@@ -8,13 +8,14 @@ import {
 } from "../lib/feedback";
 
 type Note = { status: "loading" | "ready" | "unavailable"; text: string };
-export default function LanguageNote({
-  input,
-  skipped,
-}: {
-  input: FeedbackInput;
-  skipped: boolean;
-}) {
+type Props = { input: FeedbackInput; skipped: boolean };
+
+// A different exercise or answer remounts the note, so it starts loading afresh.
+export default function LanguageNote(props: Props) {
+  return <NoteRequest key={JSON.stringify([props.skipped, props.input])} {...props} />;
+}
+
+function NoteRequest({ input, skipped }: Props) {
   const [note, setNote] = useState<Note>({
     status: "loading",
     text: "Preparing a short language note…",
@@ -37,7 +38,6 @@ export default function LanguageNote({
     if (!needsFeedback) return;
     const controller = new AbortController();
     let active = true;
-    setNote({ status: "loading", text: "Preparing a short language note…" });
     const timeout = setTimeout(() => controller.abort(), FEEDBACK_TIMEOUT_MS + 3_000);
     void (async () => {
       try {

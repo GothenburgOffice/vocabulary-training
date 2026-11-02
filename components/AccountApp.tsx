@@ -41,6 +41,14 @@ async function request(path: string, options?: RequestInit) {
   if (!response.ok) throw new RequestError(result.error || "The request failed.", response.status);
   return result;
 }
+// The signed-in account's workspace, or null when signed out.
+async function readWorkspace(): Promise<Loaded | null> {
+  const response = await fetch("/api/workspace", { cache: "no-store" });
+  if (response.status === 401) return null;
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error);
+  return result;
+}
 
 export default function AccountApp() {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -60,33 +68,37 @@ export default function AccountApp() {
   const dirty = useRef(false);
   const blocked = useRef(false);
 
+  // Shows the workspace the server returns, or the sign-in screen when signed out. State
+  // changes only once the server answers; `load` shows the loading screen first.
+  const open = useCallback(
+    () =>
+      readWorkspace()
+        .then((result) => {
+          if (result) {
+            revisions.current = new Map(Object.entries(result.listRevisions ?? {}));
+            queue.current = [];
+            dirty.current = false;
+            blocked.current = false;
+            setStatus("All changes saved");
+            setSaveError("");
+          }
+          setLoaded(result);
+        })
+        .catch((e) =>
+          setError((e as Error).message || "Could not load your workspace. Please retry."),
+        )
+        .finally(() => setLoading(false)),
+    [],
+  );
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
-    try {
-      const response = await fetch("/api/workspace", { cache: "no-store" });
-      if (response.status === 401) {
-        setLoaded(null);
-        return;
-      }
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
-      revisions.current = new Map(Object.entries(result.listRevisions ?? {}));
-      queue.current = [];
-      dirty.current = false;
-      blocked.current = false;
-      setStatus("All changes saved");
-      setSaveError("");
-      setLoaded(result);
-    } catch (e) {
-      setError((e as Error).message || "Could not load your workspace. Please retry.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    await open();
+  }, [open]);
+  // The first render already shows the loading screen.
   useEffect(() => {
-    void load();
-  }, [load]);
+    void open();
+  }, [open]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
       if (dirty.current) {
