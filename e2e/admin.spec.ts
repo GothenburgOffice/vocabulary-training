@@ -232,12 +232,12 @@ test("AI limits are edited and saved together, and reset to the defaults", async
   // Answered here: the limits apply to every account, so tests never change the real ones.
   const defaults = {
     speech: {
-      lettersPerMinute: 600,
+      lettersPerMinute: 1200,
       lettersPerDay: { basic: 20000, plus: 60000 },
       cooldownMs: 500,
     },
     note: {
-      lettersPerMinute: 1500,
+      lettersPerMinute: 3000,
       lettersPerDay: { basic: 20000, plus: 60000 },
       cooldownMs: 3000,
     },
@@ -271,7 +271,7 @@ test("AI limits are edited and saved together, and reset to the defaults", async
   await expect(save).toBeDisabled();
 
   await page.getByRole("button", { name: "Reset to defaults" }).click();
-  await expect(page.getByLabel("Speech: Letters per minute")).toHaveValue("600");
+  await expect(page.getByLabel("Speech: Letters per minute")).toHaveValue("1200");
   await expect(page.getByLabel("Speech request block (seconds)")).toHaveValue("10");
   await save.click();
   await expect(page.getByRole("status")).toHaveText("Saved.");
