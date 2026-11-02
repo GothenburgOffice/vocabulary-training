@@ -2439,6 +2439,35 @@ main > .save-error {
   background: transparent;
   font-size: var(--text-xs);
 }
+/* Dropdown cells look like the text cells, with the picker's arrow. */
+.lang-table select {
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 28px 4px 8px;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  background-position: right 8px center;
+  font-size: var(--text-xs);
+}
+.lang-table select:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+  background-color: var(--surface);
+}
+.lang-table select:disabled {
+  background-color: var(--soft);
+  background-image: none;
+}
+.lang-table select.lang-model {
+  min-width: 220px;
+}
+.lang-table select.lang-voice {
+  min-width: 110px;
+}
+.lang-bulk .lang-bulk-value {
+  min-width: 240px;
+}
 .lang-table input:not([type="checkbox"]):focus {
   outline: 2px solid var(--blue);
   outline-offset: -2px;

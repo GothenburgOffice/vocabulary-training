@@ -8,6 +8,7 @@ test.skip(
 );
 
 const blank = { model: "", voice: "", instructions: "" };
+const MODELS = ["deepinfra/hexgrad/Kokoro-82M", "openai/gpt-4o-mini-tts"];
 const language = (name: string, code: string): LanguageView => ({
   name,
   code,
@@ -42,6 +43,10 @@ async function fakeLanguages(page: Page) {
     }
     return route.fulfill({ json: { languages } });
   });
+  // Requesty's model list, as the admin API returns it for a tier's key.
+  await page.route("/api/admin/models", (route) =>
+    route.fulfill({ json: { chat: [], speech: MODELS } }),
+  );
   const changeElsewhere = (name: string, change: Partial<LanguageView>) => {
     languages = languages.map((l) =>
       l.name === name ? { ...l, ...change, revision: bump(l) } : l,
@@ -71,7 +76,7 @@ test("languages are edited in place and saved together", async ({ page }) => {
   await page.getByLabel("Select German").check();
   await expect(page.getByText("2 selected")).toBeVisible();
   await page.getByLabel("Field to set").selectOption("speech.model");
-  await page.getByLabel("Value").fill("openai/gpt-4o-mini-tts");
+  await page.getByLabel("Value").selectOption("openai/gpt-4o-mini-tts");
   await page.getByRole("button", { name: "Apply to 2" }).click();
   await expect(page.getByLabel("French speech model")).toHaveValue("openai/gpt-4o-mini-tts");
   await expect(page.getByLabel("German speech model")).toHaveValue("openai/gpt-4o-mini-tts");
@@ -168,4 +173,31 @@ test("an edit made while saving is kept, and saves next", async ({ page }) => {
   await save.click();
   await expect(save).toBeDisabled();
   expect(saves.map((s) => s.code)).toEqual(["se", "sw"]);
+});
+
+test("model and voice cells list every choice, whatever they hold", async ({ page }) => {
+  const { changeElsewhere } = await fakeLanguages(page);
+  changeElsewhere("Swedish", { speech: { ...blank, model: "openai/gpt-4o-mini-tts" } });
+  changeElsewhere("French", { speech: { ...blank, model: "someone/old-model" } });
+  await page.goto("/admin/languages");
+  const swedish = page.getByLabel("Swedish speech model");
+  await expect(swedish).toHaveValue("openai/gpt-4o-mini-tts");
+  await expect(swedish.locator("option")).toHaveText(["none", ...MODELS]);
+  // A model that isn't in Requesty's list stays, marked.
+  await expect(page.getByLabel("French speech model").locator("option")).toHaveText([
+    "none",
+    "someone/old-model (not listed)",
+    ...MODELS,
+  ]);
+  await expect(page.getByLabel("German plus speech model").locator("option").first()).toHaveText(
+    "basic",
+  );
+
+  await swedish.selectOption("deepinfra/hexgrad/Kokoro-82M");
+  await expect(page.getByLabel("Swedish speech voice").locator("option")).toContainText([
+    "default",
+    "af_heart",
+  ]);
+  await page.getByLabel("Swedish speech voice").selectOption("af_heart");
+  await expect(page.getByRole("button", { name: /^Save changes/ })).toHaveText("Save changes (1)");
 });

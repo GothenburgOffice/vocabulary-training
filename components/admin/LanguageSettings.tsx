@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useEffectEvent, useState, type FormEvent } from "react";
 import { ArrowDown, ArrowUp, CircleAlert } from "lucide-react";
-import type { LanguageView, ModelList, Speech, Tier } from "../../lib/admin/ai-settings";
+import type { LanguageView, Speech, Tier } from "../../lib/admin/ai-settings";
 import {
   BULK_FIELDS,
   changedLanguages,
@@ -28,11 +28,22 @@ export default function LanguageSettings() {
   const [saving, setSaving] = useState(false);
   const basicModels = useModels();
   const plusModels = useModels();
+  // The model lists fill the model dropdowns; listing models calls no model. Without a key, a
+  // tier's model cells stay plain text.
+  const loadModels = useEffectEvent(() => {
+    void basicModels.load({ tier: "basic" });
+    void plusModels.load({ tier: "plus" });
+  });
   useEffect(() => {
     adminRequest<Languages>("/api/admin/languages")
-      .then((r) => setLanguages(r.languages))
+      .then((r) => {
+        setLanguages(r.languages);
+        loadModels();
+      })
       .catch((e: Error) => setError(e.message));
   }, []);
+  const modelsFor = (tier: Tier) =>
+    (tier === "basic" ? basicModels : plusModels).models?.speech ?? null;
   const changed = languages ? changedLanguages(languages, drafts) : [];
   // Leaving the page with unsaved rows asks first: closing or reloading the tab, and the admin
   // links (client-side navigation, which beforeunload doesn't see).
@@ -126,8 +137,6 @@ export default function LanguageSettings() {
   if (!languages) return error ? <p className="error">{error}</p> : <p>Loading…</p>;
   const rows = languages.map((l) => drafts[l.name] ?? l);
   const allSelected = selected.size === languages.length;
-  // Voice suggestions for every model in use.
-  const models = [...new Set(rows.flatMap((l) => [l.speech.model, l.plusSpeech.model]))];
   return (
     <>
       <div className="lang-toolbar">
@@ -148,15 +157,22 @@ export default function LanguageSettings() {
             void plusModels.load({ tier: "plus" });
           }}
         >
-          Load model suggestions
+          Reload models
         </button>
         <span className="admin-status" role="status">
-          {[status, basicModels.status, plusModels.status].filter(Boolean).join(" ")}
+          {[
+            status,
+            basicModels.status && `Basic key: ${basicModels.status}`,
+            plusModels.status && `Plus key: ${plusModels.status}`,
+          ]
+            .filter(Boolean)
+            .join(" ")}
         </span>
       </div>
       {selected.size > 0 && (
         <BulkEdit
           count={selected.size}
+          modelsFor={modelsFor}
           onApply={(field, value) => {
             for (const l of rows) if (selected.has(l.name)) edit(withField(l, field, value));
           }}
@@ -177,15 +193,6 @@ export default function LanguageSettings() {
           ))}
         </ul>
       )}
-      <ModelOptions id="speech-models-basic" models={basicModels.models} />
-      <ModelOptions id="speech-models-plus" models={plusModels.models} />
-      {models.map((model) => (
-        <datalist key={model} id={voiceListId(model)}>
-          {voicesFor(model).voices.map((voice) => (
-            <option key={voice} value={voice} />
-          ))}
-        </datalist>
-      ))}
       <div className="lang-table-wrap">
         <table className="lang-table">
           <thead>
@@ -264,12 +271,14 @@ export default function LanguageSettings() {
                   </td>
                   <SpeechCells
                     language={language.name}
+                    models={modelsFor("basic")}
                     tier="basic"
                     value={language.speech}
                     onChange={(speech) => edit({ ...language, speech })}
                   />
                   <SpeechCells
                     language={language.name}
+                    models={modelsFor("plus")}
                     tier="plus"
                     value={language.plusSpeech}
                     onChange={(plusSpeech) => edit({ ...language, plusSpeech })}
@@ -310,54 +319,97 @@ export default function LanguageSettings() {
   );
 }
 
-// One list per model; encodeURIComponent keeps different models apart (and has no spaces).
-const voiceListId = (model: string) => `voices-${encodeURIComponent(model)}`;
-
-function ModelOptions({ id, models }: { id: string; models: ModelList | null }) {
+// A cell's choice: a dropdown with every option (a typed-in list would only show the options
+// matching what the cell already holds), or a text box when there is no list.
+function ChoiceCell({
+  options,
+  value,
+  blank,
+  label,
+  className,
+  disabled,
+  title,
+  onChange,
+}: {
+  options: string[] | null;
+  value: string;
+  // What an empty value means, shown as its option.
+  blank: string;
+  label: string;
+  className: string;
+  disabled?: boolean;
+  title?: string;
+  onChange: (value: string) => void;
+}) {
+  if (!options)
+    return (
+      <input
+        className={className}
+        aria-label={label}
+        value={value}
+        placeholder={disabled ? "" : blank}
+        disabled={disabled}
+        title={title}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
   return (
-    <datalist id={id}>
-      {models?.speech.map((model) => (
-        <option key={model} value={model} />
+    <select
+      className={className}
+      aria-label={label}
+      value={value}
+      disabled={disabled}
+      title={title}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">{disabled ? "" : blank}</option>
+      {value && !options.includes(value) && <option value={value}>{value} (not listed)</option>}
+      {options.map((option) => (
+        <option key={option}>{option}</option>
       ))}
-    </datalist>
+    </select>
   );
 }
 
 function SpeechCells({
   language,
+  models,
   tier,
   value,
   onChange,
 }: {
   language: string;
+  // The tier key's speech models, or null when not loaded.
+  models: string[] | null;
   tier: Tier;
   value: Speech;
   onChange: (value: Speech) => void;
 }) {
   const label = `${language} ${tier === "basic" ? "speech" : "plus speech"}`;
-  const note = voicesFor(value.model).note;
+  const voices = voicesFor(value.model);
   return (
     <>
       <td>
-        <input
+        <ChoiceCell
           className="lang-model"
-          aria-label={`${label} model`}
-          list={`speech-models-${tier}`}
+          label={`${label} model`}
+          options={models}
           value={value.model}
-          placeholder={tier === "plus" ? "basic" : "none"}
-          onChange={(e) => onChange({ ...value, model: e.target.value })}
+          blank={tier === "plus" ? "basic" : "none"}
+          title={value.model}
+          onChange={(model) => onChange({ ...value, model })}
         />
       </td>
       <td>
-        <input
+        <ChoiceCell
           className="lang-voice"
-          aria-label={`${label} voice`}
-          list={voiceListId(value.model)}
+          label={`${label} voice`}
+          options={voices.voices.length ? voices.voices : null}
           value={value.voice}
+          blank="default"
           disabled={!value.model}
-          placeholder={value.model ? "default" : ""}
-          title={note}
-          onChange={(e) => onChange({ ...value, voice: e.target.value })}
+          title={voices.note}
+          onChange={(voice) => onChange({ ...value, voice })}
         />
       </td>
       <td>
@@ -377,10 +429,12 @@ function SpeechCells({
 // Sets one field on every ticked row; the rows still wait for Save changes.
 function BulkEdit({
   count,
+  modelsFor,
   onApply,
   onClear,
 }: {
   count: number;
+  modelsFor: (tier: Tier) => string[] | null;
   onApply: (field: BulkField, value: string) => void;
   onClear: () => void;
 }) {
@@ -421,12 +475,15 @@ function BulkEdit({
             <option value="no">Shown</option>
           </select>
         ) : (
-          <input
-            aria-label="Value"
+          <ChoiceCell
+            className="lang-bulk-value"
+            label="Value"
+            options={field.endsWith(".model") ? modelsFor(tier) : null}
             value={value}
-            list={field.endsWith(".model") ? `speech-models-${tier}` : undefined}
-            placeholder="blank clears it"
-            onChange={(e) => setValue(e.target.value)}
+            blank={
+              field.endsWith(".model") ? (tier === "plus" ? "basic" : "none") : "blank clears it"
+            }
+            onChange={setValue}
           />
         )}
       </label>
