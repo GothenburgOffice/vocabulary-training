@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import type { LanguageView } from "../lib/admin/ai-settings";
+import { USERS_PAGE_SIZE, isE2eAccountEmail } from "../lib/admin/users";
 import { ADMIN_STATE } from "./global-setup";
 
 test.skip(
@@ -319,7 +320,7 @@ test("users can be filtered, re-typed and deleted with E2E cleanup", async ({ pa
     },
     speechBlockMs: 10000,
   };
-  await page.route("/api/admin/users", async (route) => {
+  await page.route("**/api/admin/users**", async (route) => {
     const request = route.request();
     if (request.method() === "PATCH") {
       const { userId, tier } = request.postDataJSON();
@@ -329,13 +330,34 @@ test("users can be filtered, re-typed and deleted with E2E cleanup", async ({ pa
     if (request.method() === "DELETE") {
       const data = request.postDataJSON();
       if (data.testAccounts) {
-        accounts = accounts.filter((user) => !user.email.startsWith("e2e-"));
+        accounts = accounts.filter((user) => !isE2eAccountEmail(user.email));
         return route.fulfill({ json: { deleted: 1 } });
       }
       accounts = accounts.filter((user) => user.id !== data.userId);
       return route.fulfill({ json: { deleted: 1 } });
     }
-    return route.fulfill({ json: { viewerId, accounts, limits } });
+    const params = new URL(request.url()).searchParams;
+    const q = params.get("q")?.toLowerCase() ?? "";
+    const scope = params.get("scope");
+    const matching = accounts.filter((user) => {
+      const isTestAccount = isE2eAccountEmail(user.email);
+      return (
+        user.email.toLowerCase().includes(q) &&
+        (scope !== "test" || isTestAccount) &&
+        (scope !== "regular" || !isTestAccount)
+      );
+    });
+    const offset = Number(params.get("offset") ?? 0);
+    return route.fulfill({
+      json: {
+        viewerId,
+        accounts: matching.slice(offset, offset + USERS_PAGE_SIZE),
+        limits,
+        total: matching.length,
+        testAccounts: accounts.filter((user) => isE2eAccountEmail(user.email)).length,
+        pageSize: USERS_PAGE_SIZE,
+      },
+    });
   });
 
   await page.goto("/admin/users");
