@@ -54,15 +54,16 @@ browser tests when UI code changed.
 
 ## Rules that must not regress
 
-- Each AI call has one job. Keep it to that job:
-  - **Language notes** (`/api/feedback`): after a wrong, non-skipped answer, a short
-    note on how the attempt differs from the reference. The note explains; it never
-    judges. It doesn't decide or change the grade, call the answer acceptable, or
-    suggest new alternatives. It's requested only for wrong, non-skipped answers,
-    enforced in the UI, the route and the adapter.
+- AI features are explicitly scoped. Don't add an AI call, or change what an existing one
+  does, receives or decides, without an owner decision recorded in a `decision` issue.
+  The current calls, each with one job:
+  - **Language notes** (`/api/feedback`): a short comment on a wrong, non-skipped
+    answer. It's requested only for those, enforced in the UI, the route and the
+    adapter.
   - **Word audio** (`/api/speech`): reads one phrase aloud. Only plays on click, and
     the answer's audio button stays hidden until the answer is graded or skipped.
-- Grading, statistics and scheduling are deterministic code.
+- Grading is deterministic pattern matching, not AI: an AI call never sets or changes a
+  grade. Statistics and scheduling are deterministic code too.
 - Send a provider only what its call needs: never account IDs or whole lists.
 - Requesty keys are saved in the admin area, encrypted with `SETTINGS_ENCRYPTION_KEY`
   (`lib/server/secrets.ts`), and never sent to the browser: admin views show only whether
