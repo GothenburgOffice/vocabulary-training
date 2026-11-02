@@ -77,7 +77,8 @@ export default function Workspace({
   const [selected, setSelected] = useState("");
   const [view, setView] = useState<View>("library");
   const [query, setQuery] = useState("");
-  const [previewCounts, setPreviewCounts] = useState<Record<string, number>>({});
+  // Per list: how many 100-word pages of the library preview are open (0 = collapsed).
+  const [previewPages, setPreviewPages] = useState<Record<string, number>>({});
   const [baseLanguage, setBaseLanguage] = useState(initial.baseLanguage ?? "Swedish");
   const [learningLanguage, setLearningLanguage] = useState(initial.learningLanguage ?? "French");
   // Remembered in this browser only (#67); private windows or blocked storage use the defaults.
@@ -431,9 +432,9 @@ ${learningLanguage}`;
             query={query}
             now={now}
             settings={settings}
-            previewCount={list ? (previewCounts[list.id] ?? 5) : 5}
-            onPreviewCount={(count) => {
-              if (list) setPreviewCounts((counts) => ({ ...counts, [list.id]: count }));
+            previewPages={list ? (previewPages[list.id] ?? 0) : 0}
+            onPreviewPages={(pages) => {
+              if (list) setPreviewPages((all) => ({ ...all, [list.id]: pages }));
             }}
             onQuery={setQuery}
             onSelect={setSelected}

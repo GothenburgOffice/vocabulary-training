@@ -16,6 +16,10 @@ import SpeechButton from "../SpeechButton";
 import Button from "./Button";
 import PracticeSetup from "./PracticeSetup";
 
+// The library previews a list's first rows; expanding reveals words a page at a time.
+const PREVIEW_ROWS = 5;
+const PREVIEW_PAGE = 100;
+
 export default function LibraryView({
   baseLanguage,
   learningLanguage,
@@ -24,8 +28,8 @@ export default function LibraryView({
   query,
   now,
   settings,
-  previewCount,
-  onPreviewCount,
+  previewPages,
+  onPreviewPages,
   onQuery,
   onSelect,
   onEdit,
@@ -44,8 +48,8 @@ export default function LibraryView({
   query: string;
   now: number;
   settings: PracticeSettings;
-  previewCount: number;
-  onPreviewCount: (count: number) => void;
+  previewPages: number;
+  onPreviewPages: (pages: number) => void;
   onQuery: (query: string) => void;
   onSelect: (id: string) => void;
   // Without a list, opens a new one.
@@ -57,7 +61,10 @@ export default function LibraryView({
   onStart: () => void;
   onHelp: () => void;
 }) {
-  const expanded = previewCount > 5;
+  // Rows follow the list's current length, so words added while expanded show up.
+  const total = list?.words.length ?? 0;
+  const expanded = previewPages > 0 && total > PREVIEW_ROWS;
+  const shown = expanded ? Math.min(total, previewPages * PREVIEW_PAGE) : PREVIEW_ROWS;
   const { direction } = settings;
   const stats = lists.map((l) => listStats(l, direction, now));
   const totalWords = lists.reduce((sum, l) => sum + l.words.length, 0);
@@ -217,7 +224,7 @@ export default function LibraryView({
                 <span>Practice state</span>
               </div>
               <div id={`preview-words-${list.id}`}>
-                {list.words.slice(0, previewCount).map((w) => (
+                {list.words.slice(0, shown).map((w) => (
                   <div className="word-row" key={w.id}>
                     <span className="word-with-audio">
                       <span>{w.front}</span>
@@ -248,12 +255,12 @@ export default function LibraryView({
                 ))}
               </div>
               <div className="word-preview-actions">
-                {list.words.length > 5 && (
+                {total > PREVIEW_ROWS && (
                   <button
                     className="text-button"
                     aria-expanded={expanded}
                     aria-controls={`preview-words-${list.id}`}
-                    onClick={() => onPreviewCount(expanded ? 5 : Math.min(100, list.words.length))}
+                    onClick={() => onPreviewPages(expanded ? 0 : 1)}
                   >
                     {expanded ? (
                       <>
@@ -261,30 +268,29 @@ export default function LibraryView({
                       </>
                     ) : (
                       <>
-                        {list.words.length > 100
-                          ? `View first 100 of ${list.words.length} words`
-                          : `View all ${list.words.length} words`}
+                        {total > PREVIEW_PAGE
+                          ? `View first ${PREVIEW_PAGE} of ${total} words`
+                          : `View all ${total} words`}
                         <ChevronDown size={14} />
                       </>
                     )}
                   </button>
                 )}
-                {expanded && list.words.length > 100 && (
+                {expanded && total > PREVIEW_PAGE && (
                   <button
                     className="text-button"
                     aria-controls={`preview-words-${list.id}`}
-                    aria-disabled={previewCount >= list.words.length}
+                    aria-disabled={shown >= total}
                     onClick={() => {
-                      if (previewCount < list.words.length)
-                        onPreviewCount(Math.min(previewCount + 100, list.words.length));
+                      if (shown < total) onPreviewPages(previewPages + 1);
                     }}
                   >
-                    {previewCount < list.words.length
-                      ? `Show ${Math.min(100, list.words.length - previewCount)} more words`
-                      : `All ${list.words.length} words shown`}
+                    {shown < total
+                      ? `Show ${Math.min(PREVIEW_PAGE, total - shown)} more words`
+                      : `All ${total} words shown`}
                   </button>
                 )}
-                {expanded && list.words.length > 5 && (
+                {expanded && (
                   <button className="text-button word-preview-edit" onClick={() => onEdit(list)}>
                     Edit list <ArrowRight size={15} />
                   </button>

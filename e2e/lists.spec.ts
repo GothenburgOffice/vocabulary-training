@@ -52,8 +52,14 @@ test("view all words expands the preview in place, and both edit controls open t
   await bottomEdit.click();
   await expect(page.getByLabel("List name")).toHaveValue("Complete");
   await expect(page.getByLabel("First language word 7")).toHaveValue("ord 7");
+  // A word added while the preview is expanded shows up in it.
+  await page.getByRole("button", { name: "Add a word pair" }).click();
+  await page.getByLabel("First language word 8").fill("ord 8");
+  await page.getByLabel("Translation 8").fill("mot 8");
   await done(page);
-  await expect(rows).toHaveCount(7);
+  await saved(page);
+  await expect(rows).toHaveCount(8);
+  await expect(rows.last()).toHaveText(/ord 8\s*mot 8/);
   await expect(collapse).toBeVisible();
   await topEdit.click();
   await expect(page.getByLabel("List name")).toHaveValue("Complete");
@@ -63,8 +69,8 @@ test("view all words expands the preview in place, and both edit controls open t
   await expect(rows).toHaveCount(5);
   await page.getByRole("button", { name: "View all 6 words" }).click();
   await expect(rows).toHaveCount(6);
-  await page.getByRole("button", { name: /^Complete 7 words/ }).click();
-  await expect(rows).toHaveCount(7);
+  await page.getByRole("button", { name: /^Complete 8 words/ }).click();
+  await expect(rows).toHaveCount(8);
   await page.getByLabel("Session size").selectOption("5");
   await page.getByRole("button", { name: "Start practice" }).click();
   for (let i = 0; i < 5; i++) {
@@ -72,7 +78,7 @@ test("view all words expands the preview in place, and both edit controls open t
     await page.keyboard.press("Enter");
   }
   await page.getByRole("button", { name: "Back to lists" }).click();
-  await expect(rows).toHaveCount(7);
+  await expect(rows).toHaveCount(8);
   await expect(collapse).toBeVisible();
 
   await createList(page, "Short", pairs.slice(0, 5));
