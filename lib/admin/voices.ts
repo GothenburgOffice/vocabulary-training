@@ -1,7 +1,16 @@
 // Voice suggestions per speech model, from each provider's docs (as in hkarn/requesty-tester).
 // Requesty's model list has no voices. The first matching entry wins; any typed voice works.
 const OPENAI_TTS1 = ["alloy", "ash", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"];
-const VOICES: { match: RegExp; voices: string[]; note: string }[] = [
+// `groups` sorts some of the voices under a label (by language) in the dropdown.
+type VoiceGroup = { label: string; voices: string[] };
+// Voices by group label, plus any listed before the groups; `voices` has them all.
+function grouped(groups: Record<string, string[]>, first: string[] = []) {
+  return {
+    voices: [...first, ...Object.values(groups).flat()],
+    groups: Object.entries(groups).map(([label, voices]) => ({ label, voices })),
+  };
+}
+const VOICES: { match: RegExp; voices: string[]; groups?: VoiceGroup[]; note: string }[] = [
   {
     match: /^openai\/tts-1/,
     voices: OPENAI_TTS1,
@@ -14,31 +23,57 @@ const VOICES: { match: RegExp; voices: string[]; note: string }[] = [
   },
   {
     match: /kokoro/i,
-    voices: [
-      "af_heart",
-      "af_bella",
-      "af_nicole",
-      "af_sarah",
-      "am_adam",
-      "am_michael",
-      "bf_emma",
-      "bf_isabella",
-      "bm_george",
-      "bm_lewis",
-      "jf_alpha",
-      "jm_kumo",
-      "zf_xiaoxiao",
-      "zm_yunxi",
-      "ef_dora",
-      "em_alex",
-      "ff_siwis",
-      "hf_alpha",
-      "if_sara",
-      "im_nicola",
-      "pf_dora",
-      "pm_alex",
-    ],
-    note: "The first letter is the language (a/b English, j Japanese, z Mandarin, e Spanish, f French, h Hindi, i Italian, p Portuguese); f or m for female or male.",
+    ...grouped({
+      "American English": [
+        "af_heart",
+        "af_alloy",
+        "af_aoede",
+        "af_bella",
+        "af_jessica",
+        "af_kore",
+        "af_nicole",
+        "af_nova",
+        "af_river",
+        "af_sarah",
+        "af_sky",
+        "am_adam",
+        "am_echo",
+        "am_eric",
+        "am_fenrir",
+        "am_liam",
+        "am_michael",
+        "am_onyx",
+        "am_puck",
+        "am_santa",
+      ],
+      "British English": [
+        "bf_alice",
+        "bf_emma",
+        "bf_isabella",
+        "bf_lily",
+        "bm_daniel",
+        "bm_fable",
+        "bm_george",
+        "bm_lewis",
+      ],
+      Japanese: ["jf_alpha", "jf_gongitsune", "jf_nezumi", "jf_tebukuro", "jm_kumo"],
+      "Mandarin Chinese": [
+        "zf_xiaobei",
+        "zf_xiaoni",
+        "zf_xiaoxiao",
+        "zf_xiaoyi",
+        "zm_yunjian",
+        "zm_yunxi",
+        "zm_yunxia",
+        "zm_yunyang",
+      ],
+      Spanish: ["ef_dora", "em_alex", "em_santa"],
+      French: ["ff_siwis"],
+      Hindi: ["hf_alpha", "hf_beta", "hm_omega", "hm_psi"],
+      Italian: ["if_sara", "im_nicola"],
+      "Brazilian Portuguese": ["pf_dora", "pm_alex", "pm_santa"],
+    }),
+    note: "The second letter is f for female, m for male. Pick a voice that matches the language.",
   },
   {
     match: /orpheus/i,
@@ -47,7 +82,10 @@ const VOICES: { match: RegExp; voices: string[]; note: string }[] = [
   },
   {
     match: /mimo.*tts/i,
-    voices: ["Mia", "Chloe", "Milo", "Dean", "mimo_default"],
+    ...grouped(
+      { English: ["Mia", "Chloe", "Milo", "Dean"], Chinese: ["冰糖", "茉莉", "苏打", "白桦"] },
+      ["mimo_default"],
+    ),
     note: "mimo_default is Mia outside China.",
   },
   {
@@ -55,8 +93,22 @@ const VOICES: { match: RegExp; voices: string[]; note: string }[] = [
     voices: [],
     note: "No preset voices: describe the voice in the instructions.",
   },
+  {
+    match: /chatterbox/i,
+    voices: [],
+    note: "No preset voices: takes the ID of a voice cloned on DeepInfra, or blank for the default.",
+  },
+  {
+    match: /csm-1b/i,
+    voices: [],
+    note: "No documented preset voices: leave it blank for the default.",
+  },
 ];
 
-export function voicesFor(model: string) {
+export function voicesFor(model: string): {
+  voices: string[];
+  groups?: VoiceGroup[];
+  note: string;
+} {
   return VOICES.find((entry) => entry.match.test(model)) ?? { voices: [], note: "" };
 }

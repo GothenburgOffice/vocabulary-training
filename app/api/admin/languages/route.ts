@@ -1,23 +1,18 @@
 import type { z } from "zod";
-import {
-  languageCreateSchema,
-  languageOrderSchema,
-  languageUpdateSchema,
-} from "../../../../lib/admin/ai-settings";
+import { languageCreateSchema, languageUpdateSchema } from "../../../../lib/admin/ai-settings";
 import { requireAdmin } from "../../../../lib/server/auth";
 import { body, fail, HttpError, json, requireOrigin } from "../../../../lib/server/http";
 import {
   addLanguage,
   readLanguagesView,
-  reorderLanguages,
   updateLanguage,
 } from "../../../../lib/server/site-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Languages are added, edited, hidden and reordered, never deleted or renamed: saved lists
-// refer to them by name.
+// Languages are added, edited and hidden, never deleted or renamed: saved lists refer to them
+// by name. They are listed highlighted first, then by name.
 async function parse<T>(request: Request, schema: z.ZodType<T>) {
   requireOrigin(request);
   await requireAdmin();
@@ -58,14 +53,5 @@ export async function PUT(request: Request) {
     return json({ languages: await readLanguagesView() });
   } catch (e) {
     return fail(duplicateCode(e));
-  }
-}
-export async function PATCH(request: Request) {
-  try {
-    const { order } = await parse(request, languageOrderSchema);
-    await reorderLanguages(order);
-    return json({ languages: await readLanguagesView() });
-  } catch (e) {
-    return fail(e);
   }
 }
