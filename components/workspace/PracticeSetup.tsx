@@ -117,8 +117,7 @@ export default function PracticeSetup({
               Require accents
             </label>
             <small>
-              Spaces and apostrophe styles are normalized. Accents are required by default. Separate
-              accepted answers with | in your list.
+              Spaces and apostrophe styles are normalized. Accents are required by default.
             </small>
           </details>
           <Button primary onClick={onStart}>
