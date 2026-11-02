@@ -5,6 +5,7 @@ import {
   CircleHelp,
   FolderOpen,
   History as HistoryIcon,
+  Flag,
   ListChecks,
   UserRound,
   X,
@@ -32,6 +33,8 @@ export default function Sidebar({
   onNavigate,
   onPractice,
   onHelp,
+  reportable,
+  onReport,
 }: {
   open: boolean;
   view: View;
@@ -51,6 +54,9 @@ export default function Sidebar({
   onNavigate: (view: View) => void;
   onPractice: () => void;
   onHelp: () => void;
+  // How many recent AI results this tab can report; the entry is hidden when there are none.
+  reportable: number;
+  onReport: () => void;
 }) {
   const ai = useContext(AiFeaturesContext);
   // The language pair only changes from the lists and history views.
@@ -131,6 +137,11 @@ export default function Sidebar({
         <button onClick={onHelp}>
           <CircleHelp size={18} /> How practice works
         </button>
+        {reportable > 0 && (
+          <button onClick={onReport}>
+            <Flag size={18} /> Report an AI result
+          </button>
+        )}
         {(ai.languageNotes || ai.speech.length > 0) && <RequestyAttribution />}
         <button className="account-row" onClick={onProfile} aria-label="Open profile">
           <span className="avatar">

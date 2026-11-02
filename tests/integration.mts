@@ -621,3 +621,56 @@ test("real HTTP: a 4096-character password registers and signs in; longer gets a
   assert.equal(tooLong.status, 400);
   assert.equal((await tooLong.json()).error, "Use a password of at most 4096 characters.");
 });
+
+test("real HTTP: AI result reports are saved once per result and account, and checked", async () => {
+  const report = {
+    activityId: `int-${randomUUID().slice(0, 8)}`,
+    kind: "note",
+    reason: "incorrect-note",
+    word: "vi ses snart",
+    language: "Swedish",
+    model: "dummy/note-model",
+    prompt: { model: "dummy/note-model", messages: [{ role: "user", content: "test" }] },
+    at: new Date().toISOString(),
+  };
+  assert.equal((await api("/api/reports", "POST", report)).status, 401);
+
+  const register = async () => {
+    const email = `integration-${randomUUID()}@example.test`;
+    const reg = await api("/api/auth", "POST", {
+      action: "register",
+      email,
+      password: "integration-test-only-password",
+    });
+    assert.equal(reg.status, 200, await reg.clone().text());
+    return reg.headers.get("set-cookie")!.split(";")[0];
+  };
+  const cookie = await register();
+
+  const first = await api("/api/reports", "POST", report, cookie);
+  assert.equal(first.status, 200, await first.clone().text());
+  assert.deepEqual(await first.json(), { status: "saved" });
+  // The same result reported twice is kept once.
+  assert.deepEqual(await (await api("/api/reports", "POST", report, cookie)).json(), {
+    status: "duplicate",
+  });
+  // Another account's result with the same browser id is its own report.
+  const other = await register();
+  assert.deepEqual(await (await api("/api/reports", "POST", report, other)).json(), {
+    status: "saved",
+  });
+
+  // A reason for audio does not apply to a note, and unknown fields are refused.
+  const garbled = { ...report, activityId: "int-other", reason: "garbled-audio" };
+  assert.equal((await api("/api/reports", "POST", garbled, cookie)).status, 400);
+  const extra = { ...report, activityId: "int-extra", userId: randomUUID() };
+  assert.equal((await api("/api/reports", "POST", extra, cookie)).status, 400);
+  // Cross-site requests are refused before anything is read.
+  assert.equal(
+    (await api("/api/reports", "POST", report, cookie, { Origin: "https://evil.example" })).status,
+    403,
+  );
+  // An oversized request is refused by size, not stored truncated.
+  const huge = { ...report, activityId: "int-huge", prompt: { text: "x".repeat(30_000) } };
+  assert.equal((await api("/api/reports", "POST", huge, cookie)).status, 413);
+});
