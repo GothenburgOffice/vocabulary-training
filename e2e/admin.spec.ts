@@ -367,6 +367,13 @@ test("users can be filtered, re-typed and deleted with E2E cleanup", async ({ pa
   await page.getByLabel("Account type for learner@example.test").selectOption("plus");
   await expect(page.getByLabel("Account type for learner@example.test")).toHaveValue("plus");
 
+  // Search runs on the server: the fake narrows the list only when the query is sent.
+  await page.getByLabel("Search by email").fill("learner");
+  await expect(page.locator(".user-card strong")).toHaveText(["learner@example.test"]);
+  await expect(page.getByText("Showing 1 of 1 matching accounts.")).toBeVisible();
+  await page.getByLabel("Search by email").fill("");
+  await expect(page.locator(".user-card")).toHaveCount(2);
+
   await page.getByLabel("Account filter").selectOption("test");
   await expect(page.locator(".user-card")).toHaveCount(1);
   await expect(page.getByText("e2e-test@example.test")).toBeVisible();
