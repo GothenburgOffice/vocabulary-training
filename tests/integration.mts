@@ -415,6 +415,37 @@ test("real HTTP: the admin area answers 404 to everyone but admins", async () =>
   assert.equal(managed.speech_calls_day, 0);
   assert.equal(managed.note_calls_90, 0);
   assert.ok(users.limits.speech.lettersPerDay.basic > 0);
+  assert.equal(typeof users.total, "number");
+  assert.ok(users.total >= users.accounts.length);
+  assert.ok(users.accounts.length <= users.pageSize);
+
+  // Search and scope run on the server: a unique address finds exactly the managed account.
+  const searched = await (
+    await api(`/api/admin/users?q=${encodeURIComponent(email)}`, "GET", undefined, adminCookie)
+  ).json();
+  assert.deepEqual(
+    searched.accounts.map((account: { id: string }) => account.id),
+    [me.user.id],
+  );
+  assert.equal(searched.total, 1);
+  // LIKE wildcards in the search are literal, so a bare "%" matches no address.
+  const wildcard = await (
+    await api("/api/admin/users?q=%25", "GET", undefined, adminCookie)
+  ).json();
+  assert.equal(wildcard.total, 0);
+  // E2E accounts are the only ones in the test scope; the managed account is not one of them.
+  const testScope = await (
+    await api("/api/admin/users?scope=test&offset=0", "GET", undefined, adminCookie)
+  ).json();
+  assert.ok(
+    testScope.accounts.every((account: { email: string }) =>
+      /^e2e-.+@example\.test$/i.test(account.email),
+    ),
+  );
+  assert.equal(
+    (await api("/api/admin/users?offset=-1", "GET", undefined, adminCookie)).status,
+    400,
+  );
   assert.equal(
     (await api("/api/admin/users", "PATCH", { userId: me.user.id, tier: "plus" }, cookie)).status,
     404,

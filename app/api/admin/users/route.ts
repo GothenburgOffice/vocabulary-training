@@ -1,7 +1,11 @@
 import {
   accountDeleteSchema,
   canDeleteAccount,
+  E2E_EMAIL_PATTERN,
+  escapeLike,
   tierChangeSchema,
+  USERS_PAGE_SIZE,
+  userListQuerySchema,
 } from "../../../../lib/admin/users";
 import { readLimits } from "../../../../lib/server/ai-limits";
 import { requireAdmin } from "../../../../lib/server/auth";
@@ -11,12 +15,41 @@ import { db } from "../../../../lib/server/db";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+// Filters for the account list. Values are bound as parameters; the e2e pattern is a constant.
+function accountFilter(q: string, scope: "all" | "regular" | "test") {
+  const clauses: string[] = [];
+  const params: unknown[] = [];
+  if (scope === "test") clauses.push(`u.email ~* '${E2E_EMAIL_PATTERN}'`);
+  if (scope === "regular") clauses.push(`u.email !~* '${E2E_EMAIL_PATTERN}'`);
+  if (q) {
+    params.push(`%${escapeLike(q)}%`);
+    clauses.push(`u.email ILIKE $${params.length} ESCAPE '\\'`);
+  }
+  return { where: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", params };
+}
+
+export async function GET(request: Request) {
   try {
     const admin = await requireAdmin();
-    const [accounts, limits] = await Promise.all([
+    const parsed = userListQuerySchema.safeParse(
+      Object.fromEntries(new URL(request.url).searchParams),
+    );
+    if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
+    const { q, scope, offset } = parsed.data;
+    const filter = accountFilter(q, scope);
+    const limitParam = filter.params.length + 1;
+    const offsetParam = filter.params.length + 2;
+    const pageParams = [...filter.params, USERS_PAGE_SIZE, offset];
+
+    const [page, total, testAccounts, limits] = await Promise.all([
       db.query(
-        `SELECT u.id, u.email, u.created_at, u.last_sign_in_at, u.ai_tier, u.is_admin,
+        `WITH page AS (
+           SELECT u.id, u.email, u.created_at, u.last_sign_in_at, u.ai_tier, u.is_admin
+           FROM users u ${filter.where}
+           ORDER BY u.created_at DESC, u.email, u.id
+           LIMIT $${limitParam} OFFSET $${offsetParam}
+         )
+         SELECT p.id, p.email, p.created_at, p.last_sign_in_at, p.ai_tier, p.is_admin,
            count(a.at) FILTER (WHERE a.kind='speech' AND a.at > now()-interval '1 day')::int AS speech_calls_day,
            coalesce(sum(a.letters) FILTER (WHERE a.kind='speech' AND a.at > now()-interval '1 day'), 0)::bigint AS speech_letters_day,
            count(a.at) FILTER (WHERE a.kind='speech' AND a.at > now()-interval '7 days')::int AS speech_calls_week,
@@ -29,14 +62,28 @@ export async function GET() {
            coalesce(sum(a.letters) FILTER (WHERE a.kind='note' AND a.at > now()-interval '7 days'), 0)::bigint AS note_letters_week,
            count(a.at) FILTER (WHERE a.kind='note')::int AS note_calls_90,
            coalesce(sum(a.letters) FILTER (WHERE a.kind='note'), 0)::bigint AS note_letters_90
-         FROM users u
-         LEFT JOIN ai_usage a ON a.user_id=u.id AND a.at > now()-interval '90 days'
-         GROUP BY u.id
-         ORDER BY u.created_at DESC, u.email`,
+         FROM page p
+         LEFT JOIN ai_usage a ON a.user_id=p.id AND a.at > now()-interval '90 days'
+         GROUP BY p.id, p.email, p.created_at, p.last_sign_in_at, p.ai_tier, p.is_admin
+         ORDER BY p.created_at DESC, p.email, p.id`,
+        pageParams,
+      ),
+      db.query(`SELECT count(*)::int AS n FROM users u ${filter.where}`, filter.params),
+      db.query(
+        `SELECT count(*)::int AS n FROM users
+         WHERE email ~* '${E2E_EMAIL_PATTERN}' AND NOT is_admin AND id<>$1`,
+        [admin.id],
       ),
       readLimits(),
     ]);
-    return json({ viewerId: admin.id, accounts: accounts.rows, limits });
+    return json({
+      viewerId: admin.id,
+      accounts: page.rows,
+      limits,
+      total: total.rows[0].n,
+      testAccounts: testAccounts.rows[0].n,
+      pageSize: USERS_PAGE_SIZE,
+    });
   } catch (e) {
     return fail(e);
   }
@@ -68,7 +115,7 @@ export async function DELETE(request: Request) {
 
     if ("testAccounts" in parsed.data) {
       const result = await db.query(
-        "DELETE FROM users WHERE email ~* '^e2e-.+@example[.]test$' AND NOT is_admin AND id<>$1 RETURNING id",
+        `DELETE FROM users WHERE email ~* '${E2E_EMAIL_PATTERN}' AND NOT is_admin AND id<>$1 RETURNING id`,
         [admin.id],
       );
       return json({ deleted: result.rowCount ?? 0 });
