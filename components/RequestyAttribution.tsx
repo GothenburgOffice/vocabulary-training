@@ -1,5 +1,6 @@
-import { ExternalLink } from "lucide-react";
-
+// Shown at the bottom of the sidebar while an AI feature is on. The link can earn us credits,
+// so it is marked as a referral where it is shown (marketing rules ask for paid links to be
+// recognisable as such), not only in its label.
 export default function RequestyAttribution() {
   return (
     <div className="requesty-attribution">
@@ -9,16 +10,18 @@ export default function RequestyAttribution() {
         target="_blank"
         rel="sponsored noopener noreferrer"
         referrerPolicy="no-referrer"
-        aria-label="AI feedback powered by Requesty. Referral link, opens in a new tab."
+        aria-label="AI features by Requesty. Referral link: signups may earn us AI credits. Opens in a new tab."
+        title="Referral link: signups may earn us AI credits."
       >
-        <span>AI feedback by</span>
+        {/* Two short rows beside the logo, which spans both. */}
+        <span className="requesty-text">
+          <span>AI features by</span>
+          <small>Referral link</small>
+        </span>
         {/* Self-hosted official wordmark: no third-party tracking or image request. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="./requesty-logo.png" alt="Requesty" width="112" height="25" />
-        <ExternalLink size={13} aria-hidden="true" />
+        <img src="./requesty-logo.png" alt="Requesty" width="99" height="22" />
       </a>
-      <span className="requesty-tagline">Understand the mistake. Learn the word.</span>
-      <small>Referral link. Signups may earn us AI credits.</small>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import type { Page, Request } from "@playwright/test";
-import { test, expect, createList, prompt, answer } from "./fixtures";
+import { test, expect, createList, openMenu, prompt, answer } from "./fixtures";
 
 // The AI features the workspace response reports, whatever the stack has configured (a dev
 // stack may have real keys).
@@ -37,6 +37,13 @@ test("language notes only after wrong answers, answer audio only after grading",
     ["katt", "chat"],
   ]);
   await expect(page.getByRole("button", { name: "Play hej in Swedish" })).toBeVisible();
+  // The sidebar credits Requesty, marked as a referral, while an AI feature is on.
+  await openMenu(page);
+  const credit = page.getByRole("link", { name: /^AI features by Requesty/ });
+  await expect(credit).toHaveAttribute("rel", "sponsored noopener noreferrer");
+  await expect(page.getByText("Referral link", { exact: true })).toBeVisible();
+  const close = page.getByRole("button", { name: "Close menu" });
+  if (await close.isVisible()) await close.click();
   await page.getByLabel("Session size").selectOption("1000");
   await page.getByRole("button", { name: "Start practice" }).click();
 
@@ -95,6 +102,7 @@ test("without AI features there are no speaker buttons, notes or AI requests", a
   await page.goto("/");
   await createList(page, "Plain", [["tack", "merci"]]);
   await expect(page.locator(".speech-button")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /^AI features by Requesty/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Start practice" }).click();
   await answer(page, "mercy");
   await expect(page.getByText("Not quite.")).toBeVisible();

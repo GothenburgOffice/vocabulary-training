@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useContext, useEffect, useReducer, useRef, useState } from "react";
-import { Check, ChevronDown, CircleAlert, CircleHelp, X } from "lucide-react";
+import { Check, ChevronDown, CircleAlert, X } from "lucide-react";
 import { BookMark } from "../lib/brand";
 import { encodeCSV, listTitle, reviewed, type List } from "../lib/learning";
 import {
@@ -24,7 +24,6 @@ import {
   type Language,
 } from "../lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
-import RequestyAttribution from "./RequestyAttribution";
 import DeleteDialog from "./workspace/DeleteDialog";
 import Dialog from "./workspace/Dialog";
 import ExitDialog from "./workspace/ExitDialog";
@@ -439,6 +438,7 @@ ${learningLanguage}`;
             onDelete={askDelete}
             onSettings={(change) => setSettings((s) => ({ ...s, ...change }))}
             onStart={() => startTest()}
+            onHelp={() => setModal("help")}
           />
         )}
         {view === "editor" && editing && (
@@ -507,15 +507,6 @@ ${learningLanguage}`;
             </button>
           </div>
         )}
-        <footer className="workspace-footer">
-          <div className="footer-overview">
-            <span>Built around your words.</span>
-            <button onClick={() => setModal("help")}>
-              Simple review statistics. <CircleHelp size={13} />
-            </button>
-          </div>
-          {(ai.languageNotes || ai.speech.length > 0) && <RequestyAttribution />}
-        </footer>
       </main>
       <Dialog title={modal && DIALOG_TITLES[modal]} onClose={() => setModal(null)}>
         {modal === "account" && (

@@ -1,4 +1,12 @@
-import { ArrowLeftRight, ArrowRight, ChevronDown, ListChecks, Plus, Settings2 } from "lucide-react";
+import {
+  ArrowLeftRight,
+  ArrowRight,
+  ChevronDown,
+  CircleHelp,
+  ListChecks,
+  Plus,
+  Settings2,
+} from "lucide-react";
 import { BookMark } from "../../lib/brand";
 import { listTitle, type List } from "../../lib/learning";
 import type { Mode, PracticeSettings } from "../../lib/practice";
@@ -12,6 +20,7 @@ export default function PracticeSetup({
   onSettings,
   onStart,
   onNewList,
+  onHelp,
 }: {
   list: List | undefined;
   learningLanguage: string;
@@ -19,6 +28,8 @@ export default function PracticeSetup({
   onSettings: (change: Partial<PracticeSettings>) => void;
   onStart: () => void;
   onNewList: () => void;
+  // Opens "How practice works".
+  onHelp: () => void;
 }) {
   const { direction, mode, length, caseSensitive, accents } = settings;
   return (
@@ -44,9 +55,22 @@ export default function PracticeSetup({
             </button>
             <span>{direction === "forward" ? list.to : list.from}</span>
           </div>
-          <label className="field">
-            Practice mode
+          {/* The help button sits beside the label, not in it, so the label stays the select's. */}
+          <div className="field">
+            <span className="field-label">
+              <label htmlFor="practice-mode">Practice mode</label>
+              <button
+                type="button"
+                className="field-help-button"
+                aria-label="How Smart mix and Random order work"
+                title="How Smart mix and Random order work"
+                onClick={onHelp}
+              >
+                <CircleHelp size={14} />
+              </button>
+            </span>
             <select
+              id="practice-mode"
               aria-label="Practice mode"
               value={mode}
               onChange={(e) => onSettings({ mode: e.target.value as Mode })}
@@ -54,7 +78,7 @@ export default function PracticeSetup({
               <option value="adaptive">Smart mix</option>
               <option value="random">Random order</option>
             </select>
-          </label>
+          </div>
           <p className="field-help">
             {mode === "adaptive"
               ? "A weighted sample: weaker and due words are more likely to appear."
@@ -93,8 +117,7 @@ export default function PracticeSetup({
               Require accents
             </label>
             <small>
-              Spaces and apostrophe styles are normalized. Accents are required by default. Separate
-              accepted answers with | in your list.
+              Spaces and apostrophe styles are normalized. Accents are required by default.
             </small>
           </details>
           <Button primary onClick={onStart}>

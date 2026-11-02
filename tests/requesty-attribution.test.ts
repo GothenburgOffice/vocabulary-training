@@ -10,15 +10,17 @@ test("Requesty attribution preserves the referral destination and safe external-
   assert.match(html, /target="_blank"/);
   assert.match(html, /rel="sponsored noopener noreferrer"/);
   assert.match(html, /referrerPolicy="no-referrer"/i);
-  assert.match(html, /opens in a new tab/);
+  assert.match(html, /[Oo]pens in a new tab/);
 });
 
-test("Requesty attribution uses a local logo, honest AI copy and a visible referral disclosure", () => {
+test("Requesty attribution uses a local logo and a visible referral disclosure", () => {
   const html = renderToStaticMarkup(createElement(RequestyAttribution));
   assert.match(html, /src="\.\/requesty-logo\.png"/);
   assert.match(html, /alt="Requesty"/);
-  assert.match(html, /width="112" height="25"/);
-  assert.match(html, /Understand the mistake\. Learn the word\./);
-  assert.match(html, /Referral link\. Signups may earn us AI credits\./);
+  assert.match(html, />AI features by</);
+  // Marked as a referral where it is shown, and in full in its label and tooltip.
+  assert.match(html, /<small>Referral link<\/small>/);
+  assert.match(html, /aria-label="[^"]*Referral link: signups may earn us AI credits\./);
+  assert.match(html, /title="Referral link: signups may earn us AI credits\."/);
   assert.doesNotMatch(html, /<script|router\.requesty\.ai|AI grading/);
 });

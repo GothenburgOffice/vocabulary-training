@@ -22,6 +22,7 @@ export default function LibraryView({
   onDelete,
   onSettings,
   onStart,
+  onHelp,
 }: {
   baseLanguage: string;
   learningLanguage: string;
@@ -40,6 +41,7 @@ export default function LibraryView({
   onDelete: (list: List) => void;
   onSettings: (change: Partial<PracticeSettings>) => void;
   onStart: () => void;
+  onHelp: () => void;
 }) {
   const { direction } = settings;
   const stats = lists.map((l) => listStats(l, direction, now));
@@ -232,6 +234,7 @@ export default function LibraryView({
           settings={settings}
           onSettings={onSettings}
           onStart={onStart}
+          onHelp={onHelp}
           onNewList={() => onEdit()}
         />
       </div>
