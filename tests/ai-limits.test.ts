@@ -68,3 +68,15 @@ test("limits saved from admin read back the same, and invalid ones are refused",
   ])
     assert.equal(limitsSchema.safeParse(bad).success, false);
 });
+
+test("every value the database can hold is one admin can save", () => {
+  const settings = new Map([
+    ["limits.speech.cooldown_ms", "600000"],
+    ["limits.speech.request_block_seconds", "300"],
+    ["limits.note.letters_per_minute", "999999999"],
+    // Out of bounds: read as the default, which saves fine.
+    ["limits.note.cooldown_ms", "900000"],
+  ]);
+  assert.ok(limitsSchema.safeParse(parseLimits(settings)).success);
+  assert.ok(limitsSchema.safeParse(DEFAULT_LIMITS).success);
+});

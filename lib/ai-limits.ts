@@ -106,25 +106,26 @@ export function limitsToSettings(limits: AiLimits): [string, string][] {
   ];
 }
 
-// PUT /api/admin/limits: every limit at once, as whole numbers.
-const amount = z.number().int().min(0).max(999_999_999);
+// PUT /api/admin/limits: every limit at once, as whole numbers within LIMIT_BOUNDS: the same
+// bounds the database is read with, so whatever admin shows can be saved again.
+const { letters, cooldownMs, blockSeconds } = LIMIT_BOUNDS;
+const amount = z.number().int().min(letters.min).max(letters.max);
 const kindSchema = z
   .object({
     lettersPerMinute: amount,
     lettersPerDay: z.object({ basic: amount, plus: amount }).strict(),
-    cooldownMs: z.number().int().min(0).max(600_000),
+    cooldownMs: z.number().int().min(cooldownMs.min).max(cooldownMs.max),
   })
   .strict();
 export const limitsSchema = z
   .object({
     speech: kindSchema,
     note: kindSchema,
-    // Whole seconds, from 1 second to 5 minutes.
     speechBlockMs: z
       .number()
       .int()
-      .min(1_000)
-      .max(300_000)
+      .min(blockSeconds.min * 1000)
+      .max(blockSeconds.max * 1000)
       .refine((ms) => ms % 1000 === 0, "Use whole seconds for the request block."),
   })
   .strict();
