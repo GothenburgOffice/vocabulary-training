@@ -479,6 +479,58 @@ test("real HTTP: admin AI settings and languages, with dummy keys and no provide
     );
     assert.equal(JSON.stringify(me).includes(dummyKey), false);
 
+    // With AI on, a note or a clip reaches the letter charge (#82). A zero daily budget makes
+    // the charge refuse it as "limited", so the charge's SQL runs and no provider is called.
+    const limitsNow = (await (await api("/api/admin/limits", "GET", undefined, admin)).json())
+      .limits;
+    const noBudget = (k: typeof limitsNow.speech) => ({
+      ...k,
+      lettersPerDay: { basic: 0, plus: 0 },
+    });
+    const wordId = randomUUID();
+    const aiList = randomUUID();
+    try {
+      const zero = {
+        ...limitsNow,
+        speech: noBudget(limitsNow.speech),
+        note: noBudget(limitsNow.note),
+      };
+      assert.equal((await api("/api/admin/limits", "PUT", zero, admin)).status, 200);
+      const created = await api(
+        `/api/lists/${aiList}`,
+        "PUT",
+        {
+          revision: null,
+          list: {
+            title: "AI limits",
+            description: "",
+            from: "Swedish",
+            to: "English",
+            words: [{ id: wordId, front: "hej", back: "hello" }],
+          },
+        },
+        admin,
+      );
+      assert.equal(created.status, 200, await created.clone().text());
+      const ask = (answer: string) =>
+        api(
+          "/api/feedback",
+          "POST",
+          { wordId, direction: "forward", answer, requireAccents: true, caseSensitive: false },
+          admin,
+        );
+      assert.equal((await (await ask("hello")).json()).status, "not-needed");
+      const limitedNote = await ask("goodbye");
+      assert.equal(limitedNote.status, 200);
+      assert.equal((await limitedNote.json()).status, "limited");
+      const limitedClip = await api("/api/speech", "POST", { wordId, part: "learning" }, admin);
+      assert.equal(limitedClip.status, 429);
+      assert.equal((await limitedClip.json()).status, "limited");
+    } finally {
+      await api("/api/admin/limits", "PUT", limitsNow, admin);
+      await api(`/api/lists/${aiList}`, "DELETE", { revision: 1 }, admin);
+    }
+
     // Registration: closed when switched off, and it can't be switched on without its
     // checklist (here: the privacy contact).
     const { controllerName, contactEmail } = registration;
@@ -515,6 +567,35 @@ test("real HTTP: admin AI settings and languages, with dummy keys and no provide
   }
   const after = await (await api("/api/workspace", "GET", undefined, admin)).json();
   assert.deepEqual(after.ai, { languageNotes: false, speech: [] });
+
+  // The AI limits (#82): saved and read back, invalid ones refused, then restored.
+  const limitsBefore = (await (await api("/api/admin/limits", "GET", undefined, admin)).json())
+    .limits;
+  const changed = {
+    ...limitsBefore,
+    speech: { ...limitsBefore.speech, lettersPerMinute: 123 },
+    speechBlockMs: 7000,
+  };
+  try {
+    const saved = await api("/api/admin/limits", "PUT", changed, admin);
+    assert.equal(saved.status, 200, await saved.clone().text());
+    const reread = (await (await api("/api/admin/limits", "GET", undefined, admin)).json()).limits;
+    assert.deepEqual(reread, changed);
+    assert.equal(
+      (await api("/api/admin/limits", "PUT", { ...changed, speechBlockMs: 1500 }, admin)).status,
+      400,
+    );
+    // Admin only, like every admin API.
+    const someone = await api("/api/auth", "POST", {
+      action: "register",
+      email: `limits-${randomUUID()}@example.test`,
+      password: "integration-test-only-password",
+    });
+    const someoneCookie = someone.headers.get("set-cookie")!.split(";")[0];
+    assert.equal((await api("/api/admin/limits", "PUT", changed, someoneCookie)).status, 404);
+  } finally {
+    await api("/api/admin/limits", "PUT", limitsBefore, admin);
+  }
   const reopened = await api("/api/auth", "POST", {
     action: "register",
     email: `reopened-${randomUUID()}@example.test`,

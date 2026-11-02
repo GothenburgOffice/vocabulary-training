@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dailyLetters, DEFAULT_LIMITS, parseLimits } from "../lib/ai-limits.ts";
+import {
+  dailyLetters,
+  DEFAULT_LIMITS,
+  limitsSchema,
+  limitsToSettings,
+  parseLimits,
+} from "../lib/ai-limits.ts";
 
 test("limits come from site settings, with defaults for anything missing or invalid", () => {
   assert.deepEqual(parseLimits(new Map()), DEFAULT_LIMITS);
@@ -30,4 +36,23 @@ test("speech and notes have separate budgets, per account type", () => {
   // An unknown account type gets the basic budget.
   assert.equal(dailyLetters(speech, "gold"), 1);
   assert.notEqual(DEFAULT_LIMITS.speech, DEFAULT_LIMITS.note);
+});
+
+test("limits saved from admin read back the same, and invalid ones are refused", () => {
+  const limits = {
+    speech: { lettersPerMinute: 100, lettersPerDay: { basic: 1000, plus: 3000 }, cooldownMs: 0 },
+    note: { lettersPerMinute: 50, lettersPerDay: { basic: 500, plus: 900 }, cooldownMs: 2500 },
+    speechBlockMs: 15_000,
+  };
+  assert.deepEqual(parseLimits(new Map(limitsToSettings(limits))), limits);
+  assert.deepEqual(parseLimits(new Map(limitsToSettings(DEFAULT_LIMITS))), DEFAULT_LIMITS);
+  assert.ok(limitsSchema.safeParse(limits).success);
+  for (const bad of [
+    { ...limits, speechBlockMs: 500 },
+    { ...limits, speechBlockMs: 1500 },
+    { ...limits, speech: { ...limits.speech, lettersPerMinute: -1 } },
+    { ...limits, note: { ...limits.note, lettersPerMinute: 1.5 } },
+    { ...limits, extra: true },
+  ])
+    assert.equal(limitsSchema.safeParse(bad).success, false);
 });

@@ -1,5 +1,11 @@
 import "server-only";
-import { dailyLetters, parseLimits, type AiKind, type AiLimits } from "../ai-limits";
+import {
+  dailyLetters,
+  limitsToSettings,
+  parseLimits,
+  type AiKind,
+  type AiLimits,
+} from "../ai-limits";
 import { db } from "./db";
 import { FeedbackUnavailable } from "./requesty-client";
 
@@ -7,6 +13,26 @@ import { FeedbackUnavailable } from "./requesty-client";
 export async function readLimits(): Promise<AiLimits> {
   const { rows } = await db.query("SELECT key, value FROM site_settings WHERE key LIKE 'limits.%'");
   return parseLimits(new Map(rows.map((r) => [r.key, r.value])));
+}
+
+// Saves every limit (admin), in one transaction.
+export async function saveLimits(limits: AiLimits) {
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    for (const [key, value] of limitsToSettings(limits))
+      await client.query(
+        `INSERT INTO site_settings(key, value) VALUES ($1, $2)
+         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = now()`,
+        [key, value],
+      );
+    await client.query("COMMIT");
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
 }
 
 // Records a call's letters if they fit the account's budgets for this feature: per minute

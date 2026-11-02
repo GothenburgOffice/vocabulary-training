@@ -227,3 +227,53 @@ test("model and voice cells list every choice, whatever they hold", async ({ pag
   await expect(voice).toHaveValue("茉莉");
   await expect(page.getByRole("button", { name: /^Save changes/ })).toHaveText("Save changes (1)");
 });
+
+test("AI limits are edited and saved together, and reset to the defaults", async ({ page }) => {
+  // Answered here: the limits apply to every account, so tests never change the real ones.
+  const defaults = {
+    speech: {
+      lettersPerMinute: 600,
+      lettersPerDay: { basic: 20000, plus: 60000 },
+      cooldownMs: 500,
+    },
+    note: {
+      lettersPerMinute: 1500,
+      lettersPerDay: { basic: 20000, plus: 60000 },
+      cooldownMs: 3000,
+    },
+    speechBlockMs: 10000,
+  };
+  let limits = structuredClone(defaults);
+  const saves: unknown[] = [];
+  await page.route("/api/admin/limits", async (route) => {
+    if (route.request().method() === "PUT") {
+      limits = route.request().postDataJSON();
+      saves.push(limits);
+    }
+    await route.fulfill({ json: { limits, defaults } });
+  });
+  await page.goto("/admin/limits");
+  const save = page.getByRole("button", { name: "Save limits" });
+  await expect(save).toBeDisabled();
+  await page.getByLabel("Speech: Letters per minute").fill("300");
+  await page.getByLabel("Language notes: Letters per day, plus").fill("90000");
+  await page.getByLabel("Speech request block (seconds)").fill("15");
+  await save.click();
+  await expect(page.getByRole("status")).toHaveText("Saved.");
+  expect(saves).toEqual([
+    {
+      ...defaults,
+      speech: { ...defaults.speech, lettersPerMinute: 300 },
+      note: { ...defaults.note, lettersPerDay: { basic: 20000, plus: 90000 } },
+      speechBlockMs: 15000,
+    },
+  ]);
+  await expect(save).toBeDisabled();
+
+  await page.getByRole("button", { name: "Reset to defaults" }).click();
+  await expect(page.getByLabel("Speech: Letters per minute")).toHaveValue("600");
+  await expect(page.getByLabel("Speech request block (seconds)")).toHaveValue("10");
+  await save.click();
+  await expect(page.getByRole("status")).toHaveText("Saved.");
+  expect(saves[1]).toEqual(defaults);
+});
