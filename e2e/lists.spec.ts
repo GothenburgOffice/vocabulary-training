@@ -97,3 +97,62 @@ test("CSV: import with alternative answers, practise them and export", async ({ 
   );
   await expect(page.getByText("CSV exported.")).toBeVisible();
 });
+
+test("deleting a list asks first, then removes it for good", async ({ page }) => {
+  await page.goto("/");
+  await createList(page, "Doomed", [["hej", "bonjour"]]);
+  const dialog = page.getByRole("dialog");
+
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(dialog).toContainText("Doomed and its 1 word will be deleted");
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText("Inside Doomed")).toBeVisible();
+
+  // A new list has nothing to delete yet; a saved one can be deleted from the editor.
+  await page.getByRole("button", { name: "New word list" }).click();
+  await expect(page.getByRole("button", { name: "Delete list" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("button", { name: "Edit list" }).click();
+  await page.getByRole("button", { name: "Delete list" }).click();
+  await dialog.getByRole("button", { name: "Delete list" }).click();
+  await expect(page.getByText("List deleted.")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Your first French words start here." }),
+  ).toBeVisible();
+  await saved(page);
+
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Your first French words start here." }),
+  ).toBeVisible();
+});
+
+test("a delete refused because another tab changed the list doesn't block saving", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await createList(page, "Contested", [["hej", "bonjour"]]);
+  const other = await page.context().newPage();
+  await other.goto("/");
+  await expect(other.getByText("Inside Contested")).toBeVisible();
+
+  await page.getByRole("button", { name: "Edit list" }).click();
+  await page.getByLabel("List name").fill("Changed first");
+  await page.getByRole("button", { name: "Save word list" }).first().click();
+  await saved(page);
+
+  // The other tab still has the old revision: the delete is refused and the list comes back.
+  await other.getByRole("button", { name: "Delete", exact: true }).click();
+  await other.getByRole("dialog").getByRole("button", { name: "Delete list" }).click();
+  await expect(other.getByRole("main").getByRole("alert")).toContainText(
+    "Another tab changed “Contested”, so it wasn't deleted.",
+  );
+  await expect(other.getByText("Inside Contested")).toBeVisible();
+  // Saving goes on: no retry needed.
+  await createList(other, "Still saving", [["tack", "merci"]]);
+  await saved(other);
+
+  await page.reload();
+  await expect(page.locator(".list-row")).toHaveText([/Changed first/, /Still saving/]);
+});

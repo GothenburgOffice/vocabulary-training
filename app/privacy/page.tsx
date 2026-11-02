@@ -82,8 +82,9 @@ export default async function PrivacyPage() {
           Your account and data are kept until you ask for them to be deleted. You can ask the
           privacy contact above for a copy of your data, a correction, or deletion, and complain to
           your data protection authority (in Sweden, IMY). You can export any word list as CSV
-          yourself. The hosting provider may keep technical logs, such as IP addresses, for
-          security.
+          yourself, and delete a word list with its words and review history at once; completed
+          sessions keep the words they practised. The hosting provider may keep technical logs, such
+          as IP addresses, for security.
         </p>
 
         <Link href="/" className="text-button">

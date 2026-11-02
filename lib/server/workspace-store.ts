@@ -141,6 +141,25 @@ export function loadWorkspace(userId: string) {
   }, "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
 }
 
+// Deletes a list with its words, answers and review history. Completed sessions keep their
+// copied text (list_id and word_id become null). A stale revision gets 409, as on save.
+export function deleteList(userId: string, listId: string, revision: number) {
+  return transaction(async (c) => {
+    const deleted = await c.query("DELETE FROM lists WHERE id=$1 AND user_id=$2 AND revision=$3", [
+      listId,
+      userId,
+      revision,
+    ]);
+    if (deleted.rowCount) return;
+    const exists = await c.query("SELECT 1 FROM lists WHERE id=$1 AND user_id=$2", [
+      listId,
+      userId,
+    ]);
+    if (!exists.rowCount) throw new HttpError(404, "List not found.");
+    throw new HttpError(409, "Another tab changed this list. Reload this tab before deleting it.");
+  });
+}
+
 // Creates or replaces a list and its words. Words keep their review state while their id
 // stays; removed words go with theirs. A stale revision gets 409, never an overwrite.
 export function saveList(

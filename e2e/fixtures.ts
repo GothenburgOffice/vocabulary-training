@@ -32,8 +32,18 @@ export async function openMenu(page: Page) {
   if (await menu.isVisible()) await menu.click();
 }
 
+// The save status: in the sidebar, or in the header on a phone.
+export const saveState = (page: Page) => page.locator(".save-state").filter({ visible: true });
+
 export async function saved(page: Page) {
-  await expect(page.locator(".save-state")).toHaveText(/All changes saved/);
+  await expect(saveState(page)).toHaveText(/All changes saved/);
+}
+
+// The account dialog, from the sidebar's account row.
+export async function openAccount(page: Page) {
+  await openMenu(page);
+  await page.getByRole("button", { name: "Open profile" }).click();
+  return page.getByRole("dialog");
 }
 
 // Creates a list from the library in the editor's word-by-word mode and waits for the save.

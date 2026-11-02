@@ -1,6 +1,7 @@
 "use client";
+import Link from "next/link";
 import { useContext, useEffect, useReducer, useRef, useState } from "react";
-import { Check, ChevronDown, CircleHelp, X } from "lucide-react";
+import { Check, ChevronDown, CircleAlert, CircleHelp, X } from "lucide-react";
 import { BookMark } from "../lib/brand";
 import { encodeCSV, makeWord, reviewed, type List } from "../lib/learning";
 import {
@@ -12,10 +13,11 @@ import {
   practiceReducer,
   type PracticeSettings,
 } from "../lib/practice";
-import type { WorkspaceData, Run, WorkspaceSync } from "../lib/workspace";
+import type { WorkspaceAccount, WorkspaceData, Run, WorkspaceSync } from "../lib/workspace";
 import { DEFAULT_LANGUAGES, languageCodes, pickerLanguages, type Language } from "../lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
 import RequestyAttribution from "./RequestyAttribution";
+import DeleteDialog from "./workspace/DeleteDialog";
 import Dialog from "./workspace/Dialog";
 import ExitDialog from "./workspace/ExitDialog";
 import HelpDialog from "./workspace/HelpDialog";
@@ -27,15 +29,17 @@ import NewLanguageDialog from "./workspace/NewLanguageDialog";
 import PracticeSession from "./workspace/PracticeSession";
 import ProfileDialog from "./workspace/ProfileDialog";
 import ResultsView from "./workspace/ResultsView";
+import SaveStatus from "./workspace/SaveStatus";
 import Sidebar from "./workspace/Sidebar";
 import { useNow } from "./workspace/useNow";
 import type { Modal, View } from "./workspace/views";
 
 const DIALOG_TITLES: Record<Modal, string> = {
-  account: "Your profile",
+  account: "Your account",
   language: "Make room for another language.",
   import: "Bring your words along.",
   exit: "Leave this practice session?",
+  delete: "Delete this word list?",
   help: "A smarter mix, not a black box.",
 };
 
@@ -44,11 +48,13 @@ const DIALOG_TITLES: Record<Modal, string> = {
 export default function Workspace({
   initial,
   sync,
+  account,
   languageList = DEFAULT_LANGUAGES,
 }: {
   initial: WorkspaceData;
   // Receives each change to save. Without it (tests, previews), nothing is saved.
   sync?: WorkspaceSync;
+  account?: WorkspaceAccount;
   languageList?: Language[];
 }) {
   // For the library's due counts; handlers read the clock when they run.
@@ -69,8 +75,11 @@ export default function Workspace({
   // The list open in the editor, as it was when opened.
   const [editing, setEditing] = useState<List | null>(null);
   const [modal, setModal] = useState<Modal | null>(null);
+  // The list the delete dialog asks about.
+  const [deleting, setDeleting] = useState<List | null>(null);
   const [nav, setNav] = useState(false);
-  const [notice, setNotice] = useState("");
+  // A short message under the page; a warning when something didn't happen as asked.
+  const [notice, setNotice] = useState<{ text: string; warning?: boolean } | null>(null);
   // The id of the newest answer per word and direction (see check).
   const latestReview = useRef(new Map<string, string>());
   // The profile languages change in several places; save whenever the pair changes.
@@ -106,7 +115,7 @@ ${learningLanguage}`;
     }
     setView(next);
     setNav(false);
-    setNotice("");
+    setNotice(null);
   }
   function changeLearningLanguage(value: string) {
     if (value === "__add__") {
@@ -117,7 +126,7 @@ ${learningLanguage}`;
     setSelected("");
     setQuery("");
     setSettings((s) => ({ ...s, direction: "forward" }));
-    setNotice("");
+    setNotice(null);
     setNav(false);
   }
   function saveProfile(profileBase: string) {
@@ -146,9 +155,7 @@ ${learningLanguage}`;
     }
     setModal(null);
     setNav(false);
-    setNotice(
-      "Profile updated. Existing lists have not been changed. See the account bar for save status.",
-    );
+    setNotice({ text: "Profile updated. Existing lists have not been changed." });
   }
   function edit(target?: List) {
     setEditing(
@@ -164,7 +171,7 @@ ${learningLanguage}`;
           },
     );
     setView("editor");
-    setNotice("");
+    setNotice(null);
   }
   function saveList(saved: List) {
     setLists((ls) =>
@@ -177,7 +184,27 @@ ${learningLanguage}`;
     setLearningLanguage(saved.to);
     setQuery("");
     setView("library");
-    setNotice("List updated. See the account bar for save status.");
+    setNotice({ text: "List updated." });
+  }
+  function askDelete(target: List) {
+    setDeleting(target);
+    setModal("delete");
+  }
+  function deleteList(target: List) {
+    setLists((ls) => ls.filter((l) => l.id !== target.id));
+    void sync?.deleteList(target.id).then((deleted) => {
+      if (deleted) return;
+      // This tab's copy is stale, so saving it would get 409 too; a reload shows the newer one.
+      setLists((ls) => (ls.some((l) => l.id === target.id) ? ls : [...ls, target]));
+      setNotice({
+        text: `Another tab changed “${target.title}”, so it wasn't deleted. Reload this tab to see the latest version.`,
+        warning: true,
+      });
+    });
+    setSelected("");
+    setView("library");
+    setModal(null);
+    setNotice({ text: "List deleted." });
   }
   function startTest(onlyMistakes = false) {
     if (!list?.words.length) {
@@ -188,7 +215,7 @@ ${learningLanguage}`;
     const mistakes = onlyMistakes ? practice.results : undefined;
     dispatch({ type: "start", queue: practiceQueue(list.words, settings, Date.now(), mistakes) });
     setView("test");
-    setNotice("");
+    setNotice(null);
     setNav(false);
   }
   function check(skipped: boolean) {
@@ -262,7 +289,9 @@ ${learningLanguage}`;
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setNotice("CSV exported. It includes language names and word pairs, not review history.");
+    setNotice({
+      text: "CSV exported. It includes language names and word pairs, not review history.",
+    });
   }
   return (
     <div className="app-shell">
@@ -277,7 +306,9 @@ ${learningLanguage}`;
         savedLanguages={savedLanguages}
         listCount={pairLists.length}
         runCount={pairRuns.length}
+        save={account?.save}
         onClose={() => setNav(false)}
+        onHome={() => navigate("library")}
         onLanguage={changeLearningLanguage}
         onProfile={() => setModal("account")}
         onNavigate={navigate}
@@ -285,17 +316,34 @@ ${learningLanguage}`;
         onHelp={() => setModal("help")}
       />
       <header className="mobile-bar">
-        <span className="mobile-wordmark">
+        <Link
+          className="mobile-wordmark"
+          href="/"
+          prefetch={false}
+          onClick={(e) => {
+            e.preventDefault();
+            navigate("library");
+          }}
+        >
           <BookMark size={20} aria-hidden="true" />
           <strong>
             vocabulary<span>.training</span>
           </strong>
-        </span>
+        </Link>
+        {account && <SaveStatus state={account.save} compact />}
         <button className="button" onClick={() => setNav(!nav)} aria-expanded={nav}>
           Menu <ChevronDown size={16} />
         </button>
       </header>
       <main id="content">
+        {account?.saveError && (
+          <div className="save-error" role="alert">
+            <span>{account.saveError} Your current words remain in this tab.</span>
+            <button className="button" onClick={account.onRetry}>
+              Retry save
+            </button>
+          </div>
+        )}
         {view === "library" && (
           <LibraryView
             baseLanguage={baseLanguage}
@@ -310,6 +358,7 @@ ${learningLanguage}`;
             onEdit={edit}
             onImport={() => setModal("import")}
             onExport={exportList}
+            onDelete={askDelete}
             onSettings={(change) => setSettings((s) => ({ ...s, ...change }))}
             onStart={() => startTest()}
           />
@@ -324,6 +373,10 @@ ${learningLanguage}`;
             languages={languages}
             onSave={saveList}
             onCancel={() => navigate("library")}
+            onDelete={() => {
+              const saved = lists.find((l) => l.id === editing.id);
+              if (saved) askDelete(saved);
+            }}
           />
         )}
         {view === "test" && list && current && (
@@ -357,13 +410,16 @@ ${learningLanguage}`;
           />
         )}
         {notice && (
-          <div role="status" className="notice">
-            <Check size={16} />
-            <span>{notice}</span>
+          <div
+            role={notice.warning ? "alert" : "status"}
+            className={notice.warning ? "notice warning" : "notice"}
+          >
+            {notice.warning ? <CircleAlert size={16} /> : <Check size={16} />}
+            <span>{notice.text}</span>
             <button
               className="icon-button"
               aria-label="Dismiss notice"
-              onClick={() => setNotice("")}
+              onClick={() => setNotice(null)}
             >
               <X size={16} />
             </button>
@@ -382,6 +438,7 @@ ${learningLanguage}`;
       <Dialog title={modal && DIALOG_TITLES[modal]} onClose={() => setModal(null)}>
         {modal === "account" && (
           <ProfileDialog
+            account={account}
             baseLanguage={baseLanguage}
             languageList={languageList}
             practising={view === "test"}
@@ -408,6 +465,13 @@ ${learningLanguage}`;
               setView("editor");
               setModal(null);
             }}
+          />
+        )}
+        {modal === "delete" && deleting && (
+          <DeleteDialog
+            list={deleting}
+            onCancel={() => setModal(null)}
+            onDelete={() => deleteList(deleting)}
           />
         )}
         {modal === "help" && (

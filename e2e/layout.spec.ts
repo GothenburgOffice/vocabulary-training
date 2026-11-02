@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { test, expect, createList, openMenu, answer } from "./fixtures";
+import { test, expect, createList, openMenu, answer, saveState } from "./fixtures";
 
 async function noSidewaysScroll(page: Page, view: string) {
   const overflow = await page.evaluate(
@@ -53,4 +53,48 @@ test("on a phone the sidebar opens from the menu", async ({ page }, testInfo) =>
   await expect(sidebar.locator(".wordmark")).toBeVisible();
   await page.getByRole("button", { name: "Close menu" }).click();
   await expect(nav).not.toBeInViewport();
+});
+
+test("the sidebar stays in place while the page scrolls", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "on a phone the sidebar is a menu");
+  await page.setViewportSize({ width: 1280, height: 520 });
+  await page.goto("/");
+  await createList(page, "Long enough to scroll", [
+    ["ett", "un"],
+    ["två", "deux"],
+    ["tre", "trois"],
+  ]);
+  await page.mouse.wheel(0, 2000);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
+  const sidebar = (await page.locator(".sidebar").boundingBox())!;
+  expect(Math.abs(sidebar.y)).toBeLessThan(1);
+  expect(Math.abs(sidebar.height - 520)).toBeLessThan(1);
+  // The bottom of the sidebar, with the save status and account, stays in view.
+  await expect(saveState(page)).toBeInViewport();
+  await expect(page.getByRole("button", { name: "Open profile" })).toBeInViewport();
+});
+
+test("the logo goes home, and asks first during practice", async ({ page }) => {
+  await page.goto("/");
+  await createList(page, "Home", [["hej", "bonjour"]]);
+  const logo = page.getByRole("link", { name: "vocabulary.training" }).filter({ visible: true });
+  await openMenu(page);
+  await page.getByRole("button", { name: "Session history" }).click();
+  await logo.click();
+  await expect(page.getByText("Inside Home")).toBeVisible();
+
+  await page.getByRole("button", { name: "Start practice" }).click();
+  await logo.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: "Leave this practice session?" })).toBeVisible();
+  await dialog.getByRole("button", { name: "End session" }).click();
+  await expect(page.getByText("Inside Home")).toBeVisible();
+});
+
+test("the save status shows without opening the menu", async ({ page }) => {
+  await page.goto("/");
+  await createList(page, "Status", [["hej", "bonjour"]]);
+  await expect(saveState(page)).toBeInViewport();
+  await expect(saveState(page)).toHaveAccessibleName(/./);
+  await expect(page.getByRole("status").filter({ hasText: "All changes saved" })).toHaveCount(1);
 });

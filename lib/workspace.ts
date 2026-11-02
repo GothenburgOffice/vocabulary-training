@@ -30,8 +30,23 @@ export type Review = { id: string; wordId: string; direction: Direction; correct
 // How Workspace reports each change to save; AccountApp sends them to the API in order.
 export type WorkspaceSync = {
   saveList: (list: List) => void;
+  // Resolves once the server answers: false if another tab changed the list, so it stays.
+  deleteList: (listId: string) => Promise<boolean>;
   // Resolves with the word's state on the server once saved, or null if the word is gone.
   review: (review: Review) => Promise<History | null>;
   completeRun: (run: Run) => void;
   saveProfile: (baseLanguage: string, learningLanguage: string) => void;
+};
+// Whether everything the workspace reported to WorkspaceSync is saved.
+export type SaveState = "saved" | "unsaved" | "saving" | "failed";
+// The signed-in account, as the workspace's sidebar and account dialog show it.
+export type WorkspaceAccount = {
+  email: string;
+  isAdmin: boolean;
+  save: SaveState;
+  // Why the last save failed; saving waits for onRetry.
+  saveError: string;
+  busy: boolean;
+  onRetry: () => void;
+  onSignOut: () => void;
 };
