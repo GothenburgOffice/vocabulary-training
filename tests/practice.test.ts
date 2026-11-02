@@ -8,6 +8,7 @@ import {
   isLastWord,
   practiceQueue,
   practiceReducer,
+  readSettings,
   type Practice,
 } from "../lib/practice.ts";
 
@@ -97,4 +98,22 @@ test("a session samples the list without repeats, or retries only the mistakes",
   // Every mistake comes back, whatever the session size.
   const retry = practiceQueue(words, { ...DEFAULT_SETTINGS, length: 1 }, now, results);
   assert.deepEqual([...retry].sort(), ["w2", "w3"]);
+});
+
+test("remembered practice settings are checked, with defaults for anything else", () => {
+  const saved = {
+    direction: "reverse",
+    mode: "random",
+    length: 5,
+    caseSensitive: true,
+    accents: false,
+  };
+  assert.deepEqual(readSettings(JSON.stringify(saved)), saved);
+  assert.deepEqual(readSettings(null), DEFAULT_SETTINGS);
+  assert.deepEqual(readSettings("not json"), DEFAULT_SETTINGS);
+  assert.deepEqual(readSettings("null"), DEFAULT_SETTINGS);
+  assert.deepEqual(
+    readSettings(JSON.stringify({ direction: "sideways", length: 3, accents: "yes" })),
+    DEFAULT_SETTINGS,
+  );
 });

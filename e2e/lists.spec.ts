@@ -1,59 +1,139 @@
 import { readFile } from "node:fs/promises";
-import { test, expect, createList, prompt, answer, saved } from "./fixtures";
+import type { Page } from "@playwright/test";
+import {
+  test,
+  expect,
+  createList,
+  done,
+  openMenu,
+  prompt,
+  answer,
+  saved,
+  saveState,
+} from "./fixtures";
 
-test("editor: validation, pasted pairs and editing a saved list", async ({ page }) => {
+// Next.js adds its own (empty) alert for route announcements.
+const errorIn = (page: Page) => page.getByRole("main").getByRole("alert");
+
+test("a new list starts with its name, then saves pairs as they're typed", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "New word list" }).click();
-  const save = page.getByRole("button", { name: "Save word list" }).first();
-  // Next.js adds its own (empty) alert for route announcements.
-  const error = page.getByRole("main").getByRole("alert");
-  await save.click();
-  await expect(error).toHaveText("Give your list a name.");
+  await expect(page.getByRole("heading", { name: "Start with a name." })).toBeVisible();
+  const addWords = page.getByRole("button", { name: "Add words" });
+  await expect(addWords).toBeDisabled();
+  await expect(page.getByLabel("First language word 1")).toHaveCount(0);
 
-  await page.getByLabel("List name").fill("Pasted");
-  await save.click();
-  await expect(error).toHaveText("Add at least one word pair.");
-  await page.getByLabel("First language word 1").fill("hej");
-  await save.click();
-  await expect(error).toHaveText("Complete both sides of each word pair, or remove the row.");
-
-  // Paste mode takes tabs or semicolons, one pair per line, and switching back keeps them.
-  await page.getByRole("button", { name: "Paste a list" }).click();
-  const pasted = page.getByLabel("One word pair per line, separated by a tab or semicolon");
-  await pasted.fill("hej;bonjour\ntack\tmerci\nnej");
-  await page.getByRole("button", { name: "Word by word" }).click();
-  await expect(error).toHaveText("Line 3: separate a complete word pair with a tab or semicolon.");
-  await pasted.fill("hej;bonjour\ntack\tmerci\n");
-  await page.getByRole("button", { name: "Word by word" }).click();
-  await expect(page.getByLabel("Translation 2")).toHaveValue("merci");
-  await expect(page.getByText("2 word pairs")).toBeVisible();
-  await save.click();
-  await expect(page.getByText("Inside Pasted")).toBeVisible();
-  await expect(page.locator(".word-row")).toHaveCount(2);
-
-  // Edit: rename, remove a word, add one.
-  await page.getByRole("button", { name: "Edit list" }).click();
-  await expect(page.getByRole("heading", { name: "A few words, well chosen." })).toBeVisible();
-  await page.getByLabel("List name").fill("Edited");
-  await page.getByRole("button", { name: "Remove word 1" }).click();
-  await page.getByRole("button", { name: "Add a word pair" }).click();
-  await page.getByLabel("First language word 2").fill("katt");
-  await page.getByLabel("Translation 2").fill("chat");
-  await save.click();
+  await page.getByLabel("List name").fill("Typed");
+  // The name isn't saved until the list is created.
+  await expect(saveState(page)).toHaveText(/Unsaved changes/);
+  await addWords.click();
   await saved(page);
+  await page.getByLabel("First language word 1").fill("hej");
+  await page.getByLabel("Translation 1").fill("bonjour");
+  await expect(saveState(page)).toHaveText(/Unsaved changes/);
+  await saved(page);
+  await expect(page.getByText("1 word pair", { exact: true })).toBeVisible();
 
+  // No Done needed: it is saved already.
   await page.reload();
-  await expect(page.getByText("Inside Edited")).toBeVisible();
-  await expect(page.locator(".word-row")).toHaveText([/tack\s*merci/, /katt\s*chat/]);
+  await expect(page.getByText("Inside Typed")).toBeVisible();
+  await expect(page.locator(".word-row")).toHaveText([/hej\s*bonjour/]);
 });
 
-test("cancelling the editor keeps the saved list unchanged", async ({ page }) => {
+test("unfinished rows stay unsaved, and leaving with them asks first", async ({ page }) => {
   await page.goto("/");
-  await createList(page, "Keep", [["hej", "bonjour"]]);
+  await createList(page, "Half", [["hej", "bonjour"]]);
   await page.getByRole("button", { name: "Edit list" }).click();
-  await page.getByLabel("List name").fill("Changed");
+  await page.getByRole("button", { name: "Add a word pair" }).click();
+  await page.getByLabel("First language word 2").fill("tack");
+  await expect(page.getByText("1 word pair · 1 unfinished, not saved")).toBeVisible();
+  await expect(saveState(page)).toHaveText(/Unsaved changes/);
+
+  await done(page);
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: "Leave with unfinished edits?" })).toBeVisible();
+  await dialog.getByRole("button", { name: "Keep editing" }).click();
+  await page.getByLabel("Translation 2").fill("merci");
+  await saved(page);
+  await done(page);
+  await expect(page.locator(".word-row")).toHaveText([/hej\s*bonjour/, /tack\s*merci/]);
+
+  // Leaving anyway drops the unfinished row and keeps the rest.
+  await page.getByRole("button", { name: "Edit list" }).click();
+  await page.getByRole("button", { name: "Add a word pair" }).click();
+  await page.getByLabel("First language word 3").fill("katt");
+  await done(page);
+  await dialog.getByRole("button", { name: "Leave anyway" }).click();
+  await saved(page);
+  await page.reload();
+  await expect(page.locator(".word-row")).toHaveCount(2);
+});
+
+test("a pasted list is saved by Import, not before", async ({ page }) => {
+  await page.goto("/");
+  await createList(page, "Pasted", [["hej", "bonjour"]]);
+  await page.getByRole("button", { name: "Edit list" }).click();
+  await page.getByRole("button", { name: "Paste a list instead" }).click();
+  const pasted = page.getByLabel("One word pair per line, separated by a tab or semicolon");
+  await expect(pasted).toHaveValue("hej\tbonjour");
+  await pasted.fill("hej;bonjour\ntack\tmerci\nnej");
+  await expect(saveState(page)).toHaveText(/Unsaved changes/);
+  await page.getByRole("button", { name: "Import" }).click();
+  await expect(errorIn(page)).toHaveText(
+    "Line 3: separate a complete word pair with a tab or semicolon.",
+  );
+  // Cancel drops the pasted text.
   await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(page.getByText("Inside Keep")).toBeVisible();
+  await saved(page);
+
+  await page.getByRole("button", { name: "Paste a list instead" }).click();
+  await pasted.fill("hej;bonjour\ntack\tmerci");
+  await page.getByRole("button", { name: "Import" }).click();
+  await expect(page.getByLabel("Translation 2")).toHaveValue("merci");
+  await saved(page);
+  await page.reload();
+  await expect(page.locator(".word-row")).toHaveText([/hej\s*bonjour/, /tack\s*merci/]);
+});
+
+test("undo restores the list as it was opened", async ({ page }) => {
+  await page.goto("/");
+  await createList(page, "Original", [
+    ["hej", "bonjour"],
+    ["tack", "merci"],
+  ]);
+  await page.getByRole("button", { name: "Edit list" }).click();
+  const undo = page.getByRole("button", { name: "Undo changes" });
+  await expect(undo).toBeDisabled();
+  await page.getByLabel("List name").fill("Renamed");
+  await page.getByRole("button", { name: "Remove word 1" }).click();
+  await saved(page);
+  await expect(undo).toBeEnabled();
+
+  await undo.click();
+  await expect(page.getByLabel("List name")).toHaveValue("Original");
+  await expect(page.getByLabel("First language word 1")).toHaveValue("hej");
+  await saved(page);
+  await page.reload();
+  await expect(page.getByText("Inside Original")).toBeVisible();
+  await expect(page.locator(".word-row")).toHaveCount(2);
+});
+
+test("a list without a name is shown as Untitled list", async ({ page }) => {
+  await page.goto("/");
+  await createList(page, "Named", [["hej", "bonjour"]]);
+  await page.getByRole("button", { name: "Edit list" }).click();
+  await page.getByLabel("List name").fill("");
+  await saved(page);
+  await done(page);
+  await expect(page.getByText("Inside Untitled list")).toBeVisible();
+  // It can be practised; the session is recorded under the shown name.
+  await page.getByRole("button", { name: "Start practice" }).click();
+  await answer(page, "bonjour");
+  await page.getByRole("button", { name: "See results" }).click();
+  await saved(page);
+  await openMenu(page);
+  await page.getByRole("button", { name: "Session history" }).click();
+  await expect(page.locator(".history-row")).toContainText("Untitled list");
 });
 
 test("CSV: import with alternative answers, practise them and export", async ({ page }) => {
@@ -71,10 +151,12 @@ test("CSV: import with alternative answers, practise them and export", async ({ 
   await dialog.getByRole("button", { name: "Preview imported words" }).click();
   await expect(dialog).toBeHidden();
   await expect(page.getByLabel("List name")).toHaveValue("Imported word list");
-  await expect(page.getByLabel("First language word 2")).toHaveValue("hej, du");
+  await expect(page.getByText("2 word pairs from your CSV will be added.")).toBeVisible();
   await page.getByLabel("List name").fill("From CSV");
-  await page.getByRole("button", { name: "Save word list" }).first().click();
+  await page.getByRole("button", { name: "Add words" }).click();
+  await expect(page.getByLabel("First language word 2")).toHaveValue("hej, du");
   await saved(page);
+  await done(page);
 
   // Any accepted answer counts; feedback lists them all.
   await page.getByLabel("Session size").selectOption("1000");
@@ -109,10 +191,10 @@ test("deleting a list asks first, then removes it for good", async ({ page }) =>
   await expect(dialog).toBeHidden();
   await expect(page.getByText("Inside Doomed")).toBeVisible();
 
-  // A new list has nothing to delete yet; a saved one can be deleted from the editor.
+  // A list not created yet has nothing to delete; a saved one can be deleted from the editor.
   await page.getByRole("button", { name: "New word list" }).click();
   await expect(page.getByRole("button", { name: "Delete list" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("main").getByRole("button", { name: "My word lists" }).click();
   await page.getByRole("button", { name: "Edit list" }).click();
   await page.getByRole("button", { name: "Delete list" }).click();
   await dialog.getByRole("button", { name: "Delete list" }).click();
@@ -139,13 +221,13 @@ test("a delete refused because another tab changed the list doesn't block saving
 
   await page.getByRole("button", { name: "Edit list" }).click();
   await page.getByLabel("List name").fill("Changed first");
-  await page.getByRole("button", { name: "Save word list" }).first().click();
+  await done(page);
   await saved(page);
 
   // The other tab still has the old revision: the delete is refused and the list comes back.
   await other.getByRole("button", { name: "Delete", exact: true }).click();
   await other.getByRole("dialog").getByRole("button", { name: "Delete list" }).click();
-  await expect(other.getByRole("main").getByRole("alert")).toContainText(
+  await expect(errorIn(other)).toContainText(
     "Another tab changed “Contested”, so it wasn't deleted.",
   );
   await expect(other.getByText("Inside Contested")).toBeVisible();

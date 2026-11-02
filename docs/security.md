@@ -45,9 +45,10 @@ closed with no privacy details; only the dev and test stacks (`compose.dev.yaml`
 switched on, and sign-up only works, once its checklist is complete: the privacy
 controller and contact are set, and `APP_ORIGIN` is HTTPS unless it's a local
 address. The privacy details are shown on the public `/privacy` page, which also
-lists the one cookie and what is stored. The site sets
-no other cookies and stores nothing else in the browser, so it needs no cookie
-consent banner. Never fill the privacy details with made-up values.
+lists the one cookie and what is stored. Besides that cookie, the browser keeps only
+the practice settings in local storage (never sent anywhere). Both are essential to
+what the user asks for, so there is no cookie consent banner; anything more needs a
+consent decision first. Never fill the privacy details with made-up values.
 
 Sign-in limits are per email address and site-wide. Behind a reverse proxy, set
 `AUTH_TRUSTED_IP_HEADER` to the header the proxy overwrites with the client's IP

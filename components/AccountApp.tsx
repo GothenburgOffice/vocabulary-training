@@ -74,6 +74,9 @@ export default function AccountApp() {
   const saving = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
+  // Edits the workspace holds but hasn't reported (WorkspaceSync.pending).
+  const pending = useRef(false);
+  const [hasPending, setHasPending] = useState(false);
   const blocked = useRef(false);
 
   // Shows the workspace the server returns, or the sign-in screen when signed out. State
@@ -109,7 +112,7 @@ export default function AccountApp() {
   }, [open]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (dirty.current) {
+      if (dirty.current || pending.current) {
         event.preventDefault();
         event.returnValue = "";
       }
@@ -257,6 +260,10 @@ export default function AccountApp() {
       completeRun: (run) => enqueue({ kind: "run", run }),
       saveProfile: (baseLanguage, learningLanguage) =>
         enqueue({ kind: "profile", baseLanguage, learningLanguage }),
+      pending: (value) => {
+        pending.current = value;
+        setHasPending(value);
+      },
     }),
     [enqueue],
   );
@@ -282,6 +289,12 @@ export default function AccountApp() {
     if (dirty.current) {
       setSaveError(
         "Save your changes before signing out. Retry saving, or export your word lists before reloading.",
+      );
+      return;
+    }
+    if (pending.current) {
+      setSaveError(
+        "Some edits aren't saved yet. Finish or remove the unfinished word pairs, or import the pasted list, before signing out.",
       );
       return;
     }
@@ -382,8 +395,8 @@ export default function AccountApp() {
             safe.
           </p>
           <p className="auth-note">
-            One essential sign-in cookie. No analytics, advertising or tracking.{" "}
-            <a href="/privacy">Privacy and cookies</a>
+            One essential sign-in cookie, and your practice settings in your browser. No analytics,
+            advertising or tracking. <a href="/privacy">Privacy and cookies</a>
           </p>
           {error && (
             <button className="text-button" onClick={() => void load()}>
@@ -396,7 +409,8 @@ export default function AccountApp() {
   const account: WorkspaceAccount = {
     email: loaded.user.email,
     isAdmin: !!loaded.user.is_admin,
-    save,
+    // Unreported edits are unsaved, unless something is saving or failed.
+    save: save === "saved" && hasPending ? "unsaved" : save,
     saveError,
     busy,
     onRetry: () => void flush(),

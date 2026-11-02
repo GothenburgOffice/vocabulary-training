@@ -1,5 +1,5 @@
 import { Trash2 } from "lucide-react";
-import type { List } from "../../lib/learning";
+import { listTitle, type List } from "../../lib/learning";
 import Button from "./Button";
 
 export default function DeleteDialog({
@@ -15,8 +15,8 @@ export default function DeleteDialog({
   return (
     <>
       <p>
-        <strong>{list.title}</strong> and its {words} word{words === 1 ? "" : "s"} will be deleted,
-        with their review history. Completed sessions stay in your session history.
+        <strong>{listTitle(list)}</strong> and its {words} word{words === 1 ? "" : "s"} will be
+        deleted, with their review history. Completed sessions stay in your session history.
       </p>
       <p>This can’t be undone.</p>
       <div className="inline-actions">

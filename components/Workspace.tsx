@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useContext, useEffect, useReducer, useRef, useState } from "react";
 import { Check, ChevronDown, CircleAlert, CircleHelp, X } from "lucide-react";
 import { BookMark } from "../lib/brand";
-import { encodeCSV, makeWord, reviewed, type List } from "../lib/learning";
+import { encodeCSV, listTitle, reviewed, type List } from "../lib/learning";
 import {
   DEFAULT_SETTINGS,
   NO_PRACTICE,
@@ -11,6 +11,8 @@ import {
   isLastWord,
   practiceQueue,
   practiceReducer,
+  readSettings,
+  SETTINGS_KEY,
   type PracticeSettings,
 } from "../lib/practice";
 import type { WorkspaceAccount, WorkspaceData, Run, WorkspaceSync } from "../lib/workspace";
@@ -22,6 +24,7 @@ import Dialog from "./workspace/Dialog";
 import ExitDialog from "./workspace/ExitDialog";
 import HelpDialog from "./workspace/HelpDialog";
 import HistoryView from "./workspace/HistoryView";
+import LeaveDialog from "./workspace/LeaveDialog";
 import ImportDialog from "./workspace/ImportDialog";
 import LibraryView from "./workspace/LibraryView";
 import ListEditor from "./workspace/ListEditor";
@@ -40,6 +43,7 @@ const DIALOG_TITLES: Record<Modal, string> = {
   import: "Bring your words along.",
   exit: "Leave this practice session?",
   delete: "Delete this word list?",
+  leave: "Leave with unfinished edits?",
   help: "A smarter mix, not a black box.",
 };
 
@@ -70,11 +74,26 @@ export default function Workspace({
   const [query, setQuery] = useState("");
   const [baseLanguage, setBaseLanguage] = useState(initial.baseLanguage ?? "Swedish");
   const [learningLanguage, setLearningLanguage] = useState(initial.learningLanguage ?? "French");
-  const [settings, setSettings] = useState<PracticeSettings>(DEFAULT_SETTINGS);
+  // Remembered in this browser only (#67); private windows or blocked storage use the defaults.
+  const [settings, setSettings] = useState<PracticeSettings>(() => {
+    try {
+      return readSettings(localStorage.getItem(SETTINGS_KEY));
+    } catch {
+      return DEFAULT_SETTINGS;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch {}
+  }, [settings]);
   const [practice, dispatch] = useReducer(practiceReducer, NO_PRACTICE);
   // The list open in the editor, as it was when opened.
   const [editing, setEditing] = useState<List | null>(null);
   const [modal, setModal] = useState<Modal | null>(null);
+  // Whether leaving the list editor would lose edits, and where leaving it was headed.
+  const [editorLosable, setEditorLosable] = useState(false);
+  const [leaving, setLeaving] = useState<{ to: View | "practice"; list?: List } | null>(null);
   // The list the delete dialog asks about.
   const [deleting, setDeleting] = useState<List | null>(null);
   const [nav, setNav] = useState(false);
@@ -111,6 +130,10 @@ ${learningLanguage}`;
   function navigate(next: View) {
     if (view === "test" && next !== "test") {
       setModal("exit");
+      return;
+    }
+    if (view === "editor" && next !== "editor") {
+      leaveEditor(next);
       return;
     }
     setView(next);
@@ -167,12 +190,13 @@ ${learningLanguage}`;
             description: "",
             from: baseLanguage,
             to: learningLanguage,
-            words: [makeWord(), makeWord(), makeWord(), makeWord(), makeWord()],
+            words: [],
           },
     );
     setView("editor");
     setNotice(null);
   }
+  // The editor autosaves through this; it never leaves the editor.
   function saveList(saved: List) {
     setLists((ls) =>
       ls.some((l) => l.id === saved.id)
@@ -180,11 +204,34 @@ ${learningLanguage}`;
         : [...ls, saved],
     );
     sync?.saveList(saved);
-    setSelected(saved.id);
-    setLearningLanguage(saved.to);
-    setQuery("");
-    setView("library");
-    setNotice({ text: "List updated." });
+  }
+  // Leaving the editor saves what's waiting (ListEditor does that as it closes), but would drop
+  // unfinished rows or pasted text, so it asks first when there are any.
+  function leaveEditor(to: View | "practice", edited?: List) {
+    if (editorLosable) {
+      setLeaving({ to, list: edited });
+      setModal("leave");
+      return;
+    }
+    goFromEditor(to, edited);
+  }
+  function goFromEditor(to: View | "practice", edited?: List) {
+    // Show the edited list in the library, under its (possibly changed) language.
+    if (edited && lists.some((l) => l.id === edited.id)) {
+      setSelected(edited.id);
+      setLearningLanguage(edited.to);
+      setQuery("");
+    }
+    if (to === "practice") startTest();
+    else {
+      setView(to);
+      setNav(false);
+      setNotice(null);
+    }
+  }
+  function changePending(pending: boolean, losable: boolean) {
+    setEditorLosable(losable);
+    sync?.pending(pending);
   }
   function askDelete(target: List) {
     setDeleting(target);
@@ -197,7 +244,7 @@ ${learningLanguage}`;
       // This tab's copy is stale, so saving it would get 409 too; a reload shows the newer one.
       setLists((ls) => (ls.some((l) => l.id === target.id) ? ls : [...ls, target]));
       setNotice({
-        text: `Another tab changed “${target.title}”, so it wasn't deleted. Reload this tab to see the latest version.`,
+        text: `Another tab changed “${listTitle(target)}”, so it wasn't deleted. Reload this tab to see the latest version.`,
         warning: true,
       });
     });
@@ -269,7 +316,7 @@ ${learningLanguage}`;
       completedAt: Date.now(),
       listId: list.id,
       mode: settings.mode,
-      title: list.title,
+      title: listTitle(list),
       from: list.from,
       to: list.to,
       results: practice.results,
@@ -284,7 +331,7 @@ ${learningLanguage}`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${list.title.toLowerCase().replace(/\s+/g, "-")}.csv`;
+    a.download = `${listTitle(list).toLowerCase().replace(/\s+/g, "-")}.csv`;
     document.body.append(a);
     a.click();
     a.remove();
@@ -312,7 +359,13 @@ ${learningLanguage}`;
         onLanguage={changeLearningLanguage}
         onProfile={() => setModal("account")}
         onNavigate={navigate}
-        onPractice={() => (view === "test" ? setNav(false) : startTest())}
+        onPractice={() =>
+          view === "test"
+            ? setNav(false)
+            : view === "editor"
+              ? leaveEditor("practice")
+              : startTest()
+        }
         onHelp={() => setModal("help")}
       />
       <header className="mobile-bar">
@@ -372,7 +425,8 @@ ${learningLanguage}`;
             baseLanguage={baseLanguage}
             languages={languages}
             onSave={saveList}
-            onCancel={() => navigate("library")}
+            onDone={(edited) => leaveEditor("library", edited)}
+            onPending={changePending}
             onDelete={() => {
               const saved = lists.find((l) => l.id === editing.id);
               if (saved) askDelete(saved);
@@ -394,7 +448,7 @@ ${learningLanguage}`;
         )}
         {view === "results" && list && (
           <ResultsView
-            title={list.title}
+            title={listTitle(list)}
             results={practice.results}
             onBack={() => navigate("library")}
             onPractise={startTest}
@@ -453,7 +507,6 @@ ${learningLanguage}`;
               changeLearningLanguage(language);
               setModal(null);
             }}
-            onCancel={() => setModal(null)}
           />
         )}
         {modal === "import" && (
@@ -476,6 +529,19 @@ ${learningLanguage}`;
         )}
         {modal === "help" && (
           <HelpDialog speech={ai.speech.length > 0} onClose={() => setModal(null)} />
+        )}
+        {modal === "leave" && (
+          <LeaveDialog
+            onStay={() => {
+              setModal(null);
+              setLeaving(null);
+            }}
+            onLeave={() => {
+              setModal(null);
+              setLeaving(null);
+              if (leaving) goFromEditor(leaving.to, leaving.list);
+            }}
+          />
         )}
         {modal === "exit" && (
           <ExitDialog

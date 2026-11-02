@@ -90,6 +90,8 @@ export function randomOrder(words: Word[], random = Math.random) {
   }
   return ids;
 }
+// A list may have no name while it is being written (#67).
+export const listTitle = (list: Pick<List, "title">) => list.title.trim() || "Untitled list";
 // Per list and direction: words established (3+ correct in a row) and words studied before
 // that are due for review now.
 export function listStats(list: Pick<List, "words">, direction: Direction, now: number) {

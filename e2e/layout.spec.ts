@@ -17,7 +17,7 @@ test("every view fits the width without sideways scrolling", async ({ page }) =>
   await noSidewaysScroll(page, "library");
   await page.getByRole("button", { name: "Edit list" }).click();
   await noSidewaysScroll(page, "editor");
-  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("button", { name: "Done" }).first().click();
   await page.getByRole("button", { name: "Start practice" }).click();
   await noSidewaysScroll(page, "practice");
   await answer(page, "wrong");

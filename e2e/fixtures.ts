@@ -46,17 +46,23 @@ export async function openAccount(page: Page) {
   return page.getByRole("dialog");
 }
 
-// Creates a list from the library in the editor's word-by-word mode and waits for the save.
+// Leaves the list editor with Done; what's waiting is saved as it closes.
+export async function done(page: Page) {
+  await page.getByRole("button", { name: "Done" }).first().click();
+}
+
+// Creates a list from the library: a name first, then word pairs, which save as they're typed.
 export async function createList(page: Page, title: string, pairs: [string, string][]) {
   await page.getByRole("button", { name: "New word list" }).click();
   await page.getByLabel("List name").fill(title);
+  await page.getByRole("button", { name: "Add words" }).click();
   for (const [i, [front, back]] of pairs.entries()) {
     if (i >= 5) await page.getByRole("button", { name: "Add a word pair" }).click();
     await page.getByLabel(`First language word ${i + 1}`).fill(front);
     await page.getByLabel(`Translation ${i + 1}`).fill(back);
   }
-  await page.getByRole("button", { name: "Save word list" }).first().click();
-  await expect(page.getByText("List updated.")).toBeVisible();
+  await done(page);
+  await expect(page.getByText(`Inside ${title}`)).toBeVisible();
   await saved(page);
 }
 
