@@ -42,10 +42,10 @@ query seeks straight to one user's data for one pair. The pair copies on `words`
 keys with `ON UPDATE CASCADE`. Sessions and results keep the pair they were
 practised in.
 
-`issue_reports` holds the AI results learners report (#95), one row per result
-and account, deleted with the account. It has no language pair: a report names
-the word's own language. Its queries are in `lib/server/reports-store.ts`; the
-admin ones read across accounts and never return the account. Recent AI results
+`issue_reports` holds the AI results learners report (#95), one row per result.
+It is anonymous by design: no `user_id`, so a report can't be linked to an
+account and outlives it. It has no language pair: a report names the word's own
+language. Its queries are in `lib/server/reports-store.ts`. Recent AI results
 before a report live only in the browser (see [AI features](ai-features.md)).
 
 A word is a native prompt with one or more accepted answers. Practising forward

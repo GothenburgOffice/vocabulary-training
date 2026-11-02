@@ -60,10 +60,12 @@ nothing to a provider and never touches a grade.
   is a result. The learner picks one and a reason that fits its kind; the
   browser sends it to `POST /api/reports`. Only what is reported is stored
   (`issue_reports`): the word, language, model, voice, the recorded request,
-  the reason and the times. The account and tier come from the session. One
-  report per result per account, deleted with the account. The note's text
-  itself is not stored.
-- **Admin → Reports** lists reports without the account, shows where they
+  the reason and the times. Reports are anonymous and one-way: signing in is
+  needed to send one, but no account is stored, so a report can't be linked
+  back or shown to anyone after it is sent. Only the tier comes from the
+  session. The result's random id keeps it once. The note's text itself is not
+  stored.
+- **Admin → Reports** lists the reports, shows where they
   cluster by kind, language, model and voice, and deletes reports older than
   15 days on a confirmed click. Nothing prunes on a schedule.
 - The snapshot is what the browser recorded; the server doesn't re-verify that

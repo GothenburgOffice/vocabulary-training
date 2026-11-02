@@ -39,9 +39,9 @@ the full browser suite on every PR.
 - `lib/validation.ts`: Zod schemas for save requests. Update them with any change to the data shape.
 - `lib/server/workspace-store.ts`: every query on the user data tables (`lists`, `words`,
   `word_reviews`, `runs`, `run_results`). Every query filters on `user_id`.
-- `lib/server/reports-store.ts`: `issue_reports`, the AI result reports (#95). A learner's
-  insert takes the account and tier from the session; the admin queries read across accounts
-  and never return the account. `lib/reports.ts` holds the reasons and schema shared with the browser.
+- `lib/server/reports-store.ts`: `issue_reports`, the AI result reports (#95). Anonymous by
+  design: never store a user id with a report; only the tier comes from the session.
+  `lib/reports.ts` holds the reasons and schema shared with the browser.
 - `lib/server/**`: server-only (`import "server-only"`). DB, sessions, Requesty clients.
 - `app/api/*/route.ts`: mutations call `requireOrigin` and then `requireUser`. Errors go through `HttpError`/`fail`.
 - `app/admin/`: the admin area, a shell (`layout.tsx`, `components/admin/AdminNav.tsx`)
