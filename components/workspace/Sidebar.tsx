@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   ChevronRight,
   CircleHelp,
@@ -8,6 +9,8 @@ import {
   X,
 } from "lucide-react";
 import { BookMark } from "../../lib/brand";
+import type { SaveState } from "../../lib/workspace";
+import SaveStatus from "./SaveStatus";
 import type { View } from "./views";
 
 export default function Sidebar({
@@ -18,7 +21,9 @@ export default function Sidebar({
   savedLanguages,
   listCount,
   runCount,
+  save,
   onClose,
+  onHome,
   onLanguage,
   onProfile,
   onNavigate,
@@ -33,7 +38,10 @@ export default function Sidebar({
   savedLanguages: string[];
   listCount: number;
   runCount: number;
+  // Absent without an account (tests, previews).
+  save?: SaveState;
   onClose: () => void;
+  onHome: () => void;
   // A language name, or "__add__" to add one.
   onLanguage: (value: string) => void;
   onProfile: () => void;
@@ -46,10 +54,20 @@ export default function Sidebar({
   return (
     <aside className={`sidebar ${open ? "open" : ""}`}>
       <div className="brand">
-        <BookMark size={23} aria-hidden="true" />
-        <span className="wordmark">
-          vocabulary<strong>.training</strong>
-        </span>
+        <Link
+          className="brand-home"
+          href="/"
+          prefetch={false}
+          onClick={(e) => {
+            e.preventDefault();
+            onHome();
+          }}
+        >
+          <BookMark size={23} aria-hidden="true" />
+          <span className="wordmark">
+            vocabulary<strong>.training</strong>
+          </span>
+        </Link>
         <button className="mobile-close icon-button" aria-label="Close menu" onClick={onClose}>
           <X size={20} />
         </button>
@@ -105,6 +123,7 @@ export default function Sidebar({
         </button>
       </nav>
       <div className="side-bottom">
+        {save && <SaveStatus state={save} />}
         <button onClick={onHelp}>
           <CircleHelp size={18} /> How practice works
         </button>

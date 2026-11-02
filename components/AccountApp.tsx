@@ -1,9 +1,16 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ArrowRight, Check, LogOut, RefreshCw, Settings, Shield } from "lucide-react";
+import { ArrowRight, RefreshCw } from "lucide-react";
 import { BookMark } from "../lib/brand";
 import Workspace from "./Workspace";
-import type { Review, Run, WorkspaceData, WorkspaceSync } from "../lib/workspace";
+import type {
+  Review,
+  Run,
+  SaveState,
+  WorkspaceAccount,
+  WorkspaceData,
+  WorkspaceSync,
+} from "../lib/workspace";
 import type { History, List } from "../lib/learning";
 import { NO_AI, type AiFeatures, type Language } from "../lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
@@ -59,7 +66,7 @@ export default function AccountApp() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [status, setStatus] = useState("All changes saved");
+  const [save, setSave] = useState<SaveState>("saved");
   const [saveError, setSaveError] = useState("");
   // Changes not saved yet, oldest first, and each list's last saved revision.
   const queue = useRef<Change[]>([]);
@@ -80,7 +87,7 @@ export default function AccountApp() {
             queue.current = [];
             dirty.current = false;
             blocked.current = false;
-            setStatus("All changes saved");
+            setSave("saved");
             setSaveError("");
           }
           setLoaded(result);
@@ -196,16 +203,16 @@ export default function AccountApp() {
     setSaveError("");
     try {
       while (queue.current.length) {
-        setStatus("Saving changes…");
+        setSave("saving");
         await send(queue.current[0]);
         queue.current.shift();
       }
       dirty.current = false;
-      setStatus("All changes saved");
+      setSave("saved");
     } catch (e) {
       dirty.current = true;
       blocked.current = true;
-      setStatus("Changes not saved");
+      setSave("failed");
       setSaveError((e as Error).message);
     } finally {
       saving.current = false;
@@ -225,7 +232,7 @@ export default function AccountApp() {
       if (replaces) queue.current[last] = change;
       else queue.current.push(change);
       dirty.current = true;
-      setStatus("Unsaved changes");
+      setSave("unsaved");
       if (timer.current) clearTimeout(timer.current);
       // A conflict/error requires an explicit retry; never silently overwrite another tab.
       if (!blocked.current)
@@ -379,41 +386,24 @@ export default function AccountApp() {
         </div>
       </main>
     );
+  const account: WorkspaceAccount = {
+    email: loaded.user.email,
+    isAdmin: !!loaded.user.is_admin,
+    save,
+    saveError,
+    busy,
+    onRetry: () => void flush(),
+    onSignOut: () => void logout(),
+  };
   return (
-    <>
-      <div className="account-bar">
-        <span title={loaded.user.email}>{loaded.user.email}</span>
-        <span className="save-state" role="status">
-          {status === "All changes saved" && <Check size={14} />} {status}
-        </span>
-        {loaded.user.is_admin && (
-          <a className="text-button" href="/admin">
-            <Settings size={15} /> Admin
-          </a>
-        )}
-        <a className="text-button" href="/privacy">
-          <Shield size={15} /> Privacy
-        </a>
-        <button className="text-button" disabled={busy} onClick={() => void logout()}>
-          <LogOut size={15} /> Sign out
-        </button>
-      </div>
-      {saveError && (
-        <div className="save-error" role="alert">
-          <span>{saveError} Your current words remain in this tab.</span>
-          <button className="button" onClick={() => void flush()}>
-            Retry save
-          </button>
-        </div>
-      )}
-      <AiFeaturesContext.Provider value={loaded.ai ?? NO_AI}>
-        <Workspace
-          key={loaded.user.id}
-          initial={loaded.data}
-          sync={sync}
-          languageList={loaded.languages}
-        />
-      </AiFeaturesContext.Provider>
-    </>
+    <AiFeaturesContext.Provider value={loaded.ai ?? NO_AI}>
+      <Workspace
+        key={loaded.user.id}
+        initial={loaded.data}
+        sync={sync}
+        account={account}
+        languageList={loaded.languages}
+      />
+    </AiFeaturesContext.Provider>
   );
 }

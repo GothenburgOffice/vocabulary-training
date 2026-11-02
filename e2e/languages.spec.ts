@@ -1,4 +1,4 @@
-import { test, expect, createList, openMenu, saved } from "./fixtures";
+import { test, expect, createList, openMenu, saved, saveState } from "./fixtures";
 
 test("language pairs keep their lists apart", async ({ page }) => {
   await page.goto("/");
@@ -71,7 +71,7 @@ test("a stale save from a second tab gets a conflict, not an overwrite", async (
   await other.getByRole("button", { name: "Edit list" }).click();
   await other.getByLabel("List name").fill("Saved second");
   await other.getByRole("button", { name: "Save word list" }).first().click();
-  await expect(other.locator(".save-state")).toHaveText(/Changes not saved/);
+  await expect(saveState(other)).toHaveText(/Changes not saved/);
   await expect(other.locator(".save-error")).toContainText(
     "Another tab changed this list. Export any unsaved words, then reload this tab.",
   );

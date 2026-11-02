@@ -53,8 +53,9 @@ HTTPS. These are database settings, not `.env` ones.
 and `SETTINGS_ENCRYPTION_KEY` (`openssl rand -base64 32`) to save AI keys.
 While no admin exists, each start creates that account, or promotes an existing
 account with that email without changing its password. Admins get an **Admin**
-link in the account bar, leading to `/admin`; everyone else gets a 404 there. The
-flag is `users.is_admin`, so you can also set it directly in the database.
+link in the account dialog (the sidebar's **Your account**), leading to `/admin`;
+everyone else gets a 404 there. The flag is `users.is_admin`, so you can also set
+it directly in the database.
 
 The app listens on localhost only and PostgreSQL has no published port. Data lives
 in a named volume that survives `docker compose down`. **Never use `down -v` on

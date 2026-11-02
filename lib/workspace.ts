@@ -36,3 +36,16 @@ export type WorkspaceSync = {
   completeRun: (run: Run) => void;
   saveProfile: (baseLanguage: string, learningLanguage: string) => void;
 };
+// Whether everything the workspace reported to WorkspaceSync is saved.
+export type SaveState = "saved" | "unsaved" | "saving" | "failed";
+// The signed-in account, as the workspace's sidebar and account dialog show it.
+export type WorkspaceAccount = {
+  email: string;
+  isAdmin: boolean;
+  save: SaveState;
+  // Why the last save failed; saving waits for onRetry.
+  saveError: string;
+  busy: boolean;
+  onRetry: () => void;
+  onSignOut: () => void;
+};

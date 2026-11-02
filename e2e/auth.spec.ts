@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
+import { openAccount } from "./fixtures";
 
 test("register, sign out and sign back in", async ({ page }) => {
   const email = `e2e-${randomUUID()}@example.test`;
@@ -10,9 +11,10 @@ test("register, sign out and sign back in", async ({ page }) => {
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page.getByRole("heading", { name: "Your French workspace." })).toBeVisible();
-  await expect(page.getByText(email)).toBeVisible();
-
-  await page.getByRole("button", { name: "Sign out" }).click();
+  const account = await openAccount(page);
+  await expect(account.getByText(email)).toBeVisible();
+  await expect(account.getByRole("link", { name: "Admin" })).toHaveCount(0);
+  await account.getByRole("button", { name: "Sign out" }).click();
   await page.getByRole("button", { name: "Already have an account? Sign in" }).click();
   await expect(page.getByRole("heading", { name: "Sign in to your workspace" })).toBeVisible();
 
