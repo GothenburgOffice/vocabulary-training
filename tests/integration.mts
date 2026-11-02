@@ -479,13 +479,14 @@ test("real HTTP: admin AI settings and languages, with dummy keys and no provide
     );
     assert.equal(JSON.stringify(me).includes(dummyKey), false);
 
-    // With AI on, a note or a clip reaches the letter charge (#82). A zero daily budget makes
-    // the charge refuse it as "limited", so the charge's SQL runs and no provider is called.
+    // With AI on, a note or a clip reaches the letter charge (#82). A daily budget of 1 letter
+    // makes the charge refuse it as "limited", so the charge's SQL runs and no provider is
+    // called. (0 would mean no limit.)
     const limitsNow = (await (await api("/api/admin/limits", "GET", undefined, admin)).json())
       .limits;
     const noBudget = (k: typeof limitsNow.speech) => ({
       ...k,
-      lettersPerDay: { basic: 0, plus: 0 },
+      lettersPerDay: { basic: 1, plus: 1 },
     });
     const wordId = randomUUID();
     const aiList = randomUUID();

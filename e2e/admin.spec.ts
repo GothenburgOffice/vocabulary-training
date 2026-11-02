@@ -233,12 +233,12 @@ test("AI limits are edited and saved together, and reset to the defaults", async
   const defaults = {
     speech: {
       lettersPerMinute: 1200,
-      lettersPerDay: { basic: 20000, plus: 60000 },
+      lettersPerDay: { basic: 100000, plus: 300000 },
       cooldownMs: 500,
     },
     note: {
       lettersPerMinute: 3000,
-      lettersPerDay: { basic: 20000, plus: 60000 },
+      lettersPerDay: { basic: 100000, plus: 300000 },
       cooldownMs: 3000,
     },
     speechBlockMs: 10000,
@@ -264,7 +264,7 @@ test("AI limits are edited and saved together, and reset to the defaults", async
     {
       ...defaults,
       speech: { ...defaults.speech, lettersPerMinute: 300 },
-      note: { ...defaults.note, lettersPerDay: { basic: 20000, plus: 90000 } },
+      note: { ...defaults.note, lettersPerDay: { basic: 100000, plus: 90000 } },
       speechBlockMs: 15000,
     },
   ]);

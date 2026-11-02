@@ -10,7 +10,8 @@ export default async function LimitsPage() {
           <h1>Limits</h1>
           <p>
             How much each account may use speech and language notes. Letters are the characters sent
-            to the AI provider; cached audio replays are free. Changes apply to the next AI call.
+            to the AI provider; cached audio replays are free. A letter limit of 0 means no limit,
+            for a site that caps spending only in Requesty. Changes apply to the next AI call.
           </p>
         </div>
       </header>
