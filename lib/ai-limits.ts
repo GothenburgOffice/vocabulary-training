@@ -12,12 +12,12 @@ export type AiLimits = { speech: KindLimits; note: KindLimits; speechBlockMs: nu
 
 export const DEFAULT_LIMITS: AiLimits = {
   speech: {
-    lettersPerMinute: 600,
+    lettersPerMinute: 1_200,
     lettersPerDay: { basic: 20_000, plus: 60_000 },
     cooldownMs: 500,
   },
   note: {
-    lettersPerMinute: 1_500,
+    lettersPerMinute: 3_000,
     lettersPerDay: { basic: 20_000, plus: 60_000 },
     cooldownMs: 3_000,
   },
