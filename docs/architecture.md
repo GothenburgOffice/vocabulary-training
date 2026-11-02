@@ -6,9 +6,11 @@
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `app/page.tsx`                                    | Renders `AccountApp`                                                                       |
 | `components/AccountApp.tsx`                       | Sign-in, loads the workspace, sends each change in order, retry, unsaved-changes warning   |
-| `components/Workspace.tsx`                        | The whole UI: library, editor, CSV, practice, results, history                             |
+| `components/Workspace.tsx`                        | The signed-in UI's state and saves; renders the views in `components/workspace/`           |
+| `components/workspace/`                           | Views (library, editor, practice, results, history), sidebar and dialogs                   |
 | `components/LanguageNote.tsx`, `SpeechButton.tsx` | Optional AI note and audio controls                                                        |
 | `lib/learning.ts`                                 | Pure functions: answer matching, sampling, review scheduling, CSV                          |
+| `lib/practice.ts`                                 | A practice session: reducer, grading, choosing the words                                   |
 | `lib/validation.ts`                               | Zod schemas for save requests and credentials                                              |
 | `lib/server/`                                     | Server-only: DB pool, user data store, sessions, passwords, HTTP helpers, Requesty clients |
 | `app/api/*/route.ts`                              | `auth`, `workspace`, `lists/[id]`, `reviews`, `runs`, `profile`, `feedback`, `speech`, …   |

@@ -13,6 +13,7 @@ import {
   randomOrder,
   weight,
   reviewed,
+  listStats,
   parseCSV,
   encodeCSV,
 } from "../lib/learning.ts";
@@ -172,4 +173,22 @@ test("new words get UUIDs, which the database uses as keys", () => {
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
   );
   assert.equal(makeWord("a", "b", "given").id, "given");
+});
+test("list statistics count established and due words per direction", () => {
+  const now = 1_000_000;
+  const fresh = makeWord("ny", "nouveau");
+  const due = {
+    ...makeWord("hej", "bonjour"),
+    forward: { correct: 1, wrong: 1, streak: 0, due: now },
+  };
+  const later = { correct: 3, wrong: 0, streak: 3, due: now + 1 };
+  const known = { ...makeWord("tack", "merci"), forward: later, reverse: later };
+  assert.deepEqual(listStats({ words: [fresh, due, known] }, "forward", now), {
+    learned: 1,
+    due: 1,
+  });
+  assert.deepEqual(listStats({ words: [fresh, due, known] }, "reverse", now), {
+    learned: 1,
+    due: 0,
+  });
 });
