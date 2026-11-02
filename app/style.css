@@ -2480,11 +2480,14 @@ main > .save-error {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  /* Allowed narrower than its content, so the logo inside can shrink. */
+  min-width: 0;
   margin: 4px 12px 8px;
   color: var(--muted);
 }
 .side-bottom .requesty-link {
   display: inline-flex;
+  max-width: 100%;
   padding: 0;
   align-items: center;
   gap: 6px;
@@ -2498,11 +2501,17 @@ main > .save-error {
 .side-bottom .requesty-link:hover {
   background: none;
 }
+.requesty-link:hover small {
+  text-decoration: none;
+}
+/* The logo shrinks (keeping its shape) when the sidebar is narrow; the text doesn't. */
 .requesty-link img {
   display: block;
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+  height: auto;
 }
-.requesty-link:hover > span {
+.requesty-link:hover .requesty-text > span {
   color: var(--text);
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -2511,9 +2520,14 @@ main > .save-error {
   outline: 2px solid var(--blue);
   outline-offset: 3px;
 }
-.requesty-attribution small {
+.requesty-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.requesty-text small {
   font-size: 0.625rem;
-  line-height: 1.2;
 }
 /* A field label with a help button beside it (the button isn't inside the label). */
 .field-label {

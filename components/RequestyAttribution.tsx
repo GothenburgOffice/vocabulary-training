@@ -13,12 +13,15 @@ export default function RequestyAttribution() {
         aria-label="AI features by Requesty. Referral link: signups may earn us AI credits. Opens in a new tab."
         title="Referral link: signups may earn us AI credits."
       >
-        <span>AI features by</span>
+        {/* Two short rows beside the logo, which spans both. */}
+        <span className="requesty-text">
+          <span>AI features by</span>
+          <small>Referral link</small>
+        </span>
         {/* Self-hosted official wordmark: no third-party tracking or image request. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="./requesty-logo.png" alt="Requesty" width="85" height="19" />
+        <img src="./requesty-logo.png" alt="Requesty" width="99" height="22" />
       </a>
-      <small>Referral link</small>
     </div>
   );
 }

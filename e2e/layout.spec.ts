@@ -110,3 +110,23 @@ test("the practice mode help is next to the practice mode", async ({ page }) => 
   // The label still belongs to the select.
   await expect(page.getByLabel("Practice mode")).toHaveValue("adaptive");
 });
+
+test("the sidebar never scrolls sideways, even at its narrowest", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "on a phone the sidebar is the full-width menu");
+  // With AI on, so the Requesty credit (the widest item) is shown.
+  await page.route("/api/workspace", async (route) => {
+    const response = await route.fetch();
+    const json = await response.json();
+    await route.fulfill({ response, json: { ...json, ai: { languageNotes: true, speech: [] } } });
+  });
+  await page.goto("/");
+  await createList(page, "Widths", [["hej", "bonjour"]]);
+  for (const width of [1600, 1100, 900, 690]) {
+    await page.setViewportSize({ width, height: 700 });
+    const [visible, content] = await page
+      .locator(".sidebar")
+      .evaluate((e) => [e.clientWidth, e.scrollWidth]);
+    expect(content, `sidebar at ${width}px`).toBe(visible);
+    await expect(page.getByRole("button", { name: "Open profile" })).toBeInViewport({ ratio: 1 });
+  }
+});
