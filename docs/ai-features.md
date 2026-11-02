@@ -43,6 +43,32 @@ A word with several accepted answers speaks its primary answer.
 - Generated voices are not reliable pronunciation teachers, especially outside
   English.
 
+## Reporting a wrong result
+
+A learner can report a wrong language note or a bad clip, so an admin can see
+which languages, models and voices need attention (#81, #95). Reporting sends
+nothing to a provider and never touches a grade.
+
+- **Browser-only log.** The page keeps the tab's last 20 AI results in memory
+  (`lib/ai-actions.ts`, `components/AiActionLog.tsx`), not in browser storage,
+  so a reload or sign-out clears it. A ready `/api/feedback` response returns
+  the chat request it sent as `activity`. Audio is binary, so `/api/speech`
+  sends the model and voice in `X-AI-Model` and `X-AI-Voice`. A clip is logged
+  only when the provider was asked (`X-Audio-Cache: miss`), not for a cached
+  replay.
+- **Report.** "Report an AI result" in the lower sidebar appears once there
+  is a result. The learner picks one and a reason that fits its kind; the
+  browser sends it to `POST /api/reports`. Only what is reported is stored
+  (`issue_reports`): the word, language, model, voice, the recorded request,
+  the reason and the times. The account and tier come from the session. One
+  report per result per account, deleted with the account. The note's text
+  itself is not stored.
+- **Admin → Reports** lists reports without the account, shows where they
+  cluster by kind, language, model and voice, and deletes reports older than
+  15 days on a confirmed click. Nothing prunes on a schedule.
+- The snapshot is what the browser recorded; the server doesn't re-verify that
+  the call happened.
+
 ## Tiers
 
 Each account has an `ai_tier`, `basic` (default) or `plus`. Each tier has its own
