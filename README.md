@@ -152,7 +152,7 @@ Passing `main` pushes build, re-test and publish the image to GHCR.
 
 Before contributing, read [CONTRIBUTING.md](CONTRIBUTING.md): outside PRs are only
 reviewed for `help wanted` issues or for plans approved in an issue first.
-Code conventions are in [CLAUDE.md](CLAUDE.md). Planned work and
+Code conventions are in [.github/copilot-instructions.md](.github/copilot-instructions.md). Planned work and
 open decisions are tracked in
 [GitHub issues](https://github.com/GothenburgOffice/vocabulary-training/issues).
 
