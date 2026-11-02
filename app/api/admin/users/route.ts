@@ -1,4 +1,8 @@
-import { accountDeleteSchema, tierChangeSchema } from "../../../../lib/admin/users";
+import {
+  accountDeleteSchema,
+  canDeleteAccount,
+  tierChangeSchema,
+} from "../../../../lib/admin/users";
 import { readLimits } from "../../../../lib/server/ai-limits";
 import { requireAdmin } from "../../../../lib/server/auth";
 import { body, fail, HttpError, json, requireOrigin } from "../../../../lib/server/http";
@@ -80,14 +84,13 @@ export async function DELETE(request: Request) {
         parsed.data.userId,
       ]);
       if (!target.rowCount) throw new HttpError(404, "Account not found.");
-      if (target.rows[0].is_admin) {
-        const otherAdmin = await client.query(
-          "SELECT 1 FROM users WHERE is_admin AND id<>$1 LIMIT 1",
-          [parsed.data.userId],
-        );
-        if (!otherAdmin.rowCount)
-          throw new HttpError(409, "The last admin account cannot be deleted.");
-      }
+      const otherAdmin = target.rows[0].is_admin
+        ? await client.query("SELECT 1 FROM users WHERE is_admin AND id<>$1 LIMIT 1", [
+            parsed.data.userId,
+          ])
+        : null;
+      if (!canDeleteAccount(target.rows[0].is_admin, Boolean(otherAdmin?.rowCount)))
+        throw new HttpError(409, "The last admin account cannot be deleted.");
       await client.query("DELETE FROM users WHERE id=$1", [parsed.data.userId]);
       await client.query("COMMIT");
       return json({ deleted: 1 });

@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { accountDeleteSchema, isE2eAccountEmail, tierChangeSchema } from "../lib/admin/users.ts";
+import {
+  accountDeleteSchema,
+  canDeleteAccount,
+  isE2eAccountEmail,
+  tierChangeSchema,
+} from "../lib/admin/users.ts";
 
 test("account types accept only a user UUID and a supported tier", () => {
   const userId = "7199f62c-4c8b-43a6-8ca6-9711c6bffb04";
@@ -23,4 +28,10 @@ test("the test-account filter matches only e2e addresses at example.test", () =>
   assert.equal(isE2eAccountEmail("E2E-test@EXAMPLE.TEST"), true);
   for (const email of ["e2e-@example.test", "user@example.test", "e2e-user@other.test"])
     assert.equal(isE2eAccountEmail(email), false, email);
+});
+
+test("an admin can be deleted only when another admin remains", () => {
+  assert.equal(canDeleteAccount(false, false), true);
+  assert.equal(canDeleteAccount(true, true), true);
+  assert.equal(canDeleteAccount(true, false), false);
 });

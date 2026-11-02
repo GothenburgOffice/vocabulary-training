@@ -415,6 +415,14 @@ test("real HTTP: the admin area answers 404 to everyone but admins", async () =>
   assert.equal(managed.speech_calls_day, 0);
   assert.equal(managed.note_calls_90, 0);
   assert.ok(users.limits.speech.lettersPerDay.basic > 0);
+  assert.equal(
+    (await api("/api/admin/users", "PATCH", { userId: me.user.id, tier: "plus" }, cookie)).status,
+    404,
+  );
+  assert.equal(
+    (await api("/api/admin/users", "DELETE", { userId: me.user.id }, cookie)).status,
+    404,
+  );
 
   assert.equal(
     (
