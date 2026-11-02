@@ -55,12 +55,10 @@ export const languageUpdateSchema = z
     revision: z.string().regex(/^\d{1,20}$/),
     code: languageCode,
     hidden: z.boolean(),
+    highlighted: z.boolean(),
     speech: speechSchema,
     plusSpeech: speechSchema,
   })
-  .strict();
-export const languageOrderSchema = z
-  .object({ order: z.array(z.string().min(1).max(60)).min(1).max(500) })
   .strict();
 
 export type LanguageView = z.infer<typeof languageUpdateSchema>;

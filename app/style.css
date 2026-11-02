@@ -2302,52 +2302,12 @@ nav button {
   color: var(--muted);
   font-size: var(--text-xs);
 }
-.admin-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 16px;
-}
-.admin-row > .field {
-  flex: 1 1 180px;
-}
 .admin-check {
   display: flex;
   align-items: center;
   gap: 8px;
   min-height: 44px;
   font-size: var(--text-sm);
-}
-.admin-languages {
-  display: grid;
-  gap: 16px;
-  margin: 16px 0;
-  padding: 0;
-  list-style: none;
-}
-.admin-language > header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.admin-language.is-hidden h2::after {
-  content: " (hidden)";
-  color: var(--muted);
-  font-weight: 400;
-}
-.admin-speech {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin: 0;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-}
-.admin-speech legend {
-  padding: 0 4px;
-  font-size: var(--text-sm);
-  font-weight: 600;
 }
 
 /* No top bar: the save status sits in the sidebar (or the phone header), the account links in
@@ -2403,6 +2363,166 @@ main > .save-error {
 .account-links .inline-actions {
   flex-wrap: wrap;
   gap: 4px 20px;
+}
+
+/* Admin → Languages: one compact, editable row per language (#73). Light like a sheet: only
+   row lines, and cells show they're editable on hover and focus. */
+/* Wide enough for the table (its columns have fixed widths), and centered like the rest. */
+.admin-main:has(.lang-table) {
+  max-width: 1300px;
+}
+.lang-toolbar,
+.lang-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 16px 0;
+}
+.lang-toolbar .button,
+.lang-bulk .button {
+  min-height: 36px;
+  padding: 6px 12px;
+}
+.lang-bulk {
+  padding: 8px 12px;
+  background: var(--blue-light);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+.lang-bulk label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lang-bulk select,
+.lang-bulk input {
+  min-height: 36px;
+  padding: 4px 8px;
+}
+.lang-bulk select {
+  padding-right: 32px;
+}
+.lang-bulk .lang-bulk-value {
+  width: 260px;
+}
+.lang-errors {
+  margin: 0 0 12px;
+  padding-left: 32px;
+}
+.lang-table-wrap {
+  overflow-x: auto;
+}
+.lang-table {
+  border-collapse: collapse;
+  font-size: var(--text-xs);
+}
+.lang-table th,
+.lang-table td {
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+.lang-table thead th {
+  padding: 6px 8px;
+  color: var(--muted);
+  font-weight: 500;
+}
+/* Fixed widths: a long model name is cut off (the full name is its tooltip). */
+.lang-table input:not([type="checkbox"]),
+.lang-table select {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+}
+.lang-table select {
+  padding-right: 28px;
+  background-position: right 8px center;
+}
+.lang-table input:not([type="checkbox"]):hover:not(:disabled),
+.lang-table select:hover:not(:disabled) {
+  background-color: var(--soft);
+}
+.lang-table input:not([type="checkbox"]):focus,
+.lang-table select:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+  background-color: var(--surface);
+}
+/* An empty cell that can't be set yet (no model) stays empty, without an arrow. */
+.lang-table input:disabled,
+.lang-table select:disabled {
+  background-image: none;
+  cursor: default;
+}
+/* Element-qualified, so these beat the cells' width: 100% above; percentage widths would
+   stretch the table to the window. */
+.lang-table input.lang-code {
+  width: 64px;
+}
+.lang-table .lang-model:is(input, select) {
+  width: 200px;
+}
+.lang-table .lang-voice:is(input, select) {
+  width: 110px;
+}
+.lang-table input.lang-instructions {
+  width: 110px;
+}
+.lang-table .lang-select,
+.lang-table .lang-center {
+  width: 36px;
+  text-align: center;
+}
+.lang-table .lang-name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  padding: 0 12px 0 8px;
+  background: var(--bg);
+  font-weight: 500;
+}
+.lang-table .lang-name svg {
+  margin-left: 6px;
+  vertical-align: -2px;
+  color: var(--red);
+}
+.lang-table .lang-order .icon-button {
+  min-width: 28px;
+  min-height: 28px;
+}
+.lang-table tr.is-changed > td,
+.lang-table tr.is-changed > .lang-name {
+  background: #fff8e6;
+}
+.lang-table tr.is-failed > .lang-name {
+  color: var(--red);
+}
+.lang-table tr.is-hidden > .lang-name {
+  color: var(--muted);
+}
+.lang-table tr.is-hidden > .lang-name::after {
+  content: " (hidden)";
+  font-weight: 400;
+}
+.lang-table tfoot th,
+.lang-table tfoot td {
+  border-bottom: 0;
+}
+.lang-table .lang-add .lang-name input {
+  width: 110px;
+}
+.lang-table .lang-add .button {
+  min-height: 30px;
+  margin: 4px 8px;
+  padding: 4px 12px;
 }
 .lost-edits {
   margin: 0 0 20px;

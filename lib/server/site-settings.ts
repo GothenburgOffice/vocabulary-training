@@ -35,6 +35,7 @@ type LanguageRow = {
   name: string;
   code: string | null;
   hidden: boolean;
+  highlighted: boolean;
   speech_model: string;
   speech_voice: string;
   speech_instructions: string;
@@ -47,7 +48,7 @@ type LanguageRow = {
 const revision = "(extract(epoch FROM updated_at)*1000000)::bigint::text";
 async function readLanguageRows() {
   const { rows } = await db.query<LanguageRow>(
-    `SELECT *, ${revision} AS revision FROM languages ORDER BY position, name`,
+    `SELECT *, ${revision} AS revision FROM languages ORDER BY highlighted DESC, name`,
   );
   return rows;
 }
@@ -56,6 +57,7 @@ async function readLanguages(): Promise<LanguageSettings[]> {
     name: r.name,
     code: r.code ?? "",
     hidden: r.hidden,
+    highlighted: r.highlighted,
     speech: { model: r.speech_model, voice: r.speech_voice, instructions: r.speech_instructions },
     plusSpeech: {
       model: r.plus_speech_model,
@@ -129,6 +131,7 @@ export async function readLanguagesView(): Promise<LanguageView[]> {
     revision: r.revision,
     code: r.code ?? "",
     hidden: r.hidden,
+    highlighted: r.highlighted,
     speech: { model: r.speech_model, voice: r.speech_voice, instructions: r.speech_instructions },
     plusSpeech: {
       model: r.plus_speech_model,
@@ -140,7 +143,7 @@ export async function readLanguagesView(): Promise<LanguageView[]> {
 // Returns false when the name or code is already taken.
 export async function addLanguage(name: string, code: string) {
   const result = await db.query(
-    "INSERT INTO languages(name,code,position) SELECT $1,NULLIF($2,''),COALESCE(max(position),0)+1 FROM languages ON CONFLICT DO NOTHING",
+    "INSERT INTO languages(name,code) VALUES ($1,NULLIF($2,'')) ON CONFLICT DO NOTHING",
     [name, code],
   );
   invalidateAiSettings();
@@ -156,7 +159,7 @@ export async function updateLanguage(
   const result = await db.query(
     `UPDATE languages SET code=NULLIF($2,''),hidden=$3,speech_model=$4,speech_voice=$5,
        speech_instructions=$6,plus_speech_model=$7,plus_speech_voice=$8,
-       plus_speech_instructions=$9,updated_at=clock_timestamp()
+       plus_speech_instructions=$9,highlighted=$11,updated_at=clock_timestamp()
        WHERE name=$1 AND ${revision}=$10`,
     [
       language.name,
@@ -169,26 +172,13 @@ export async function updateLanguage(
       p.voice,
       p.instructions,
       language.revision,
+      language.highlighted,
     ],
   );
   invalidateAiSettings();
   if (result.rowCount === 1) return "saved";
   const exists = await db.query("SELECT 1 FROM languages WHERE name=$1", [language.name]);
   return exists.rowCount ? "stale" : "missing";
-}
-// Positions follow `order`; languages it doesn't mention keep their place after those.
-export async function reorderLanguages(order: string[]) {
-  await db.query(
-    `UPDATE languages l SET position=o.position FROM
-       (SELECT name, ordinality AS position FROM unnest($1::text[]) WITH ORDINALITY AS t(name))
-       o WHERE l.name=o.name`,
-    [order],
-  );
-  await db.query("UPDATE languages SET position=position+$1 WHERE NOT (name = ANY($2::text[]))", [
-    order.length,
-    order,
-  ]);
-  invalidateAiSettings();
 }
 
 // The public privacy details, for the /privacy page.

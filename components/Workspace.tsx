@@ -16,7 +16,13 @@ import {
   type PracticeSettings,
 } from "../lib/practice";
 import type { WorkspaceAccount, WorkspaceData, Run, WorkspaceSync } from "../lib/workspace";
-import { DEFAULT_LANGUAGES, languageCodes, pickerLanguages, type Language } from "../lib/languages";
+import {
+  DEFAULT_LANGUAGES,
+  languageCodes,
+  pickerLanguages,
+  sortLanguageNames,
+  type Language,
+} from "../lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
 import RequestyAttribution from "./RequestyAttribution";
 import DeleteDialog from "./workspace/DeleteDialog";
@@ -121,11 +127,14 @@ ${learningLanguage}`;
     media.addEventListener("change", close);
     return () => media.removeEventListener("change", close);
   }, []);
-  const savedLanguages = [
-    ...new Set(
-      lists.filter((l) => l.from === baseLanguage && l.to !== baseLanguage).map((l) => l.to),
-    ),
-  ].sort();
+  const savedLanguages = sortLanguageNames(
+    [
+      ...new Set(
+        lists.filter((l) => l.from === baseLanguage && l.to !== baseLanguage).map((l) => l.to),
+      ),
+    ],
+    languageList,
+  );
   const pairLists = lists.filter((l) => l.from === baseLanguage && l.to === learningLanguage);
   const pairRuns = runs.filter((r) => r.from === baseLanguage && r.to === learningLanguage);
   const list = pairLists.find((l) => l.id === selected) || pairLists[0];
@@ -162,11 +171,14 @@ ${learningLanguage}`;
     if (view === "editor")
       throw new Error("Leave the list editor before changing your base language.");
     if (profileBase !== baseLanguage) {
-      const targets = [
-        ...new Set(
-          lists.filter((l) => l.from === profileBase && l.to !== profileBase).map((l) => l.to),
-        ),
-      ].sort();
+      const targets = sortLanguageNames(
+        [
+          ...new Set(
+            lists.filter((l) => l.from === profileBase && l.to !== profileBase).map((l) => l.to),
+          ),
+        ],
+        languageList,
+      );
       // With every language hidden only "Other" is offered, so fall back to hidden ones too.
       const nextLearning = targets.includes(learningLanguage)
         ? learningLanguage

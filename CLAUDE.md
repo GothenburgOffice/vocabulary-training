@@ -48,6 +48,8 @@ browser tests when UI code changed.
   queue; unit-test changes there). None of these may import server code.
 - `e2e/`: Playwright browser tests. `fixtures.ts` signs each test in as a fresh account and
   has the shared steps; AI routes are mocked there, never called.
+  `admin.spec.ts` needs `TEST_ADMIN_EMAIL`/`TEST_ADMIN_PASSWORD` (skipped otherwise) and fakes
+  the languages API, since languages are shared and can't be deleted.
 - `db/migrations/NNN_name.sql`: **append-only**. Never edit an applied migration; add a new file.
 
 ## Rules that must not regress

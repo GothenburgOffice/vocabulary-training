@@ -12,6 +12,7 @@ const language = (name: string, overrides: Partial<LanguageSettings> = {}): Lang
   name,
   code: "",
   hidden: false,
+  highlighted: false,
   speech: NO_SPEECH,
   plusSpeech: NO_SPEECH,
   ...overrides,
