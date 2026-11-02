@@ -19,13 +19,16 @@ export async function chargeLetters(
   limits: AiLimits,
 ) {
   const budget = limits[kind];
+  // Parameters are cast: untyped, $3 is both an int column value and part of a bigint sum.
   const charged = await db.query(
     `WITH used AS (
        SELECT coalesce(sum(letters) FILTER (WHERE at > now() - interval '1 minute'), 0) AS minute,
               coalesce(sum(letters), 0) AS day
-       FROM ai_usage WHERE user_id = $1 AND kind = $2 AND at > now() - interval '1 day')
+       FROM ai_usage WHERE user_id = $1::uuid AND kind = $2::text
+         AND at > now() - interval '1 day')
      INSERT INTO ai_usage(user_id, kind, letters)
-     SELECT $1, $2, $3 FROM used WHERE minute + $3 <= $4 AND day + $3 <= $5`,
+     SELECT $1::uuid, $2::text, $3::int FROM used
+     WHERE minute + $3::int <= $4::bigint AND day + $3::int <= $5::bigint`,
     [user.id, kind, letters, budget.lettersPerMinute, dailyLetters(budget, user.ai_tier)],
   );
   await db.query("DELETE FROM ai_usage WHERE at < now() - interval '90 days'");
