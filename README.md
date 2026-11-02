@@ -99,6 +99,9 @@ integration test skips its "AI disabled" checks instead of making paid calls.
 Dependencies are reinstalled automatically on start when `package-lock.json`
 changes. On Windows, **Dev Containers: Clone Repository in
 Container Volume** gives faster file watching than a folder on a Windows drive.
+The dev container also has git, the GitHub CLI, curl, jq, ripgrep and `psql`. VS
+Code passes in your git identity and credentials; run `gh auth login` once and
+the sign-in is kept across rebuilds.
 
 **Claude Code memory (optional).** Inside the dev container, Claude Code keeps its
 project memory in `~/.claude-memory/vocabulary-training` on the host (or
