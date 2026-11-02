@@ -277,3 +277,72 @@ test("AI limits are edited and saved together, and reset to the defaults", async
   await expect(page.getByRole("status")).toHaveText("Saved.");
   expect(saves[1]).toEqual(defaults);
 });
+
+test("reports show where they cluster, the request sent, and prune only old ones", async ({
+  page,
+}) => {
+  const report = {
+    id: "0f8c2f8e-5d0a-4a57-9a43-2f1b0f6d2a11",
+    created_at: "2026-10-01T10:00:00.000Z",
+    activity_at: "2026-10-01T09:59:00.000Z",
+    kind: "speech",
+    reason: "pronunciation",
+    word: "merci",
+    language: "French",
+    model: "vendor/tts",
+    voice: "Mia",
+    tier: "basic",
+    prompt: { part: "learning" },
+  };
+  let reports = [report];
+  const prunes: unknown[] = [];
+  await page.route(/\/api\/admin\/reports(\?.*)?$/, async (route) => {
+    const request = route.request();
+    if (request.method() === "DELETE") {
+      prunes.push(request.postDataJSON());
+      reports = [];
+      return route.fulfill({ json: { deleted: 1 } });
+    }
+    return route.fulfill({
+      json: {
+        reports,
+        summary: reports.length
+          ? [
+              {
+                kind: "speech",
+                language: "French",
+                model: "vendor/tts",
+                voice: "Mia",
+                reports: 1,
+                last: report.created_at,
+              },
+            ]
+          : [],
+        total: reports.length,
+        prunable: reports.length,
+        retentionDays: 15,
+        pageSize: 50,
+      },
+    });
+  });
+
+  await page.goto("/admin/reports");
+  await expect(page.getByRole("heading", { name: "Where reports cluster" })).toBeVisible();
+  const card = page.locator(".report-card");
+  await expect(card).toHaveCount(1);
+  await expect(card).toContainText("Audio · merci");
+  await expect(card).toContainText("Wrong pronunciation · French · vendor/tts · Mia · basic");
+  await card.getByText("Request sent, as the learner’s browser recorded it").click();
+  await expect(card.locator("pre")).toContainText('"part": "learning"');
+  // No account is shown with a report (the header's email is the signed-in admin).
+  await expect(page.locator(".report-list")).not.toContainText("@");
+
+  page.once("dialog", (dialog) => {
+    expect(dialog.message()).toBe("Permanently delete 1 reports older than 15 days?");
+    void dialog.accept();
+  });
+  await page.getByRole("button", { name: "Delete reports older than 15 days (1)" }).click();
+  await expect(page.getByText("Deleted 1 reports.")).toBeVisible();
+  expect(prunes).toEqual([{ olderThanDays: 15 }]);
+  await expect(page.getByText("No reports yet.")).toBeVisible();
+});

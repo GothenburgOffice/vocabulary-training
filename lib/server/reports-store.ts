@@ -28,3 +28,48 @@ export async function saveReport(tier: string, report: ReportInput) {
   );
   return result.rowCount ? ("saved" as const) : ("duplicate" as const);
 }
+
+// Admin only (#95): every report on the server, newest first. Reports carry no account.
+export async function listReports(offset: number, limit: number) {
+  const result = await db.query(
+    `SELECT id, created_at, activity_at, kind, reason, word, language, model, voice, tier, prompt
+     FROM issue_reports
+     ORDER BY created_at DESC, id
+     LIMIT $1 OFFSET $2`,
+    [limit, offset],
+  );
+  return result.rows;
+}
+
+// Admin only: where reports cluster, to see which language, model or voice needs attention.
+export async function reportSummary() {
+  const result = await db.query(
+    `SELECT kind, language, model, coalesce(voice, '') AS voice,
+       count(*)::int AS reports, max(created_at) AS last
+     FROM issue_reports
+     GROUP BY kind, language, model, coalesce(voice, '')
+     ORDER BY reports DESC, last DESC
+     LIMIT 20`,
+  );
+  return result.rows;
+}
+
+export async function countReports(olderThanDays?: number) {
+  const result =
+    olderThanDays === undefined
+      ? await db.query("SELECT count(*)::int AS n FROM issue_reports")
+      : await db.query(
+          "SELECT count(*)::int AS n FROM issue_reports WHERE created_at < now() - make_interval(days => $1)",
+          [olderThanDays],
+        );
+  return result.rows[0].n as number;
+}
+
+// Admin only: deletes reports older than the given number of days.
+export async function pruneReports(olderThanDays: number) {
+  const result = await db.query(
+    "DELETE FROM issue_reports WHERE created_at < now() - make_interval(days => $1)",
+    [olderThanDays],
+  );
+  return result.rowCount ?? 0;
+}
