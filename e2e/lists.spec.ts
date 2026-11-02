@@ -318,3 +318,61 @@ test("the base language can't change while a list is being edited", async ({ pag
   await expect(account.getByLabel("Native / base language")).toBeDisabled();
   await expect(account).toContainText("Leave the list editor before changing your base language.");
 });
+
+test("further accepted answers: add, make primary, remove, paste and practise", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await createList(page, "Answers", [["katt", "chat"]]);
+  await page.getByRole("button", { name: "Edit list" }).click();
+  const add = page.getByRole("button", { name: "Add another accepted answer for word 1" });
+  await add.click();
+  await page.keyboard.type("minou");
+  await add.click();
+  await page.keyboard.type("matou");
+  await saved(page);
+
+  // Saved with the word: they come back after a reload.
+  await page.reload();
+  await page.getByRole("button", { name: "Edit list" }).click();
+  await expect(page.getByLabel("Word 1, accepted answer 2")).toHaveValue("minou");
+  await expect(page.getByLabel("Word 1, accepted answer 3")).toHaveValue("matou");
+
+  // Making one primary swaps it with the primary answer.
+  await page.getByRole("button", { name: "Make word 1's accepted answer 2 primary" }).click();
+  await expect(page.getByLabel("Translation 1")).toHaveValue("minou");
+  await expect(page.getByLabel("Word 1, accepted answer 2")).toHaveValue("chat");
+  await page.getByRole("button", { name: "Remove word 1's accepted answer 3" }).click();
+  await expect(page.getByLabel("Word 1, accepted answer 3")).toHaveCount(0);
+  await saved(page);
+
+  // Paste mode shows them after a |, and imports them the same way.
+  await page.getByRole("button", { name: "Paste a list instead" }).click();
+  const pasted = page.getByLabel("One word pair per line, separated by a tab or semicolon");
+  await expect(pasted).toHaveValue("katt\tminou|chat");
+  await pasted.fill("katt;minou|chat\nhund;chien|clebs\nja;oui\\|si");
+  await page.getByRole("button", { name: "Import" }).click();
+  await expect(page.getByLabel("Word 2, accepted answer 2")).toHaveValue("clebs");
+  // A \| is a | inside one answer.
+  await expect(page.getByLabel("Translation 3")).toHaveValue("oui|si");
+  await page.getByRole("button", { name: "Paste a list instead" }).click();
+  await pasted.fill("katt;|chat");
+  await page.getByRole("button", { name: "Import" }).click();
+  await expect(errorIn(page)).toHaveText("Line 1: put the primary answer before any |.");
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await saved(page);
+  await done(page);
+
+  // Practising forward accepts a further answer; feedback lists them all.
+  await page.getByLabel("Session size").selectOption("1000");
+  await page.getByRole("button", { name: "Start practice" }).click();
+  for (let i = 1; i <= 3; i++) {
+    await expect(page.getByText(`Word ${i} of 3`)).toBeVisible();
+    const word = await prompt(page);
+    await answer(page, { katt: "chat", hund: "clebs", ja: "oui|si" }[word]!);
+    await expect(page.getByText("That's right.")).toBeVisible();
+    if (word === "katt") await expect(page.getByText("Answer: minou / chat")).toBeVisible();
+    await page.keyboard.press("Enter");
+  }
+  await expect(page.locator(".results-overview strong")).toHaveText("3 / 3");
+});

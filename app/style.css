@@ -831,6 +831,55 @@ footer button {
 .pair-row .icon-button {
   min-width: 32px;
 }
+/* The "+" for another accepted answer sits inside the translation field. */
+.answer-field {
+  position: relative;
+  min-width: 0;
+}
+/* More specific than the phone layout's .pair-row input padding, so text never runs under the +. */
+.pair-row .answer-field input {
+  padding-right: 40px;
+}
+.add-answer {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  border-radius: var(--radius-sm);
+}
+.add-answer:hover {
+  color: var(--blue);
+  background: var(--soft);
+}
+/* Further answers line up under the translation, in its column and the remove column. */
+.more-answers {
+  grid-column: -3 / -1;
+  display: grid;
+  gap: 6px;
+  margin: -4px 0 4px;
+  padding: 0;
+  list-style: none;
+}
+.more-answers li {
+  display: grid;
+  grid-template-columns: 1fr auto 32px;
+  align-items: center;
+  gap: 8px;
+}
+.more-answers input {
+  min-height: 36px;
+  font-size: var(--text-sm);
+}
+.more-answers .text-button {
+  gap: 4px;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
 .editor-bottom {
   margin-top: 24px;
   padding-top: 24px;
@@ -2547,4 +2596,16 @@ main > .save-error {
 .field-help-button:hover {
   color: var(--blue);
   background: var(--soft);
+}
+@media (max-width: 680px) {
+  /* Phones: further answers use the whole row, and "Make primary" is its star alone. */
+  .more-answers {
+    grid-column: 1 / -1;
+  }
+  .more-answers li {
+    grid-template-columns: 1fr auto 28px;
+  }
+  .make-primary-label {
+    display: none;
+  }
 }

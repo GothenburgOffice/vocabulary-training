@@ -1,22 +1,41 @@
 import { useEffect, useEffectEvent, useState } from "react";
-import { ArrowLeft, ArrowLeftRight, ArrowRight, Check, Plus, Trash2, Undo2, X } from "lucide-react";
-import { makeWord, type List, type Word } from "../../lib/learning";
+import {
+  ArrowLeft,
+  ArrowLeftRight,
+  ArrowRight,
+  Check,
+  Plus,
+  Star,
+  Trash2,
+  Undo2,
+  X,
+} from "lucide-react";
+import { csvAnswers, makeWord, splitCSVAnswers, type List, type Word } from "../../lib/learning";
 import Button from "./Button";
 
 // How long the editor waits after the last change before saving.
 const AUTOSAVE_MS = 1000;
 const MAX_WORDS = 1000;
+// Further accepted answers per word, besides the primary one (as the API allows).
+const MAX_ANSWERS = 20;
 
 const complete = (w: Word) => !!w.front.trim() && !!w.back.trim();
 // What gets saved: the trimmed name and the rows with both words. A half-filled row isn't a
-// word yet, so it stays in the editor.
+// word yet, so it stays in the editor; an empty further answer is left out.
 function saveable(draft: List): List {
   return {
     ...draft,
     title: draft.title.trim(),
-    words: draft.words
-      .filter(complete)
-      .map((w) => ({ ...w, front: w.front.trim(), back: w.back.trim() })),
+    words: draft.words.filter(complete).map(({ accepted, ...w }) => {
+      const more = (accepted ?? []).map((a) => a.trim()).filter(Boolean);
+      return {
+        ...w,
+        front: w.front.trim(),
+        back: w.back.trim(),
+        // No field at all when there are none, as lists are loaded.
+        ...(more.length ? { accepted: more } : {}),
+      };
+    }),
   };
 }
 const same = (a: List, b: List) => JSON.stringify(a) === JSON.stringify(b);
@@ -111,6 +130,24 @@ export default function ListEditor({
       words: d.words.map((w) => (w.id === id ? { ...w, [key]: value } : w)),
     }));
   }
+  // Further answers: add an empty one, edit, remove, or swap one with the primary answer (the
+  // one shown when practising and the prompt in reverse).
+  function changeAnswers(id: string, change: (word: Word) => Word) {
+    setDraft((d) => ({ ...d, words: d.words.map((w) => (w.id === id ? change(w) : w)) }));
+  }
+  const setAnswer = (word: Word, index: number, value: string) => ({
+    ...word,
+    accepted: (word.accepted ?? []).map((a, i) => (i === index ? value : a)),
+  });
+  const removeAnswer = (word: Word, index: number) => ({
+    ...word,
+    accepted: (word.accepted ?? []).filter((_, i) => i !== index),
+  });
+  const makePrimary = (word: Word, index: number) => ({
+    ...word,
+    back: word.accepted![index],
+    accepted: word.accepted!.map((a, i) => (i === index ? word.back : a)),
+  });
   function create() {
     if (listCount >= 100) {
       setError("This version supports up to 100 lists per account.");
@@ -125,13 +162,14 @@ export default function ListEditor({
     save(first);
   }
   function startPaste() {
-    const text = next.words.map((w) => `${w.front}\t${w.back}`).join("\n");
+    const text = next.words.map((w) => `${w.front}\t${csvAnswers(w)}`).join("\n");
     setBulk(text);
     setBulkStart(text);
     setPasting(true);
     setError("");
   }
-  // Pasted rows keep a word's id and history when its pair is unchanged.
+  // Pasted rows keep a word's id and history when the word and its primary answer are
+  // unchanged. Further answers follow the primary one after a |, as in CSV files.
   function importPaste() {
     try {
       const words = bulk
@@ -143,12 +181,18 @@ export default function ListEditor({
             throw new Error(
               `Line ${i + 1}: separate a complete word pair with a tab or semicolon.`,
             );
-          const [front, back] = [cells[0].trim(), cells[1].trim()];
-          if (front.length > 200 || back.length > 200)
+          const front = cells[0].trim();
+          const [back, ...more] = splitCSVAnswers(cells[1]);
+          const accepted = more.filter(Boolean);
+          if (!back) throw new Error(`Line ${i + 1}: put the primary answer before any |.`);
+          if ([front, back, ...accepted].some((text) => text.length > 200))
             throw new Error(`Line ${i + 1}: keep each word to 200 characters or fewer.`);
-          return (
-            draft.words.find((w) => w.front === front && w.back === back) || makeWord(front, back)
-          );
+          if (accepted.length > MAX_ANSWERS)
+            throw new Error(`Line ${i + 1}: keep to ${MAX_ANSWERS} further answers per word.`);
+          const old = draft.words.find((w) => w.front === front && w.back === back);
+          return old
+            ? { ...old, accepted: accepted.length ? accepted : undefined }
+            : makeWord(front, back, "", accepted);
         });
       if (words.length > MAX_WORDS) throw new Error("Keep each list to 1,000 word pairs or fewer.");
       const imported = { ...draft, words: words.length ? words : [makeWord()] };
@@ -275,8 +319,10 @@ export default function ListEditor({
                     placeholder={"hej;bonjour\ntack;merci\nhej då;au revoir"}
                   />
                   <small>
-                    Paste two columns from a spreadsheet, or use word;translation. Import replaces
-                    the list&apos;s word pairs; unchanged pairs keep their progress.
+                    Paste two columns from a spreadsheet, or use word;translation. Further accepted
+                    answers follow the first after a |, like katt;chat|minou (write \| for a | in an
+                    answer). Import replaces the list&apos;s word pairs; unchanged pairs keep their
+                    progress.
                   </small>
                 </label>
                 <div className="inline-actions">
@@ -305,13 +351,32 @@ export default function ListEditor({
                       onChange={(e) => changeWord(w.id, "front", e.target.value)}
                       placeholder="Word or phrase"
                     />
-                    <input
-                      aria-label={`Translation ${i + 1}`}
-                      value={w.back}
-                      maxLength={200}
-                      onChange={(e) => changeWord(w.id, "back", e.target.value)}
-                      placeholder="Translation"
-                    />
+                    {/* A div: .pair-row > span styles the row number (and hides it on phones). */}
+                    <div className="answer-field">
+                      <input
+                        aria-label={`Translation ${i + 1}`}
+                        value={w.back}
+                        maxLength={200}
+                        onChange={(e) => changeWord(w.id, "back", e.target.value)}
+                        placeholder="Translation"
+                      />
+                      {(w.accepted?.length ?? 0) < MAX_ANSWERS && (
+                        <button
+                          type="button"
+                          className="add-answer"
+                          aria-label={`Add another accepted answer for word ${i + 1}`}
+                          title="Add another accepted answer"
+                          onClick={() =>
+                            changeAnswers(w.id, (x) => ({
+                              ...x,
+                              accepted: [...(x.accepted ?? []), ""],
+                            }))
+                          }
+                        >
+                          <Plus size={14} />
+                        </button>
+                      )}
+                    </div>
                     <button
                       type="button"
                       aria-label={`Remove word ${i + 1}`}
@@ -322,6 +387,46 @@ export default function ListEditor({
                     >
                       <X size={15} />
                     </button>
+                    {w.accepted?.length ? (
+                      <ul
+                        className="more-answers"
+                        aria-label={`Other accepted answers for word ${i + 1}`}
+                      >
+                        {w.accepted.map((answer, j) => (
+                          <li key={j}>
+                            <input
+                              aria-label={`Word ${i + 1}, accepted answer ${j + 2}`}
+                              value={answer}
+                              maxLength={200}
+                              placeholder="Also accepted"
+                              autoFocus={!answer && j === w.accepted!.length - 1}
+                              onChange={(e) =>
+                                changeAnswers(w.id, (x) => setAnswer(x, j, e.target.value))
+                              }
+                            />
+                            <button
+                              type="button"
+                              className="text-button"
+                              disabled={!answer.trim()}
+                              aria-label={`Make word ${i + 1}'s accepted answer ${j + 2} primary`}
+                              title="The primary answer is shown when practising, and asked for in reverse"
+                              onClick={() => changeAnswers(w.id, (x) => makePrimary(x, j))}
+                            >
+                              <Star size={13} />{" "}
+                              <span className="make-primary-label">Make primary</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="icon-button"
+                              aria-label={`Remove word ${i + 1}'s accepted answer ${j + 2}`}
+                              onClick={() => changeAnswers(w.id, (x) => removeAnswer(x, j))}
+                            >
+                              <X size={14} />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
                 ))}
                 <button
