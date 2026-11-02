@@ -9,13 +9,18 @@ export const BULK_FIELDS = [
   { key: "plusSpeech.model", label: "Plus speech model" },
   { key: "plusSpeech.voice", label: "Plus speech voice" },
   { key: "plusSpeech.instructions", label: "Plus speech instructions" },
+  { key: "highlighted", label: "Highlighted" },
   { key: "hidden", label: "Hidden" },
 ] as const;
 export type BulkField = (typeof BULK_FIELDS)[number]["key"];
 
-// The language with one field set; for "hidden", the value is "yes" or "no".
+// The yes/no fields; their value is "yes" or "no".
+export const isFlag = (field: BulkField) => field === "highlighted" || field === "hidden";
+
+// The language with one field set.
 export function withField(language: LanguageView, field: BulkField, value: string): LanguageView {
-  if (field === "hidden") return { ...language, hidden: value === "yes" };
+  if (field === "highlighted" || field === "hidden")
+    return { ...language, [field]: value === "yes" };
   const [tier, key] = field.split(".") as ["speech" | "plusSpeech", keyof Speech];
   return { ...language, [tier]: { ...language[tier], [key]: value } };
 }

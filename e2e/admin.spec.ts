@@ -8,12 +8,17 @@ test.skip(
 );
 
 const blank = { model: "", voice: "", instructions: "" };
-const MODELS = ["deepinfra/hexgrad/Kokoro-82M", "openai/gpt-4o-mini-tts"];
+const MODELS = [
+  "deepinfra/XiaomiMiMo/MiMo-V2.5-tts",
+  "deepinfra/hexgrad/Kokoro-82M",
+  "openai/gpt-4o-mini-tts",
+];
 const language = (name: string, code: string): LanguageView => ({
   name,
   code,
   revision: "1",
   hidden: false,
+  highlighted: false,
   speech: blank,
   plusSpeech: blank,
 });
@@ -36,11 +41,13 @@ async function fakeLanguages(page: Page) {
         });
       saves.push(data);
       languages = languages.map((l) => (l.name === data.name ? { ...data, revision: bump(l) } : l));
-    } else if (request.method() === "PATCH") {
-      languages = data.order.map((name: string) => languages.find((l) => l.name === name)!);
     } else if (request.method() === "POST") {
       languages = [...languages, language(data.name, data.code)];
     }
+    // Listed like the server does: highlighted first, then by name.
+    languages.sort(
+      (a, b) => Number(b.highlighted) - Number(a.highlighted) || a.name.localeCompare(b.name),
+    );
     return route.fulfill({ json: { languages } });
   });
   // Requesty's model list, as the admin API returns it for a tier's key.
@@ -92,13 +99,13 @@ test("languages are edited in place and saved together", async ({ page }) => {
   );
   await expect(page.getByText("1 not saved.")).toBeVisible();
   await expect(save).toHaveText("Save changes (1)");
-  expect(saves.map((s) => s.name)).toEqual(["Swedish", "German"]);
-  expect(saves[1]).toMatchObject({ hidden: true, speech: { model: "openai/gpt-4o-mini-tts" } });
+  expect(saves.map((s) => s.name)).toEqual(["German", "Swedish"]);
+  expect(saves[0]).toMatchObject({ hidden: true, speech: { model: "openai/gpt-4o-mini-tts" } });
 
   // Saving again can't overwrite the other tab's change, even after other rows saved.
   await save.click();
   await expect(page.getByText("1 not saved.")).toBeVisible();
-  expect(saves.map((s) => s.name)).toEqual(["Swedish", "German"]);
+  expect(saves.map((s) => s.name)).toEqual(["German", "Swedish"]);
 
   // Discard shows French as the other tab left it.
   await page.getByRole("button", { name: "Discard" }).click();
@@ -126,18 +133,24 @@ test("leaving by an admin link with unsaved rows asks first", async ({ page }) =
   await expect(page).toHaveURL(/\/admin\/ai$/);
 });
 
-test("languages are added and reordered from the table", async ({ page }) => {
+test("highlighted languages come first, the rest by name", async ({ page }) => {
   await fakeLanguages(page);
   await page.goto("/admin/languages");
+  const names = page.locator(".lang-table tbody .lang-name");
+  await expect(names).toHaveText(["French", "German", "Swedish"]);
+  await expect(page.getByRole("button", { name: /Move/ })).toHaveCount(0);
+
   await page.getByLabel("New language", { exact: true }).fill("Finnish");
   await page.getByLabel("New language code").fill("fi");
   await page.getByRole("button", { name: "Add language" }).click();
-  const names = page.locator(".lang-table tbody .lang-name");
-  await expect(names).toHaveText(["Swedish", "French", "German", "Finnish"]);
+  await expect(names).toHaveText(["Finnish", "French", "German", "Swedish"]);
 
-  await page.getByRole("button", { name: "Move Finnish up" }).click();
-  await expect(names).toHaveText(["Swedish", "French", "Finnish", "German"]);
-  await expect(page.getByRole("button", { name: "Move Swedish up" })).toBeDisabled();
+  // Rows keep their place while edited; saving puts the highlighted ones first.
+  await page.getByLabel("Swedish highlighted").check();
+  await page.getByLabel("German highlighted").check();
+  await expect(names).toHaveText(["Finnish", "French", "German", "Swedish"]);
+  await page.getByRole("button", { name: /^Save changes/ }).click();
+  await expect(names).toHaveText(["German", "Swedish", "Finnish", "French"]);
 });
 
 test("the table scrolls inside its frame, not the page", async ({ page }) => {
@@ -199,5 +212,18 @@ test("model and voice cells list every choice, whatever they hold", async ({ pag
     "af_heart",
   ]);
   await page.getByLabel("Swedish speech voice").selectOption("af_heart");
+
+  // Voices are grouped by language where the model has several, as for MiMo.
+  await page.getByLabel("Swedish speech model").selectOption("deepinfra/XiaomiMiMo/MiMo-V2.5-tts");
+  const voice = page.getByLabel("Swedish speech voice");
+  await expect(voice.locator("optgroup")).toHaveCount(2);
+  await expect(voice.locator("optgroup[label=Chinese] option")).toHaveText([
+    "冰糖",
+    "茉莉",
+    "苏打",
+    "白桦",
+  ]);
+  await voice.selectOption("茉莉");
+  await expect(voice).toHaveValue("茉莉");
   await expect(page.getByRole("button", { name: /^Save changes/ })).toHaveText("Save changes (1)");
 });

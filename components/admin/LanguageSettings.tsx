@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useEffectEvent, useState, type FormEvent } from "react";
-import { ArrowDown, ArrowUp, CircleAlert } from "lucide-react";
+import { CircleAlert } from "lucide-react";
 import type { LanguageView, Speech, Tier } from "../../lib/admin/ai-settings";
 import {
   BULK_FIELDS,
   changedLanguages,
+  isFlag,
   sameLanguage,
   withField,
   type BulkField,
@@ -119,12 +120,6 @@ export default function LanguageSettings() {
     setErrors({});
     setStatus("");
   }
-  function move(index: number, by: number) {
-    if (!languages) return;
-    const order = languages.map((l) => l.name);
-    [order[index], order[index + by]] = [order[index + by], order[index]];
-    void send("PATCH", { order });
-  }
   function toggle(name: string) {
     setSelected((s) => {
       const next = new Set(s);
@@ -211,10 +206,10 @@ export default function LanguageSettings() {
                 Language
               </th>
               <th rowSpan={2}>Code</th>
+              <th rowSpan={2}>Highlighted</th>
               <th rowSpan={2}>Hidden</th>
               <th colSpan={3}>Speech</th>
               <th colSpan={3}>Plus speech (blank: basic)</th>
-              <th rowSpan={2}>Order</th>
             </tr>
             <tr>
               <th>Model</th>
@@ -264,6 +259,14 @@ export default function LanguageSettings() {
                   <td className="lang-center">
                     <input
                       type="checkbox"
+                      aria-label={`${language.name} highlighted`}
+                      checked={language.highlighted}
+                      onChange={(e) => edit({ ...language, highlighted: e.target.checked })}
+                    />
+                  </td>
+                  <td className="lang-center">
+                    <input
+                      type="checkbox"
                       aria-label={`${language.name} hidden`}
                       checked={language.hidden}
                       onChange={(e) => edit({ ...language, hidden: e.target.checked })}
@@ -283,24 +286,6 @@ export default function LanguageSettings() {
                     value={language.plusSpeech}
                     onChange={(plusSpeech) => edit({ ...language, plusSpeech })}
                   />
-                  <td className="lang-order">
-                    <button
-                      className="icon-button"
-                      disabled={index === 0}
-                      onClick={() => move(index, -1)}
-                      aria-label={`Move ${language.name} up`}
-                    >
-                      <ArrowUp size={14} />
-                    </button>
-                    <button
-                      className="icon-button"
-                      disabled={index === languages.length - 1}
-                      onClick={() => move(index, 1)}
-                      aria-label={`Move ${language.name} down`}
-                    >
-                      <ArrowDown size={14} />
-                    </button>
-                  </td>
                 </tr>
               );
             })}
@@ -311,9 +296,9 @@ export default function LanguageSettings() {
         </table>
       </div>
       <p className="field-help">
+        Languages are listed highlighted first, then by name, here and in every picker.
         &quot;Other&quot; is always offered last and has no speech. Languages can&apos;t be deleted
-        or renamed because saved lists use them; hide one instead. Moving a language saves at once;
-        other edits wait for Save changes.
+        or renamed because saved lists use them; hide one instead.
       </p>
     </>
   );
@@ -323,6 +308,7 @@ export default function LanguageSettings() {
 // matching what the cell already holds), or a text box when there is no list.
 function ChoiceCell({
   options,
+  groups = [],
   value,
   blank,
   label,
@@ -332,6 +318,8 @@ function ChoiceCell({
   onChange,
 }: {
   options: string[] | null;
+  // Options shown under a label (each also in `options`); the rest come first.
+  groups?: { label: string; voices: string[] }[];
   value: string;
   // What an empty value means, shown as its option.
   blank: string;
@@ -364,8 +352,17 @@ function ChoiceCell({
     >
       <option value="">{disabled ? "" : blank}</option>
       {value && !options.includes(value) && <option value={value}>{value} (not listed)</option>}
-      {options.map((option) => (
-        <option key={option}>{option}</option>
+      {options
+        .filter((option) => !groups.some((g) => g.voices.includes(option)))
+        .map((option) => (
+          <option key={option}>{option}</option>
+        ))}
+      {groups.map((group) => (
+        <optgroup key={group.label} label={group.label}>
+          {group.voices.map((option) => (
+            <option key={option}>{option}</option>
+          ))}
+        </optgroup>
       ))}
     </select>
   );
@@ -405,6 +402,7 @@ function SpeechCells({
           className="lang-voice"
           label={`${label} voice`}
           options={voices.voices.length ? voices.voices : null}
+          groups={voices.groups}
           value={value.voice}
           blank="default"
           disabled={!value.model}
@@ -446,7 +444,7 @@ function BulkEdit({
       className="lang-bulk"
       onSubmit={(e) => {
         e.preventDefault();
-        onApply(field, field === "hidden" ? (value === "no" ? "no" : "yes") : value.trim());
+        onApply(field, isFlag(field) ? (value === "no" ? "no" : "yes") : value.trim());
       }}
     >
       <strong>{count} selected</strong>
@@ -457,7 +455,7 @@ function BulkEdit({
           value={field}
           onChange={(e) => {
             setField(e.target.value as BulkField);
-            setValue(e.target.value === "hidden" ? "yes" : "");
+            setValue(isFlag(e.target.value as BulkField) ? "yes" : "");
           }}
         >
           {BULK_FIELDS.map((f) => (
@@ -469,10 +467,10 @@ function BulkEdit({
       </label>
       <label>
         to
-        {field === "hidden" ? (
+        {isFlag(field) ? (
           <select aria-label="Value" value={value} onChange={(e) => setValue(e.target.value)}>
-            <option value="yes">Hidden</option>
-            <option value="no">Shown</option>
+            <option value="yes">{field === "hidden" ? "Hidden" : "Highlighted"}</option>
+            <option value="no">{field === "hidden" ? "Shown" : "Not highlighted"}</option>
           </select>
         ) : (
           <ChoiceCell

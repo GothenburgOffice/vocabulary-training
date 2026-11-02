@@ -2367,8 +2367,9 @@ main > .save-error {
 
 /* Admin → Languages: one compact, editable row per language (#73). Light like a sheet: only
    row lines, and cells show they're editable on hover and focus. */
+/* Wide enough for the table (its columns have fixed widths), and centered like the rest. */
 .admin-main:has(.lang-table) {
-  max-width: none;
+  max-width: 1300px;
 }
 .lang-toolbar,
 .lang-bulk {
@@ -2473,7 +2474,7 @@ main > .save-error {
   width: 110px;
 }
 .lang-table input.lang-instructions {
-  width: 120px;
+  width: 110px;
 }
 .lang-table .lang-select,
 .lang-table .lang-center {

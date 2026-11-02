@@ -7,6 +7,7 @@ import {
   languageCodes,
   OTHER_LANGUAGE,
   pickerLanguages,
+  sortLanguageNames,
 } from "../lib/languages.ts";
 import { languageCreateSchema, speechSchema, tierUpdateSchema } from "../lib/admin/ai-settings.ts";
 
@@ -34,7 +35,10 @@ test("saving a key without a usable encryption key fails with a clear 503", () =
 });
 
 test("pickers offer visible languages and Other, keeping hidden ones already in use", () => {
-  const languages = [...DEFAULT_LANGUAGES, { name: "Klingon", code: "tlh", hidden: true }];
+  const languages = [
+    ...DEFAULT_LANGUAGES,
+    { name: "Klingon", code: "tlh", hidden: true, highlighted: false },
+  ];
   const visible = pickerLanguages(languages);
   assert.equal(visible.at(-1), OTHER_LANGUAGE);
   assert.equal(visible.includes("Klingon"), false);
@@ -44,6 +48,30 @@ test("pickers offer visible languages and Other, keeping hidden ones already in 
   ]);
   assert.equal(languageCodes(languages).tlh, "Klingon");
   assert.equal(languageCodes(languages).sv, "Swedish");
+});
+
+test("languages are ordered highlighted first, then by name, with Other last", () => {
+  const languages = DEFAULT_LANGUAGES.map((l) =>
+    ["Swedish", "French"].includes(l.name) ? { ...l, highlighted: true } : l,
+  );
+  assert.deepEqual(pickerLanguages(languages), [
+    "French",
+    "Swedish",
+    "English",
+    "German",
+    "Italian",
+    "Japanese",
+    "Mandarin",
+    "Spanish",
+    OTHER_LANGUAGE,
+  ]);
+  // Names only saved lists still use sort among the rest.
+  assert.deepEqual(sortLanguageNames([OTHER_LANGUAGE, "Klingon", "German", "Swedish"], languages), [
+    "Swedish",
+    "German",
+    "Klingon",
+    OTHER_LANGUAGE,
+  ]);
 });
 
 test("admin input: codes are optional and normalized, Other is reserved, keys are write-only", () => {

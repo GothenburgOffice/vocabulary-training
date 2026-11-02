@@ -12,9 +12,14 @@ export async function GET() {
     const user = await requireUser();
     const { data, listRevisions } = await loadWorkspace(user.id);
     const settings = await loadAiSettings();
-    // The language list (names, CSV codes, hidden flags) and which AI features this
-    // account can use. Never keys or model settings.
-    const languages = settings.languages.map(({ name, code, hidden }) => ({ name, code, hidden }));
+    // The language list (names, CSV codes, hidden and highlighted flags) and which AI
+    // features this account can use. Never keys or model settings.
+    const languages = settings.languages.map(({ name, code, hidden, highlighted }) => ({
+      name,
+      code,
+      hidden,
+      highlighted,
+    }));
     return json({
       user,
       data,
