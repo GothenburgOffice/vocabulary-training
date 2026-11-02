@@ -36,8 +36,9 @@ export async function saveLimits(limits: AiLimits) {
 }
 
 // Records a call's letters if they fit the account's budgets for this feature: per minute
-// (bursts) and per rolling day (per account type). Otherwise nothing is recorded and the call
-// is refused as "limited". Usage older than 90 days is removed as it goes.
+// (bursts) and per rolling day (per account type); a budget of 0 is no limit. Otherwise
+// nothing is recorded and the call is refused as "limited". Usage older than 90 days is
+// removed as it goes.
 export async function chargeLetters(
   user: { id: string; ai_tier: string },
   kind: AiKind,
@@ -54,7 +55,8 @@ export async function chargeLetters(
          AND at > now() - interval '1 day')
      INSERT INTO ai_usage(user_id, kind, letters)
      SELECT $1::uuid, $2::text, $3::int FROM used
-     WHERE minute + $3::int <= $4::bigint AND day + $3::int <= $5::bigint`,
+     WHERE ($4::bigint = 0 OR minute + $3::int <= $4::bigint)
+       AND ($5::bigint = 0 OR day + $3::int <= $5::bigint)`,
     [user.id, kind, letters, budget.lettersPerMinute, dailyLetters(budget, user.ai_tier)],
   );
   await db.query("DELETE FROM ai_usage WHERE at < now() - interval '90 days'");
