@@ -7,6 +7,7 @@ import { feedbackRequestSchema } from "../../../lib/server/feedback-input";
 import { body, fail, HttpError, json, requireOrigin } from "../../../lib/server/http";
 import { loadAiSettings } from "../../../lib/server/site-settings";
 import {
+  checkFeedbackConfig,
   FeedbackLimiter,
   FeedbackNotNeeded,
   FeedbackUnavailable,
@@ -34,6 +35,9 @@ export async function POST(request: Request) {
     const config = aiConfig(user.ai_tier, await loadAiSettings());
     if (!config.languageNotes)
       return json({ status: "disabled", message: "AI comments are not enabled on this server." });
+    const provider = { apiKey: config.apiKey, model: config.languageNoteModel };
+    // Before the charge: letters count only for a call that can reach the provider.
+    checkFeedbackConfig(provider);
     const siteLimits = await readLimits();
     release = limits.acquire(user.id, Date.now(), siteLimits.note.cooldownMs);
     await chargeLetters(
@@ -42,10 +46,7 @@ export async function POST(request: Request) {
       letterCount(input.source, input.reference, ...(input.accepted ?? []), input.answer),
       siteLimits,
     );
-    const comment = await requestLanguageComment(input, {
-      apiKey: config.apiKey,
-      model: config.languageNoteModel,
-    });
+    const comment = await requestLanguageComment(input, provider);
     return json({ status: "ready", comment });
   } catch (error) {
     if (error instanceof FeedbackNotNeeded) return json({ status: "not-needed" });

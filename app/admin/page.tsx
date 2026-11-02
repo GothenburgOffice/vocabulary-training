@@ -35,7 +35,6 @@ export default async function AdminOverview() {
           <tr>
             <th scope="col">Feature</th>
             <th scope="col">Last 24 hours</th>
-            <th scope="col">Accounts, 24 hours</th>
             <th scope="col">Last 7 days</th>
             <th scope="col">Last 90 days</th>
           </tr>
@@ -43,15 +42,14 @@ export default async function AdminOverview() {
         <tbody>
           {(["speech", "note"] as const).map((kind) => {
             const row = usage.find((u) => u.kind === kind);
-            const cell = (calls = 0, letters = 0) =>
-              `${calls.toLocaleString("en")} ${kind === "speech" ? "clips" : "notes"} · ${letters.toLocaleString("en")} letters`;
+            const cell = (calls = 0, letters = 0, accounts = 0) =>
+              `${calls.toLocaleString("en")} ${kind === "speech" ? "clips" : "notes"} · ${letters.toLocaleString("en")} letters · ${accounts.toLocaleString("en")} ${accounts === 1 ? "account" : "accounts"}`;
             return (
               <tr key={kind}>
                 <th scope="row">{kind === "speech" ? "Speech" : "Language notes"}</th>
-                <td>{cell(row?.calls_day, row?.letters_day)}</td>
-                <td>{(row?.accounts_day ?? 0).toLocaleString("en")}</td>
-                <td>{cell(row?.calls_week, row?.letters_week)}</td>
-                <td>{cell(row?.calls_90, row?.letters_90)}</td>
+                <td>{cell(row?.calls_day, row?.letters_day, row?.accounts_day)}</td>
+                <td>{cell(row?.calls_week, row?.letters_week, row?.accounts_week)}</td>
+                <td>{cell(row?.calls_90, row?.letters_90, row?.accounts_90)}</td>
               </tr>
             );
           })}

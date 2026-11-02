@@ -315,3 +315,42 @@ test("letters are charged only for new requests, and a refused charge frees the 
     "miss",
   );
 });
+
+test("the same clip clicked again after the block replaces a stuck request", async () => {
+  let now = Date.UTC(2026, 10, 2, 10);
+  const service = new SpeechService(() => now);
+  const signals: AbortSignal[] = [];
+  const answers: (() => void)[] = [];
+  const transport = (async (_url: string, init: RequestInit) => {
+    signals.push(init.signal!);
+    await new Promise<void>((resolve, reject) => {
+      answers.push(resolve);
+      init.signal!.addEventListener("abort", () => reject(new Error("aborted")));
+    });
+    return wav();
+  }) as unknown as typeof fetch;
+  const guard = { blockMs: 10_000, cooldownMs: 0 };
+  // Both end aborted; the checks are attached now, before that happens.
+  const stuck = assert.rejects(
+    service.get("a", input, config, transport, guard),
+    FeedbackUnavailable,
+  );
+  while (!answers.length) await new Promise((resolve) => setImmediate(resolve));
+  // Within the block, the same clip shares the request in flight.
+  now += 5_000;
+  const shared = assert.rejects(
+    service.get("a", input, config, transport, guard),
+    FeedbackUnavailable,
+  );
+  // After it, the same clip starts a new request and the stuck one is aborted.
+  now += 5_000;
+  const fresh = service.get("a", input, config, transport, guard);
+  while (answers.length < 2) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(signals[0].aborted, true);
+  await stuck;
+  await shared;
+  answers[1]();
+  assert.equal((await fresh).cache, "miss");
+  // The finished request is the one cached, not removed by the abandoned one.
+  assert.equal((await service.get("a", input, config, transport, guard)).cache, "hit");
+});
