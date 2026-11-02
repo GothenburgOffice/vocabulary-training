@@ -1,6 +1,6 @@
 import { ArrowRight, ChevronRight, Download, Plus, Search, Trash2, Upload } from "lucide-react";
 import { BookMark } from "../../lib/brand";
-import { listStats, type List } from "../../lib/learning";
+import { listStats, listTitle, type List } from "../../lib/learning";
 import type { PracticeSettings } from "../../lib/practice";
 import SpeechButton from "../SpeechButton";
 import Button from "./Button";
@@ -47,7 +47,7 @@ export default function LibraryView({
   const totalDue = stats.reduce((sum, s) => sum + s.due, 0);
   const totalLearned = stats.reduce((sum, s) => sum + s.learned, 0);
   const visible = lists.filter((l) =>
-    (l.title + " " + l.from + " " + l.to).toLowerCase().includes(query.toLowerCase()),
+    (listTitle(l) + " " + l.from + " " + l.to).toLowerCase().includes(query.toLowerCase()),
   );
   return (
     <>
@@ -119,7 +119,7 @@ export default function LibraryView({
                 >
                   <div className="list-name">
                     <div>
-                      <strong>{l.title}</strong>
+                      <strong>{listTitle(l)}</strong>
                       <small>
                         {l.words.length} words
                         {l.description ? (
@@ -136,7 +136,11 @@ export default function LibraryView({
                       {learned}/{l.words.length} established
                     </span>
                     <div>
-                      <i style={{ width: `${(learned / l.words.length) * 100}%` }} />
+                      <i
+                        style={{
+                          width: `${l.words.length ? (learned / l.words.length) * 100 : 0}%`,
+                        }}
+                      />
                     </div>
                   </div>
                   <ChevronRight size={16} />
@@ -175,7 +179,7 @@ export default function LibraryView({
             <section className="word-preview">
               <div className="section-top">
                 <div>
-                  <h2>Inside {list.title}</h2>
+                  <h2>Inside {listTitle(list)}</h2>
                   <p>{list.description}</p>
                 </div>
                 <div className="inline-actions">

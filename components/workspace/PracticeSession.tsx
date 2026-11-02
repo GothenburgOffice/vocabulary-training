@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef } from "react";
 import { ArrowRight, X } from "lucide-react";
-import { answersFor, type List, type Word } from "../../lib/learning";
+import { answersFor, listTitle, type List, type Word } from "../../lib/learning";
 import { isLastWord, type Practice, type PracticeSettings } from "../../lib/practice";
 import { AiFeaturesContext } from "../AiFeatures";
 import LanguageNote from "../LanguageNote";
@@ -44,7 +44,7 @@ export default function PracticeSession({
     <>
       <header className="page-heading">
         <div>
-          <h1>{list.title}</h1>
+          <h1>{listTitle(list)}</h1>
           <p>
             {forward ? `${list.from} → ${list.to}` : `${list.to} → ${list.from}`} ·{" "}
             {mode === "adaptive" ? "Smart mix" : "Random order"}

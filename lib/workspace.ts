@@ -36,6 +36,9 @@ export type WorkspaceSync = {
   review: (review: Review) => Promise<History | null>;
   completeRun: (run: Run) => void;
   saveProfile: (baseLanguage: string, learningLanguage: string) => void;
+  // Whether the workspace holds edits it hasn't reported yet (an unfinished row, pasted text
+  // not imported, a change still waiting to autosave). They count as unsaved changes.
+  pending: (pending: boolean) => void;
 };
 // Whether everything the workspace reported to WorkspaceSync is saved.
 export type SaveState = "saved" | "unsaved" | "saving" | "failed";

@@ -105,3 +105,22 @@ test("leaving a session asks first and keeps it out of history", async ({ page }
   await page.getByRole("button", { name: "Session history" }).click();
   await expect(page.getByRole("heading", { name: "A fresh start." })).toBeVisible();
 });
+
+test("practice settings are remembered in this browser", async ({ page }) => {
+  await page.goto("/");
+  await createList(page, "Settings", [["hej", "bonjour"]]);
+  await page.getByRole("button", { name: "Reverse test direction" }).click();
+  await page.getByLabel("Practice mode").selectOption("random");
+  await page.getByLabel("Session size").selectOption("5");
+  await page.getByText("Answer settings").click();
+  await page.getByLabel("Require accents").uncheck();
+  await page.reload();
+  await expect(page.getByLabel("Practice mode")).toHaveValue("random");
+  await expect(page.getByLabel("Session size")).toHaveValue("5");
+  await expect(page.locator(".direction-card")).toHaveText(/French\s*Swedish/);
+  await page.getByText("Answer settings").click();
+  await expect(page.getByLabel("Require accents")).not.toBeChecked();
+  // Only in the browser: the server's workspace has no settings.
+  const workspace = await (await page.request.get("/api/workspace")).text();
+  expect(workspace).not.toContain("accents");
+});

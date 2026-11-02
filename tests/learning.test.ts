@@ -14,6 +14,7 @@ import {
   weight,
   reviewed,
   listStats,
+  listTitle,
   parseCSV,
   encodeCSV,
 } from "../lib/learning.ts";
@@ -191,4 +192,8 @@ test("list statistics count established and due words per direction", () => {
     learned: 1,
     due: 0,
   });
+});
+test("a list without a name is shown as Untitled list", () => {
+  assert.equal(listTitle({ title: "Basics" }), "Basics");
+  assert.equal(listTitle({ title: "  " }), "Untitled list");
 });

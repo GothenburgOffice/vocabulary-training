@@ -24,6 +24,24 @@ export const DEFAULT_SETTINGS: PracticeSettings = {
   accents: true,
 };
 
+// Practice settings are remembered in the browser (#67): an essential preference, not sent
+// anywhere. What comes back is checked field by field; anything else is the default.
+export const SETTINGS_KEY = "vocabulary.training:practice-settings";
+export function readSettings(stored: string | null): PracticeSettings {
+  let value: Partial<Record<keyof PracticeSettings, unknown>> = {};
+  try {
+    value = JSON.parse(stored ?? "{}") ?? {};
+  } catch {}
+  const d = DEFAULT_SETTINGS;
+  return {
+    direction: value.direction === "reverse" ? "reverse" : d.direction,
+    mode: value.mode === "random" ? "random" : d.mode,
+    length: [5, 8, 1000].includes(value.length as number) ? (value.length as number) : d.length,
+    caseSensitive: typeof value.caseSensitive === "boolean" ? value.caseSensitive : d.caseSensitive,
+    accents: typeof value.accents === "boolean" ? value.accents : d.accents,
+  };
+}
+
 // One practice session: the words to ask (ids, in order), the current one, the answer being
 // typed, the feedback once checked, and every checked answer so far.
 export type Feedback = Result & { skipped?: boolean };
