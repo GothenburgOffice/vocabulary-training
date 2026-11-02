@@ -10,6 +10,7 @@ import {
   type List,
 } from "../learning";
 import type { listSaveSchema, profileSchema, reviewSchema, runSaveSchema } from "../validation";
+import type { AiWord } from "../ai-words";
 import type { Run, WorkspaceData } from "../workspace";
 import { db } from "./db";
 import { HttpError } from "./http";
@@ -362,4 +363,26 @@ export async function saveProfile(userId: string, profile: z.infer<typeof profil
     profile.baseLanguage,
     profile.learningLanguage,
   ]);
+}
+
+// One of this account's words, for an AI call (#82): its native text, languages and accepted
+// answers (primary first). Null for a word that isn't this account's, or no longer exists.
+export async function readWordForAi(userId: string, wordId: string): Promise<AiWord | null> {
+  const { rows } = await db.query(
+    `SELECT w.native_text, w.native_language, w.learning_language,
+       array_agg(a.learning_text ORDER BY a.position) AS answers
+     FROM words w JOIN accepted_answers a ON a.word_id = w.id
+     WHERE w.id = $1 AND w.user_id = $2
+     GROUP BY w.id`,
+    [wordId, userId],
+  );
+  const row = rows[0];
+  return row
+    ? {
+        native: row.native_text,
+        nativeLanguage: row.native_language,
+        learningLanguage: row.learning_language,
+        answers: row.answers,
+      }
+    : null;
 }

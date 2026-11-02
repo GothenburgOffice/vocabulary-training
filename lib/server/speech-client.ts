@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { SPEECH_TIMEOUT_MS, type SpeechInput } from "../speech";
 import { speechSchema } from "./speech-input";
-import { FeedbackLimiter, FeedbackUnavailable } from "./requesty-client";
+import { FeedbackUnavailable } from "./requesty-client";
 
 const endpoint = "https://router.requesty.ai/v1";
 const MAX_AUDIO_BYTES = 4_000_000;
@@ -29,10 +29,13 @@ export async function requestSpeech(
   input: SpeechInput,
   config: SpeechConfig,
   transport: typeof fetch = fetch,
+  // Aborts the request when a newer one from the account takes over (SpeechGate).
+  abandon?: AbortSignal,
 ): Promise<SpeechAudio> {
   if (!speechSchema.safeParse(input).success) throw new FeedbackUnavailable("configuration");
   checkConfig(config);
-  const signal = AbortSignal.timeout(SPEECH_TIMEOUT_MS);
+  const timeout = AbortSignal.timeout(SPEECH_TIMEOUT_MS);
+  const signal = abandon ? AbortSignal.any([timeout, abandon]) : timeout;
   const headers = { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" };
   try {
     const response = await transport(`${endpoint}/audio/speech`, {
@@ -87,12 +90,51 @@ export async function requestSpeech(
 // How long a clip stays in memory; /privacy promises it, so expiry deletes it on a timer.
 const CACHE_MS = 60 * 60_000;
 // Private, bounded, one-process demo cache. Never persist words/audio to disk.
+// One speech request at a time per account (#82), per server process: the app runs as one
+// process, so that's per account. With several processes, each would keep its own turns (the
+// letter budgets stay shared, in the database); a shared lease would be needed then. Another request while one is in flight is
+// refused as "busy", so the first one plays instead of being dropped for the latest click,
+// unless the first has waited `blockMs`: then it is abandoned (aborted, so it stops costing)
+// and the new one goes ahead. A cooldown between requests catches scripted use.
+export class SpeechGate {
+  private running = new Map<string, { started: number; controller: AbortController }>();
+  private last = new Map<string, number>();
+  acquire(user: string, now: number, blockMs: number, cooldownMs: number) {
+    const other = this.running.get(user);
+    if (other && now - other.started < blockMs) throw new FeedbackUnavailable("busy");
+    if (now < (this.last.get(user) ?? 0) + cooldownMs) throw new FeedbackUnavailable("limited");
+    other?.controller.abort();
+    // Forget old cooldowns so the map only holds recently active accounts.
+    if (this.last.size > 1_000)
+      for (const [id, at] of this.last) if (at + cooldownMs <= now) this.last.delete(id);
+    const entry = { started: now, controller: new AbortController() };
+    this.running.set(user, entry);
+    this.last.set(user, now);
+    return {
+      signal: entry.controller.signal,
+      release: () => {
+        if (this.running.get(user) === entry) this.running.delete(user);
+      },
+    };
+  }
+}
+
+// What a request may use, from the site's limits; `charge` records its letters or refuses it.
+export type SpeechGuard = {
+  blockMs: number;
+  cooldownMs: number;
+  charge?: () => Promise<void>;
+};
+const NO_GUARD: SpeechGuard = { blockMs: 10_000, cooldownMs: 500 };
+
 // Account scope prevents another user from retrieving a cached private word.
 export class SpeechService {
   private entries = new Map<string, { audio: SpeechAudio; expires: number }>();
-  private pending = new Map<string, Promise<SpeechAudio>>();
+  // Requests in flight, with when they started: a duplicate shares one while it is younger than
+  // the block, and replaces it after (a request that stuck).
+  private pending = new Map<string, { task: Promise<SpeechAudio>; started: number }>();
   private bytes = 0;
-  private limiter = new FeedbackLimiter(500, 2);
+  private gate = new SpeechGate();
   constructor(
     private readonly clock: () => number = Date.now,
     private readonly maxEntries = 128,
@@ -114,6 +156,7 @@ export class SpeechService {
     input: SpeechInput,
     config: SpeechConfig,
     transport: typeof fetch = fetch,
+    guard: SpeechGuard = NO_GUARD,
   ) {
     checkConfig(config);
     if (!user || user.length > 256 || !speechSchema.safeParse(input).success)
@@ -138,13 +181,20 @@ export class SpeechService {
       return { ...existing.audio, cache: "hit" as const };
     }
     const running = this.pending.get(key);
-    if (running) return { ...(await running), cache: "hit" as const };
+    if (running && now - running.started < guard.blockMs)
+      return { ...(await running.task), cache: "hit" as const };
     if (existing) {
       this.bytes -= existing.audio.bytes.byteLength;
       this.entries.delete(key);
     }
-    const release = this.limiter.acquire(user, now);
-    const task = requestSpeech(input, config, transport)
+    // Replays and cached clips cost nothing; only a new request takes the account's turn and
+    // its letters. It's registered as pending at once, so a duplicate arriving while the
+    // letters are charged shares it instead of being refused as busy.
+    const turn = this.gate.acquire(user, now, guard.blockMs, guard.cooldownMs);
+    const task = (async () => {
+      await guard.charge?.();
+      return requestSpeech(input, config, transport, turn.signal);
+    })()
       .then((audio) => {
         const entry = { audio, expires: this.clock() + CACHE_MS };
         this.entries.set(key, entry);
@@ -160,10 +210,11 @@ export class SpeechService {
         return audio;
       })
       .finally(() => {
-        this.pending.delete(key);
-        release();
+        // A newer request may have replaced this one under the same key.
+        if (this.pending.get(key)?.task === task) this.pending.delete(key);
+        turn.release();
       });
-    this.pending.set(key, task);
+    this.pending.set(key, { task, started: now });
     return { ...(await task), cache: "miss" as const };
   }
 }

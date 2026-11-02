@@ -78,19 +78,17 @@ test("language notes only after wrong answers, answer audio only after grading",
   // Notes only for the one wrong answer, carrying only the exercise. (`next dev` runs effects
   // twice in Strict Mode, cancelling the first request, so count the answers, not requests.)
   expect(new Set(calls.feedback.map((r) => r.postData())).size).toBe(1);
+  // The browser names the word; only the typed answer is free text. The server reads the rest
+  // from the database (#82).
   expect(calls.feedback[0].postDataJSON()).toEqual({
-    sourceLanguage: "Swedish",
-    targetLanguage: "French",
-    explanationLanguage: "Swedish",
-    source: "tack",
-    reference: "merci",
-    accepted: [],
+    wordId: expect.any(String),
+    direction: "forward",
     answer: "mercy",
-    correct: false,
     requireAccents: true,
     caseSensitive: false,
   });
-  expect(calls.speech[0].postDataJSON()).toEqual({ text: "merci", language: "French" });
+  // The answer's audio reads every accepted answer (#79).
+  expect(calls.speech[0].postDataJSON()).toEqual({ wordId: expect.any(String), part: "answers" });
 });
 
 test("without AI features there are no speaker buttons, notes or AI requests", async ({ page }) => {
@@ -109,4 +107,41 @@ test("without AI features there are no speaker buttons, notes or AI requests", a
   await expect(page.locator(".speech-button")).toHaveCount(0);
   await expect(page.getByRole("complementary", { name: "AI language note" })).toHaveCount(0);
   expect(requests).toEqual([]);
+});
+
+test("a second clip while one loads says so, and the first one still plays", async ({ page }) => {
+  await setAi(page, { languageNotes: false, speech: ["Swedish", "French"] });
+  // Like the server: one request at a time per account; another is answered "busy".
+  let loading = false;
+  let release = () => {};
+  const aborted: string[] = [];
+  page.on("requestfailed", (r) => {
+    if (r.url().endsWith("/api/speech")) aborted.push(r.postData() ?? "");
+  });
+  await page.route("/api/speech", async (route) => {
+    if (loading) return route.fulfill({ status: 429, json: { status: "busy" } });
+    loading = true;
+    await new Promise<void>((resolve) => (release = resolve));
+    loading = false;
+    return route.fulfill({ contentType: "audio/wav", body: Buffer.from("RIFF0000WAVE") });
+  });
+  await page.goto("/");
+  await createList(page, "Clips", [
+    ["hej", "bonjour"],
+    ["tack", "merci"],
+  ]);
+  await page.getByRole("button", { name: "Play hej in Swedish" }).click();
+  await expect(page.getByRole("button", { name: "Play hej in Swedish" })).toHaveAttribute(
+    "aria-busy",
+    "true",
+  );
+  await page.getByRole("button", { name: "Play tack in Swedish" }).click();
+  await expect(page.getByText("Audio request already in progress. Try again soon.")).toBeVisible();
+  // The first request wasn't cancelled by the second click.
+  release();
+  await expect(page.getByRole("button", { name: "Play hej in Swedish" })).not.toHaveAttribute(
+    "aria-busy",
+    "true",
+  );
+  expect(aborted).toEqual([]);
 });

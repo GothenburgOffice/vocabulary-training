@@ -20,13 +20,15 @@ const wav = () => {
   return new Response(bytes, { headers: { "Content-Type": "audio/mpeg" } });
 };
 
-test("speech input is short word data, with no client-selected model, voice or extra fields", () => {
+test("speech input is word data built on the server, with no model, voice or extra fields", () => {
   assert.equal(speechSchema.safeParse(input).success, true);
+  assert.equal(speechSchema.safeParse({ ...input, text: "x".repeat(1000) }).success, true);
   for (const value of [
     { ...input, model: "paid/model" },
     { ...input, voice: "other" },
     { ...input, text: "" },
-    { ...input, text: "x".repeat(201) },
+    // Every accepted answer may be read, up to 1,000 characters (#82).
+    { ...input, text: "x".repeat(1001) },
     { ...input, text: "hello\u0000" },
     { ...input, language: "" },
   ]) {
@@ -234,4 +236,121 @@ test("failed speech is not cached, releases concurrency and respects the byte bu
   now += 1000;
   assert.equal((await service.get("a", input, config, transport)).cache, "miss");
   assert.equal(calls, 2);
+});
+
+test("one speech request at a time per account; a stuck one is replaced after the block", async () => {
+  let now = Date.UTC(2026, 10, 2, 10);
+  const service = new SpeechService(() => now);
+  const signals: AbortSignal[] = [];
+  const answers: (() => void)[] = [];
+  // Each provider call waits until the test lets it answer, or is aborted.
+  const transport = (async (_url: string, init: RequestInit) => {
+    signals.push(init.signal!);
+    await new Promise<void>((resolve, reject) => {
+      answers.push(resolve);
+      init.signal!.addEventListener("abort", () => reject(new Error("aborted")));
+    });
+    return wav();
+  }) as unknown as typeof fetch;
+  const guard = { blockMs: 10_000, cooldownMs: 0 };
+  const first = service.get("a", input, config, transport, guard);
+  while (!answers.length) await new Promise((resolve) => setImmediate(resolve));
+
+  // Another clip while the first loads: refused as busy, and the first one carries on.
+  now += 2_000;
+  await assert.rejects(
+    service.get("a", { ...input, text: "Please" }, config, transport, guard),
+    (e: FeedbackUnavailable) => e.reason === "busy",
+  );
+  // Other accounts are never held up by it.
+  const other = service.get("b", { ...input, text: "Please" }, config, transport, guard);
+  while (answers.length < 2) await new Promise((resolve) => setImmediate(resolve));
+  answers[0]();
+  answers[1]();
+  assert.equal((await first).cache, "miss");
+  assert.equal((await other).cache, "miss");
+
+  // A request still unanswered after the block is abandoned, and stops costing.
+  const stuck = service.get("a", { ...input, text: "Slow" }, config, transport, guard);
+  while (answers.length < 3) await new Promise((resolve) => setImmediate(resolve));
+  now += 10_000;
+  const next = service.get("a", { ...input, text: "Next" }, config, transport, guard);
+  await assert.rejects(stuck, FeedbackUnavailable);
+  assert.equal(signals[2].aborted, true);
+  while (answers.length < 4) await new Promise((resolve) => setImmediate(resolve));
+  answers[3]();
+  assert.equal((await next).cache, "miss");
+});
+
+test("letters are charged only for new requests, and a refused charge frees the account", async () => {
+  const now = Date.UTC(2026, 10, 2, 10);
+  const service = new SpeechService(() => now);
+  const transport = (async () => wav()) as typeof fetch;
+  let charged = 0;
+  const guard = {
+    blockMs: 10_000,
+    cooldownMs: 0,
+    charge: async () => {
+      charged++;
+    },
+  };
+  await service.get("a", input, config, transport, guard);
+  // A cached replay is free.
+  assert.equal((await service.get("a", input, config, transport, guard)).cache, "hit");
+  assert.equal(charged, 1);
+
+  const refused = {
+    ...guard,
+    charge: async () => {
+      throw new FeedbackUnavailable("limited");
+    },
+  };
+  await assert.rejects(
+    service.get("a", { ...input, text: "Please" }, config, transport, refused),
+    (e: FeedbackUnavailable) => e.reason === "limited",
+  );
+  // Nothing is left in flight: the next request isn't refused as busy.
+  assert.equal(
+    (await service.get("a", { ...input, text: "Please" }, config, transport, guard)).cache,
+    "miss",
+  );
+});
+
+test("the same clip clicked again after the block replaces a stuck request", async () => {
+  let now = Date.UTC(2026, 10, 2, 10);
+  const service = new SpeechService(() => now);
+  const signals: AbortSignal[] = [];
+  const answers: (() => void)[] = [];
+  const transport = (async (_url: string, init: RequestInit) => {
+    signals.push(init.signal!);
+    await new Promise<void>((resolve, reject) => {
+      answers.push(resolve);
+      init.signal!.addEventListener("abort", () => reject(new Error("aborted")));
+    });
+    return wav();
+  }) as unknown as typeof fetch;
+  const guard = { blockMs: 10_000, cooldownMs: 0 };
+  // Both end aborted; the checks are attached now, before that happens.
+  const stuck = assert.rejects(
+    service.get("a", input, config, transport, guard),
+    FeedbackUnavailable,
+  );
+  while (!answers.length) await new Promise((resolve) => setImmediate(resolve));
+  // Within the block, the same clip shares the request in flight.
+  now += 5_000;
+  const shared = assert.rejects(
+    service.get("a", input, config, transport, guard),
+    FeedbackUnavailable,
+  );
+  // After it, the same clip starts a new request and the stuck one is aborted.
+  now += 5_000;
+  const fresh = service.get("a", input, config, transport, guard);
+  while (answers.length < 2) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(signals[0].aborted, true);
+  await stuck;
+  await shared;
+  answers[1]();
+  assert.equal((await fresh).cache, "miss");
+  // The finished request is the one cached, not removed by the abandoned one.
+  assert.equal((await service.get("a", input, config, transport, guard)).cache, "hit");
 });

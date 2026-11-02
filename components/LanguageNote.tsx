@@ -6,33 +6,29 @@ import {
   shouldRequestFeedback,
   type FeedbackInput,
 } from "../lib/feedback";
+import type { Direction } from "../lib/learning";
 
 type Note = { status: "loading" | "ready" | "unavailable"; text: string };
-type Props = { input: FeedbackInput; skipped: boolean };
+// `input` decides here whether a note is needed at all; the request itself names the stored
+// word and sends only the typed answer, and the server rebuilds the rest from the word (#82).
+type Props = { input: FeedbackInput; wordId: string; direction: Direction; skipped: boolean };
 
 // A different exercise or answer remounts the note, so it starts loading afresh.
 export default function LanguageNote(props: Props) {
-  return <NoteRequest key={JSON.stringify([props.skipped, props.input])} {...props} />;
+  return (
+    <NoteRequest
+      key={JSON.stringify([props.skipped, props.wordId, props.direction, props.input])}
+      {...props}
+    />
+  );
 }
 
-function NoteRequest({ input, skipped }: Props) {
+function NoteRequest({ input, wordId, direction, skipped }: Props) {
   const [note, setNote] = useState<Note>({
     status: "loading",
     text: "Preparing a short language note…",
   });
-  const {
-    sourceLanguage,
-    targetLanguage,
-    explanationLanguage,
-    source,
-    reference,
-    answer,
-    correct,
-    requireAccents,
-    caseSensitive,
-  } = input;
-  // A string, so the effect below only reruns when the answers really change.
-  const accepted = JSON.stringify(input.accepted ?? []);
+  const { answer, requireAccents, caseSensitive } = input;
   const needsFeedback = !skipped && shouldRequestFeedback(input);
   useEffect(() => {
     if (!needsFeedback) return;
@@ -47,18 +43,7 @@ function NoteRequest({ input, skipped }: Props) {
           signal: controller.signal,
           cache: "no-store",
           credentials: "same-origin",
-          body: JSON.stringify({
-            sourceLanguage,
-            targetLanguage,
-            explanationLanguage,
-            source,
-            reference,
-            accepted: JSON.parse(accepted),
-            answer,
-            correct,
-            requireAccents,
-            caseSensitive,
-          }),
+          body: JSON.stringify({ wordId, direction, answer, requireAccents, caseSensitive }),
         });
         if (!response.ok) throw new Error("Unavailable");
         const result = await response.json();
@@ -87,19 +72,7 @@ function NoteRequest({ input, skipped }: Props) {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [
-    needsFeedback,
-    sourceLanguage,
-    targetLanguage,
-    explanationLanguage,
-    source,
-    reference,
-    accepted,
-    answer,
-    correct,
-    requireAccents,
-    caseSensitive,
-  ]);
+  }, [needsFeedback, wordId, direction, answer, requireAccents, caseSensitive]);
   if (!needsFeedback) return null;
   const text = skipped
     ? "No answer to comment on. Try the word again when you are ready."

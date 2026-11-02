@@ -1,36 +1,52 @@
-import { feedbackSchema } from "../../../lib/server/feedback-input";
+import { letterCount, noteInput } from "../../../lib/ai-words";
 import { shouldRequestFeedback } from "../../../lib/feedback";
 import { requireUser } from "../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../lib/server/http";
 import { aiConfig } from "../../../lib/server/ai-config";
+import { chargeLetters, readLimits } from "../../../lib/server/ai-limits";
+import { feedbackRequestSchema } from "../../../lib/server/feedback-input";
+import { body, fail, HttpError, json, requireOrigin } from "../../../lib/server/http";
 import { loadAiSettings } from "../../../lib/server/site-settings";
 import {
+  checkFeedbackConfig,
   FeedbackLimiter,
   FeedbackNotNeeded,
   FeedbackUnavailable,
   requestLanguageComment,
 } from "../../../lib/server/requesty-client";
+import { readWordForAi } from "../../../lib/server/workspace-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const limits = new FeedbackLimiter();
 
+// A language note on a wrong answer to one of the account's words. The word, its answers and
+// the grade come from the database; only the typed answer comes from the client (#82).
 export async function POST(request: Request) {
   let release: (() => void) | undefined;
   try {
     requireOrigin(request);
     const user = await requireUser();
-    const parsed = feedbackSchema.safeParse(await body(request, 20_000));
+    const parsed = feedbackRequestSchema.safeParse(await body(request, 4_000));
     if (!parsed.success) throw new HttpError(400, "This language-note request is invalid.");
-    if (!shouldRequestFeedback(parsed.data)) return json({ status: "not-needed" });
+    const word = await readWordForAi(user.id, parsed.data.wordId);
+    if (!word) throw new HttpError(404, "Word not found.");
+    const input = noteInput(word, parsed.data);
+    if (!shouldRequestFeedback(input)) return json({ status: "not-needed" });
     const config = aiConfig(user.ai_tier, await loadAiSettings());
     if (!config.languageNotes)
       return json({ status: "disabled", message: "AI comments are not enabled on this server." });
-    release = limits.acquire(user.id);
-    const comment = await requestLanguageComment(parsed.data, {
-      apiKey: config.apiKey,
-      model: config.languageNoteModel,
-    });
+    const provider = { apiKey: config.apiKey, model: config.languageNoteModel };
+    // Before the charge: letters count only for a call that can reach the provider.
+    checkFeedbackConfig(provider);
+    const siteLimits = await readLimits();
+    release = limits.acquire(user.id, Date.now(), siteLimits.note.cooldownMs);
+    await chargeLetters(
+      user,
+      "note",
+      letterCount(input.source, input.reference, ...(input.accepted ?? []), input.answer),
+      siteLimits,
+    );
+    const comment = await requestLanguageComment(input, provider);
     return json({ status: "ready", comment });
   } catch (error) {
     if (error instanceof FeedbackNotNeeded) return json({ status: "not-needed" });

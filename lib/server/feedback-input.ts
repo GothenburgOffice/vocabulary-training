@@ -1,6 +1,18 @@
 import { z } from "zod";
 
 const language = z.string().trim().min(1).max(60);
+// POST /api/feedback: which stored word, in which direction, and the learner's typed answer:
+// the only free text (#82). The server builds the note's input from the stored word.
+export const feedbackRequestSchema = z
+  .object({
+    wordId: z.string().uuid(),
+    direction: z.enum(["forward", "reverse"]),
+    answer: z.string().trim().min(1).max(500),
+    requireAccents: z.boolean(),
+    caseSensitive: z.boolean(),
+  })
+  .strict();
+// The note's input, as built on the server.
 export const feedbackSchema = z
   .object({
     sourceLanguage: language,

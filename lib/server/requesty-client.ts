@@ -10,7 +10,8 @@ import {
 
 const endpoint = "https://router.requesty.ai/v1";
 export class FeedbackUnavailable extends Error {
-  constructor(public reason: "unavailable" | "limited" | "configuration" = "unavailable") {
+  // "busy": the account already has a speech request in flight (#82).
+  constructor(public reason: "unavailable" | "limited" | "busy" | "configuration" = "unavailable") {
     super(reason);
   }
 }
@@ -53,12 +54,8 @@ export async function readRequestyJSON(response: Response, max: number): Promise
   }
 }
 
-export async function requestLanguageComment(
-  input: FeedbackInput,
-  config: Config,
-  transport: Fetcher = fetch,
-) {
-  if (!shouldRequestFeedback(input)) throw new FeedbackNotNeeded();
+// Refuses a configuration no request could use, before anything is charged or sent.
+export function checkFeedbackConfig(config: Config) {
   const policy = config.model.startsWith("policy/");
   if (
     !config.apiKey ||
@@ -67,6 +64,15 @@ export async function requestLanguageComment(
     (policy && !/^policy\/[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(config.model))
   )
     throw new FeedbackUnavailable("configuration");
+}
+
+export async function requestLanguageComment(
+  input: FeedbackInput,
+  config: Config,
+  transport: Fetcher = fetch,
+) {
+  if (!shouldRequestFeedback(input)) throw new FeedbackNotNeeded();
+  checkFeedbackConfig(config);
   const signal = AbortSignal.timeout(FEEDBACK_TIMEOUT_MS);
   const headers = { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" };
   try {
@@ -127,14 +133,15 @@ export class FeedbackLimiter {
   ) {}
   private next = new Map<string, number>();
   private inFlight = new Map<string, number>();
-  acquire(user: string, now = Date.now()): () => void {
+  // `cooldownMs` overrides the default, from the site's limits (#82).
+  acquire(user: string, now = Date.now(), cooldownMs = this.userCooldownMs): () => void {
     const running = this.inFlight.get(user) ?? 0;
     if (running >= this.maxInFlight || now < (this.next.get(user) ?? 0))
       throw new FeedbackUnavailable("limited");
     // Forget expired cooldowns so the map only holds recently active accounts.
     if (this.next.size > 1_000)
       for (const [id, until] of this.next) if (until <= now) this.next.delete(id);
-    this.next.set(user, now + this.userCooldownMs);
+    this.next.set(user, now + cooldownMs);
     this.inFlight.set(user, running + 1);
     let released = false;
     return () => {

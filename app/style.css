@@ -2609,3 +2609,54 @@ main > .save-error {
     display: none;
   }
 }
+
+/* Admin overview: site-wide AI usage (#82). */
+.admin-subheading {
+  margin: 32px 0 12px;
+  font-size: var(--text-base);
+}
+.admin-usage {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.admin-usage th,
+.admin-usage td {
+  padding: 8px 12px 8px 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.admin-usage thead th {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+@media (max-width: 680px) {
+  .admin-usage {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+/* Admin → Limits: one row per limit, speech and notes side by side. */
+.limits-table th small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 400;
+}
+.limits-table tbody th {
+  font-weight: 500;
+}
+.limits-table input {
+  width: 120px;
+  min-height: 36px;
+  padding: 4px 8px;
+}
+.limits-default {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}

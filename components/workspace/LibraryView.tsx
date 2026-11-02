@@ -205,11 +205,11 @@ export default function LibraryView({
                 <div className="word-row" key={w.id}>
                   <span className="word-with-audio">
                     <span>{w.front}</span>
-                    <SpeechButton text={w.front} language={list.from} />
+                    <SpeechButton wordId={w.id} part="native" text={w.front} language={list.from} />
                   </span>
                   <span className="word-with-audio">
                     <span>{w.back}</span>
-                    <SpeechButton text={w.back} language={list.to} />
+                    <SpeechButton wordId={w.id} part="learning" text={w.back} language={list.to} />
                   </span>
                   <span className={`state ${w[direction].streak >= 3 ? "established" : ""}`}>
                     {w[direction].streak >= 3

@@ -60,8 +60,13 @@ browser tests when UI code changed.
   - **Language notes** (`/api/feedback`): a short comment on a wrong, non-skipped
     answer. It's requested only for those, enforced in the UI, the route and the
     adapter.
-  - **Word audio** (`/api/speech`): reads one phrase aloud. Only plays on click, and
-    the answer's audio button stays hidden until the answer is graded or skipped.
+  - **Word audio** (`/api/speech`): reads a word's prompt, or its accepted answers joined
+    with semicolons. Only plays on click, one request at a time per account (held in the
+    server process: the app runs as one), and the answer's audio button stays hidden until
+    the answer is graded or skipped.
+  - Both take a word id, never text: the server reads the word from the account's lists, so
+    only the learner's typed answer comes from the browser. Both are limited per account in
+    letters per minute and per day (`limits.*` site settings, #82).
 - Grading is deterministic pattern matching, not AI: an AI call never sets or changes a
   grade. Statistics and scheduling are deterministic code too.
 - Send a provider only what its call needs: never account IDs or whole lists.
