@@ -45,10 +45,12 @@ A word with several accepted answers speaks its primary answer.
 
 ## Short-lived action log
 
-Each request that reaches a provider is recorded against the account with its
-type, model, word, timestamp and full JSON request body for up to 24 hours, to
-help users report a problem. A language-note entry includes the learner's typed
-answer; provider responses and generated audio are not included.
+The current tab keeps the 20 most recent requests that reach a provider, with
+their type, model, word, timestamp and full JSON request body, to help users
+report a problem. A language-note entry includes the learner's typed answer;
+provider responses and generated audio are not included. The log stays in
+client memory only and is cleared on reload or sign-out; it is not stored by the
+service unless selected details are submitted with a self-report.
 
 ## Tiers
 

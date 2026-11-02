@@ -14,6 +14,7 @@ import type {
 import type { History, List } from "../lib/learning";
 import { NO_AI, type AiFeatures, type Language } from "../lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
+import { AiActionLogProvider } from "./AiActionLog";
 import { PASSWORD_MAX, PASSWORD_MIN } from "../lib/validation";
 
 type Account = { id: string; email: string; is_admin?: boolean };
@@ -429,13 +430,14 @@ export default function AccountApp() {
   };
   return (
     <AiFeaturesContext.Provider value={loaded.ai ?? NO_AI}>
-      <Workspace
-        key={loaded.user.id}
-        initial={loaded.data}
-        sync={sync}
-        account={account}
-        languageList={loaded.languages}
-      />
+      <AiActionLogProvider key={loaded.user.id}>
+        <Workspace
+          initial={loaded.data}
+          sync={sync}
+          account={account}
+          languageList={loaded.languages}
+        />
+      </AiActionLogProvider>
     </AiFeaturesContext.Provider>
   );
 }

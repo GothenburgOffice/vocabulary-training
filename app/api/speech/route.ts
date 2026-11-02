@@ -3,12 +3,12 @@ import { requireUser } from "../../../lib/server/auth";
 import { aiConfig } from "../../../lib/server/ai-config";
 import { chargeLetters, readLimits } from "../../../lib/server/ai-limits";
 import { loadAiSettings } from "../../../lib/server/site-settings";
-import { recordAiAction } from "../../../lib/server/ai-actions";
 import { body, fail, json, requireOrigin } from "../../../lib/server/http";
 import { FeedbackUnavailable } from "../../../lib/server/requesty-client";
 import { SpeechService } from "../../../lib/server/speech-client";
 import { speechRequestSchema } from "../../../lib/server/speech-input";
 import { readWordForAi } from "../../../lib/server/workspace-store";
+import type { AiAction } from "../../../lib/ai-actions";
 
 export const runtime = "nodejs";
 const speech = new SpeechService();
@@ -16,6 +16,7 @@ const speech = new SpeechService();
 // Reads one of the account's words aloud. The client names the word and which text of it;
 // the text comes from the database (#82).
 export async function POST(request: Request) {
+  let action: AiAction | undefined;
   try {
     requireOrigin(request);
     const user = await requireUser();
@@ -33,28 +34,33 @@ export async function POST(request: Request) {
       cooldownMs: limits.speech.cooldownMs,
       // Only a request that reaches the provider counts; cached clips are free.
       charge: () => chargeLetters(user, "speech", Array.from(input.text).length, limits),
-      logRequest: (prompt) =>
-        recordAiAction({
-          userId: user.id,
+      logRequest: async (prompt) => {
+        action = {
+          id: crypto.randomUUID(),
           kind: "speech",
           model: settings.model,
           wordId: parsed.data.wordId,
           word: input.text,
+          at: new Date().toISOString(),
           prompt,
-        }),
-    });
-    return new Response(new Uint8Array(result.bytes), {
-      headers: {
-        "Content-Type": result.contentType,
-        "Cache-Control": "private, no-store",
-        "X-Content-Type-Options": "nosniff",
-        "X-Audio-Cache": result.cache,
+        };
       },
+    });
+    const headers = new Headers({
+      "Content-Type": result.contentType,
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+      "X-Audio-Cache": result.cache,
+    });
+    if (action)
+      headers.set("X-AI-Action", Buffer.from(JSON.stringify(action)).toString("base64url"));
+    return new Response(new Uint8Array(result.bytes), {
+      headers,
     });
   } catch (error) {
     if (error instanceof FeedbackUnavailable) {
       const status = error.reason === "configuration" ? "unavailable" : error.reason;
-      return json({ status }, status === "unavailable" ? 503 : 429);
+      return json({ status, ...(action ? { action } : {}) }, status === "unavailable" ? 503 : 429);
     }
     return fail(error);
   }

@@ -59,9 +59,10 @@ export default async function PrivacyPage() {
             doesn&apos;t contain the text.
           </li>
           <li>
-            For up to 24 hours, an AI action log linked to your account stores the request type,
-            model, word, time and full JSON request sent to the provider, to help you report a
-            problem. A language-note request includes your typed answer.
+            The current tab keeps the 20 most recent AI actions in memory to help you report a
+            problem. Each includes the request type, model, word, time and full JSON request sent to
+            the provider; a language-note request includes your typed answer. This log is cleared
+            when you reload or sign out and is not stored by the service.
           </li>
           <li>
             Sign-in sessions, stored only as hashes of their tokens. Sign-in attempt limits use

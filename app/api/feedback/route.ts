@@ -6,7 +6,6 @@ import { chargeLetters, readLimits } from "../../../lib/server/ai-limits";
 import { feedbackRequestSchema } from "../../../lib/server/feedback-input";
 import { body, fail, HttpError, json, requireOrigin } from "../../../lib/server/http";
 import { loadAiSettings } from "../../../lib/server/site-settings";
-import { recordAiAction } from "../../../lib/server/ai-actions";
 import {
   checkFeedbackConfig,
   FeedbackLimiter,
@@ -15,6 +14,7 @@ import {
   requestLanguageComment,
 } from "../../../lib/server/requesty-client";
 import { readWordForAi } from "../../../lib/server/workspace-store";
+import type { AiAction } from "../../../lib/ai-actions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +24,7 @@ const limits = new FeedbackLimiter();
 // the grade come from the database; only the typed answer comes from the client (#82).
 export async function POST(request: Request) {
   let release: (() => void) | undefined;
+  let action: AiAction | undefined;
   try {
     requireOrigin(request);
     const user = await requireUser();
@@ -47,22 +48,24 @@ export async function POST(request: Request) {
       letterCount(input.source, input.reference, ...(input.accepted ?? []), input.answer),
       siteLimits,
     );
-    const comment = await requestLanguageComment(input, provider, fetch, (prompt) =>
-      recordAiAction({
-        userId: user.id,
+    const comment = await requestLanguageComment(input, provider, fetch, async (prompt) => {
+      action = {
+        id: crypto.randomUUID(),
         kind: "note",
         model: provider.model,
         wordId: parsed.data.wordId,
         word: input.source,
+        at: new Date().toISOString(),
         prompt,
-      }),
-    );
-    return json({ status: "ready", comment });
+      };
+    });
+    return json({ status: "ready", comment, action });
   } catch (error) {
     if (error instanceof FeedbackNotNeeded) return json({ status: "not-needed" });
     if (error instanceof FeedbackUnavailable) {
       return json({
         status: error.reason === "limited" ? "limited" : "unavailable",
+        ...(action ? { action } : {}),
         message:
           error.reason === "limited"
             ? "AI comments have reached a usage limit. Keep practising as usual."

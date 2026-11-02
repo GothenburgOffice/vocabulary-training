@@ -4,6 +4,8 @@ import { LoaderCircle, Square, Volume2 } from "lucide-react";
 import type { SpeechPart } from "../lib/ai-words";
 import { pronunciationText, SPEECH_TIMEOUT_MS } from "../lib/speech";
 import { AiFeaturesContext } from "./AiFeatures";
+import { useAiActionLog } from "./AiActionLog";
+import { decodeAiAction } from "../lib/ai-actions";
 
 // The clip playing now, anywhere on the page: a newly arriving clip stops it.
 let playing: AbortController | undefined;
@@ -19,6 +21,7 @@ export default function SpeechButton(props: Props) {
 
 function SpeechControl({ wordId, part, text, language, label }: Props) {
   const ai = useContext(AiFeaturesContext);
+  const { record } = useAiActionLog();
   const [state, setState] = useState<"idle" | "loading" | "playing">("idle");
   const [error, setError] = useState("");
   const current = useRef<AbortController | undefined>(undefined);
@@ -79,8 +82,9 @@ function SpeechControl({ wordId, part, text, language, label }: Props) {
         body: JSON.stringify({ wordId, part }),
       });
       if (!response.ok) {
-        const status =
-          response.status === 429 ? (await response.json().catch(() => ({}))).status : "";
+        const result = await response.json().catch(() => ({}));
+        record(result.action);
+        const status = response.status === 429 ? result.status : "";
         throw new Error(
           status === "busy"
             ? "Audio request already in progress. Try again soon."
@@ -89,6 +93,7 @@ function SpeechControl({ wordId, part, text, language, label }: Props) {
               : "Audio unavailable. Try again.",
         );
       }
+      record(decodeAiAction(response.headers.get("X-AI-Action")));
       if (!response.headers.get("content-type")?.startsWith("audio/"))
         throw new Error("Audio unavailable. Try again.");
       const blob = await response.blob();

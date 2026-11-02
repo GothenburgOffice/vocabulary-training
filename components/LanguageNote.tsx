@@ -7,6 +7,7 @@ import {
   type FeedbackInput,
 } from "../lib/feedback";
 import type { Direction } from "../lib/learning";
+import { useAiActionLog } from "./AiActionLog";
 
 type Note = { status: "loading" | "ready" | "unavailable"; text: string };
 // `input` decides here whether a note is needed at all; the request itself names the stored
@@ -24,6 +25,7 @@ export default function LanguageNote(props: Props) {
 }
 
 function NoteRequest({ input, wordId, direction, skipped }: Props) {
+  const { record } = useAiActionLog();
   const [note, setNote] = useState<Note>({
     status: "loading",
     text: "Preparing a short language note…",
@@ -45,8 +47,9 @@ function NoteRequest({ input, wordId, direction, skipped }: Props) {
           credentials: "same-origin",
           body: JSON.stringify({ wordId, direction, answer, requireAccents, caseSensitive }),
         });
-        if (!response.ok) throw new Error("Unavailable");
         const result = await response.json();
+        record(result.action);
+        if (!response.ok) throw new Error("Unavailable");
         if (active)
           setNote(
             result.status === "ready"
@@ -72,7 +75,7 @@ function NoteRequest({ input, wordId, direction, skipped }: Props) {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [needsFeedback, wordId, direction, answer, requireAccents, caseSensitive]);
+  }, [needsFeedback, wordId, direction, answer, requireAccents, caseSensitive, record]);
   if (!needsFeedback) return null;
   const text = skipped
     ? "No answer to comment on. Try the word again when you are ready."
