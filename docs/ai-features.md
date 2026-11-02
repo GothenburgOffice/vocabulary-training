@@ -73,23 +73,31 @@ use a `policy/<name>` model for fallback routing, an
 models the key may use, and a budget on the key. When a key runs out or is
 refused, the feature shows its quiet "unavailable" state and practice continues.
 
-## Per-account guards
+## Per-account limits
 
-| Guard              | Language notes | Audio    |
-| ------------------ | -------------- | -------- |
-| Cooldown           | 3 s            | 500 ms   |
-| Requests in flight | 1              | 2        |
-| Response cap       | 240 characters | 4 MB WAV |
+Both features take a word id, never text: the server reads the word from the
+account's own lists, so only a learner's typed answer comes from the browser.
+Each account has a letter budget per feature, counted on what is sent to the
+provider and kept in PostgreSQL (`ai_usage`), so it holds across restarts:
 
-These protect against a runaway client or repeated clicks. Failed attempts count.
-They live in memory per process, so they reset on restart. There are no
-server-wide or daily quotas: spend limits and fallbacks belong to each tier's key
-in Requesty, and heavy load should show up as load rather than be hidden.
+| Limit                       | Language notes    | Audio                      |
+| --------------------------- | ----------------- | -------------------------- |
+| Letters per minute          | 3,000             | 1,200                      |
+| Letters per day, basic/plus | 100,000 / 300,000 | 100,000 / 300,000          |
+| Cooldown                    | 3 s               | 500 ms                     |
+| Requests in flight          | 1                 | 1 (replaceable after 10 s) |
+| Response cap                | 240 characters    | 4 MB                       |
+
+These are defaults. The limits are site settings (`limits.*`), editable in
+Admin → Limits or the database; a letter limit of 0 means no limit, for a site
+that caps spending only in Requesty. Cached audio costs no letters. The cooldowns
+and the one-request-at-a-time rule live in the server process, which is fine as
+the app runs as one. Admin → Overview shows site-wide usage totals.
 
 ## Referral attribution
 
-The footer links to Requesty with a referral code
-(`https://app.requesty.ai/join?ref=b1f2b1e1`), and says so: "Referral link.
-Signups may earn us AI credits." The link opens in a new tab with
+While an AI feature is on, the sidebar credits Requesty with a referral link
+(`https://app.requesty.ai/join?ref=b1f2b1e1`), marked "Referral link"; its
+accessible name and tooltip add "signups may earn us AI credits". It opens in a new tab with
 `rel="sponsored noopener noreferrer"`. The logo (`public/requesty-logo.png`) is
 adapted from requesty.ai and remains Requesty's property.
