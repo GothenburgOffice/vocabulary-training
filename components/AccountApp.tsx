@@ -27,7 +27,7 @@ type Loaded = {
 // One change to save, in the order Workspace made it.
 type Change =
   | { kind: "list"; list: List }
-  | { kind: "delete"; listId: string }
+  | { kind: "delete"; listId: string; done: (deleted: boolean) => void }
   | { kind: "review"; review: Review; saved: (history: History | null) => void }
   | { kind: "run"; run: Run }
   | { kind: "profile"; baseLanguage: string; learningLanguage: string };
@@ -154,11 +154,18 @@ export default function AccountApp() {
             body: JSON.stringify({ revision }),
           });
         } catch (e) {
+          // Changed in another tab: not deleted. That is the server's answer, not a failure,
+          // so the queue goes on; retrying the same revision could never succeed.
+          if (e instanceof RequestError && e.status === 409) {
+            change.done(false);
+            return;
+          }
           // Already deleted in another tab.
           if (!(e instanceof RequestError && e.status === 404)) throw e;
         }
       }
       revisions.current.delete(listId);
+      change.done(true);
     } else if (change.kind === "review") {
       try {
         const result = await request("/api/reviews", {
@@ -245,7 +252,7 @@ export default function AccountApp() {
   const sync = useMemo<WorkspaceSync>(
     () => ({
       saveList: (list) => enqueue({ kind: "list", list }),
-      deleteList: (listId) => enqueue({ kind: "delete", listId }),
+      deleteList: (listId) => new Promise((done) => enqueue({ kind: "delete", listId, done })),
       review: (review) => new Promise((saved) => enqueue({ kind: "review", review, saved })),
       completeRun: (run) => enqueue({ kind: "run", run }),
       saveProfile: (baseLanguage, learningLanguage) =>

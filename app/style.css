@@ -809,6 +809,10 @@ footer button {
 .notice > button {
   margin-left: auto;
 }
+.notice.warning {
+  color: var(--red);
+  background: #fbefef;
+}
 .icon-button {
   min-width: 40px;
   min-height: 40px;
