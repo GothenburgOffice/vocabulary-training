@@ -55,7 +55,13 @@ export default async function PrivacyPage() {
           </li>
           <li>
             AI usage: for each language note and audio request that reaches the AI provider, how
-            many letters it sent and when, kept for 90 days to limit misuse. Not the text itself.
+            many letters it sent and when, kept for 90 days to limit misuse. This usage record
+            doesn&apos;t contain the text.
+          </li>
+          <li>
+            For up to 24 hours, an AI action log linked to your account stores the request type,
+            model, word, time and full JSON request sent to the provider, to help you report a
+            problem. A language-note request includes your typed answer.
           </li>
           <li>
             Sign-in sessions, stored only as hashes of their tokens. Sign-in attempt limits use

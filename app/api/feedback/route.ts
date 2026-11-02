@@ -6,6 +6,7 @@ import { chargeLetters, readLimits } from "../../../lib/server/ai-limits";
 import { feedbackRequestSchema } from "../../../lib/server/feedback-input";
 import { body, fail, HttpError, json, requireOrigin } from "../../../lib/server/http";
 import { loadAiSettings } from "../../../lib/server/site-settings";
+import { recordAiAction } from "../../../lib/server/ai-actions";
 import {
   checkFeedbackConfig,
   FeedbackLimiter,
@@ -46,7 +47,16 @@ export async function POST(request: Request) {
       letterCount(input.source, input.reference, ...(input.accepted ?? []), input.answer),
       siteLimits,
     );
-    const comment = await requestLanguageComment(input, provider);
+    const comment = await requestLanguageComment(input, provider, fetch, (prompt) =>
+      recordAiAction({
+        userId: user.id,
+        kind: "note",
+        model: provider.model,
+        wordId: parsed.data.wordId,
+        word: input.source,
+        prompt,
+      }),
+    );
     return json({ status: "ready", comment });
   } catch (error) {
     if (error instanceof FeedbackNotNeeded) return json({ status: "not-needed" });

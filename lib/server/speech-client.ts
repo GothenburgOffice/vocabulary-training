@@ -9,6 +9,7 @@ const MAX_AUDIO_BYTES = 4_000_000;
 // when set.
 export type SpeechConfig = { apiKey: string; model: string; voice: string; instructions: string };
 export type SpeechAudio = { bytes: Uint8Array; contentType: "audio/wav" };
+type RequestLogger = (prompt: Record<string, unknown>) => Promise<void>;
 
 function checkConfig(config: SpeechConfig) {
   if (
@@ -31,26 +32,29 @@ export async function requestSpeech(
   transport: typeof fetch = fetch,
   // Aborts the request when a newer one from the account takes over (SpeechGate).
   abandon?: AbortSignal,
+  logRequest?: RequestLogger,
 ): Promise<SpeechAudio> {
   if (!speechSchema.safeParse(input).success) throw new FeedbackUnavailable("configuration");
   checkConfig(config);
   const timeout = AbortSignal.timeout(SPEECH_TIMEOUT_MS);
   const signal = abandon ? AbortSignal.any([timeout, abandon]) : timeout;
+  const prompt = {
+    model: config.model,
+    ...(config.voice ? { voice: config.voice } : {}),
+    ...(config.instructions ? { instructions: config.instructions } : {}),
+    input: input.text,
+    response_format: "wav",
+  };
   const headers = { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" };
   try {
+    await logRequest?.(prompt);
     const response = await transport(`${endpoint}/audio/speech`, {
       method: "POST",
       headers,
       signal,
       cache: "no-store",
       redirect: "error",
-      body: JSON.stringify({
-        model: config.model,
-        ...(config.voice ? { voice: config.voice } : {}),
-        ...(config.instructions ? { instructions: config.instructions } : {}),
-        input: input.text,
-        response_format: "wav",
-      }),
+      body: JSON.stringify(prompt),
     });
     if (!response.ok || Number(response.headers.get("content-length")) > MAX_AUDIO_BYTES) {
       await response.body?.cancel();
@@ -124,6 +128,7 @@ export type SpeechGuard = {
   blockMs: number;
   cooldownMs: number;
   charge?: () => Promise<void>;
+  logRequest?: RequestLogger;
 };
 const NO_GUARD: SpeechGuard = { blockMs: 10_000, cooldownMs: 500 };
 
@@ -193,7 +198,7 @@ export class SpeechService {
     const turn = this.gate.acquire(user, now, guard.blockMs, guard.cooldownMs);
     const task = (async () => {
       await guard.charge?.();
-      return requestSpeech(input, config, transport, turn.signal);
+      return requestSpeech(input, config, transport, turn.signal, guard.logRequest);
     })()
       .then((audio) => {
         const entry = { audio, expires: this.clock() + CACHE_MS };

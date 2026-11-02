@@ -3,6 +3,7 @@ import { requireUser } from "../../../lib/server/auth";
 import { aiConfig } from "../../../lib/server/ai-config";
 import { chargeLetters, readLimits } from "../../../lib/server/ai-limits";
 import { loadAiSettings } from "../../../lib/server/site-settings";
+import { recordAiAction } from "../../../lib/server/ai-actions";
 import { body, fail, json, requireOrigin } from "../../../lib/server/http";
 import { FeedbackUnavailable } from "../../../lib/server/requesty-client";
 import { SpeechService } from "../../../lib/server/speech-client";
@@ -32,6 +33,15 @@ export async function POST(request: Request) {
       cooldownMs: limits.speech.cooldownMs,
       // Only a request that reaches the provider counts; cached clips are free.
       charge: () => chargeLetters(user, "speech", Array.from(input.text).length, limits),
+      logRequest: (prompt) =>
+        recordAiAction({
+          userId: user.id,
+          kind: "speech",
+          model: settings.model,
+          wordId: parsed.data.wordId,
+          word: input.text,
+          prompt,
+        }),
     });
     return new Response(new Uint8Array(result.bytes), {
       headers: {

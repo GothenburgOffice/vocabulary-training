@@ -23,6 +23,7 @@ export class FeedbackNotNeeded extends Error {
 // Cost is controlled per key in Requesty (fallback policy, Access List, budget), not here.
 type Config = { apiKey: string; model: string };
 type Fetcher = typeof fetch;
+type RequestLogger = (prompt: Record<string, unknown>) => Promise<void>;
 
 export async function readRequestyJSON(response: Response, max: number): Promise<unknown> {
   if (!response.ok) {
@@ -70,12 +71,22 @@ export async function requestLanguageComment(
   input: FeedbackInput,
   config: Config,
   transport: Fetcher = fetch,
+  logRequest?: RequestLogger,
 ) {
   if (!shouldRequestFeedback(input)) throw new FeedbackNotNeeded();
   checkFeedbackConfig(config);
   const signal = AbortSignal.timeout(FEEDBACK_TIMEOUT_MS);
+  const prompt = {
+    model: config.model,
+    messages: feedbackMessages(input),
+    max_tokens: 768,
+    reasoning_effort: "none",
+    temperature: 0.2,
+    stream: false,
+  };
   const headers = { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" };
   try {
+    await logRequest?.(prompt);
     const result = (await readRequestyJSON(
       await transport(`${endpoint}/chat/completions`, {
         method: "POST",
@@ -85,14 +96,7 @@ export async function requestLanguageComment(
         cache: "no-store",
         // Some free providers still spend tokens on reasoning at "none". The
         // visible comment has its own independent 240-character hard cap.
-        body: JSON.stringify({
-          model: config.model,
-          messages: feedbackMessages(input),
-          max_tokens: 768,
-          reasoning_effort: "none",
-          temperature: 0.2,
-          stream: false,
-        }),
+        body: JSON.stringify(prompt),
       }),
       16_000,
     )) as { choices?: { message?: { content?: unknown } }[] };

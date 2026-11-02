@@ -39,22 +39,27 @@ test("speech input is word data built on the server, with no model, voice or ext
 
 test("speech makes exactly one WAV generation", async () => {
   const calls: { url: string; init?: RequestInit }[] = [];
+  const logged: Record<string, unknown>[] = [];
   const transport = (async (url, init) => {
     calls.push({ url: String(url), init });
     return wav();
   }) as typeof fetch;
-  const result = await requestSpeech(input, config, transport);
+  const result = await requestSpeech(input, config, transport, undefined, async (prompt) => {
+    logged.push(prompt);
+  });
   assert.equal(result.contentType, "audio/wav");
   assert.equal(result.bytes.byteLength, 48);
   assert.equal(calls.length, 1);
   assert.match(calls[0].url, /\/audio\/speech$/);
   assert.equal(calls[0].init?.redirect, "error");
-  assert.deepEqual(JSON.parse(String(calls[0].init?.body)), {
+  const payload = JSON.parse(String(calls[0].init?.body));
+  assert.deepEqual(payload, {
     model: "synthetic/tts",
     voice: "Mia",
     input: "Hello",
     response_format: "wav",
   });
+  assert.deepEqual(logged, [payload]);
 });
 
 test("speech sends voice and instructions only when they are set", async () => {
@@ -114,24 +119,36 @@ test("speech rejects invalid audio, oversized streams, timeouts and provider err
 
 test("speech cache replays and deduplicates per account, with no additional provider calls", async () => {
   let calls = 0;
+  let payload: unknown;
+  const logged: Record<string, unknown>[] = [];
   let complete: (() => void) | undefined;
-  const transport = (async () => {
+  const transport = (async (_url, init) => {
     calls++;
+    payload = JSON.parse(String(init?.body));
     await new Promise<void>((resolve) => {
       complete = resolve;
     });
     return wav();
   }) as typeof fetch;
   const service = new SpeechService();
-  const first = service.get("account-a", input, config, transport);
-  const duplicate = service.get("account-a", input, config, transport);
+  const guard = {
+    blockMs: 10_000,
+    cooldownMs: 500,
+    logRequest: async (prompt: Record<string, unknown>) => {
+      logged.push(prompt);
+    },
+  };
+  const first = service.get("account-a", input, config, transport, guard);
+  const duplicate = service.get("account-a", input, config, transport, guard);
   // Wait for a provider request, not elapsed wall-clock time.
   while (!complete) await new Promise((resolve) => setImmediate(resolve));
   complete();
   assert.equal((await first).cache, "miss");
   assert.equal((await duplicate).cache, "hit");
-  assert.equal((await service.get("account-a", input, config, transport)).cache, "hit");
+  assert.equal((await service.get("account-a", input, config, transport, guard)).cache, "hit");
   assert.equal(calls, 1);
+  assert.equal(logged.length, 1);
+  assert.deepEqual(logged, [payload]);
 });
 
 test("speech cache is account/model/voice/language scoped, expires and evicts", async () => {

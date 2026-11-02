@@ -145,7 +145,10 @@ test("adapter makes exactly one bounded, nonstreaming generation", async (t) => 
     requests.push({ url: String(url), init });
     return completion("De uttrycker närliggande men inte identiska avsked.");
   }) as typeof fetch;
-  const result = await requestLanguageComment(input, config, transport);
+  const logged: Record<string, unknown>[] = [];
+  const result = await requestLanguageComment(input, config, transport, async (prompt) => {
+    logged.push(prompt);
+  });
   assert.match(result, /avsked/);
   assert.equal(requests.length, 1);
   assert.deepEqual(deadlines, [FEEDBACK_TIMEOUT_MS]);
@@ -153,6 +156,7 @@ test("adapter makes exactly one bounded, nonstreaming generation", async (t) => 
   assert.equal(requests[0].url, "https://router.requesty.ai/v1/chat/completions");
   assert.equal(requests[0].init?.redirect, "error");
   const payload = JSON.parse(String(requests[0].init?.body));
+  assert.deepEqual(logged, [payload]);
   assert.equal(payload.max_tokens, 768);
   assert.equal(payload.reasoning_effort, "none");
   assert.equal(payload.stream, false);

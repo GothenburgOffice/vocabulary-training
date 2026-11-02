@@ -23,7 +23,7 @@ profile's base language appears below the right/wrong feedback.
 - Sends only the phrase, language names, reference answer, the attempt and the
   comparison settings. It sends no account identifiers and no lists.
 - The output is plain text capped at 240 characters, or a strict JSON object
-  with only `comment`. Anything else is discarded. Notes are never stored.
+  with only `comment`. Anything else is discarded. The generated note is not stored.
 - One request, a 30-second deadline, a 768-token generation cap, and no retries
   or app-level fallbacks.
 
@@ -42,6 +42,13 @@ A word with several accepted answers speaks its primary answer.
   sent only when set, because not every model accepts them.
 - Generated voices are not reliable pronunciation teachers, especially outside
   English.
+
+## Short-lived action log
+
+Each request that reaches a provider is recorded against the account with its
+type, model, word, timestamp and full JSON request body for up to 24 hours, to
+help users report a problem. A language-note entry includes the learner's typed
+answer; provider responses and generated audio are not included.
 
 ## Tiers
 
