@@ -74,14 +74,20 @@ export default function AccountApp() {
   const saving = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef(false);
+  // Edits the workspace holds but hasn't reported (WorkspaceSync.pending).
+  const pending = useRef(false);
+  const [hasPending, setHasPending] = useState(false);
   const blocked = useRef(false);
 
   // Shows the workspace the server returns, or the sign-in screen when signed out. State
   // changes only once the server answers; `load` shows the loading screen first.
+  // A result that arrives after `current()` turns false is dropped: applying it would reset the
+  // save queue under edits made since (a load must never discard unsaved changes).
   const open = useCallback(
-    () =>
+    (current: () => boolean = () => true) =>
       readWorkspace()
         .then((result) => {
+          if (!current()) return;
           if (result) {
             revisions.current = new Map(Object.entries(result.listRevisions ?? {}));
             queue.current = [];
@@ -92,10 +98,13 @@ export default function AccountApp() {
           }
           setLoaded(result);
         })
-        .catch((e) =>
-          setError((e as Error).message || "Could not load your workspace. Please retry."),
-        )
-        .finally(() => setLoading(false)),
+        .catch((e) => {
+          if (current())
+            setError((e as Error).message || "Could not load your workspace. Please retry.");
+        })
+        .finally(() => {
+          if (current()) setLoading(false);
+        }),
     [],
   );
   const load = useCallback(async () => {
@@ -103,13 +112,18 @@ export default function AccountApp() {
     setError("");
     await open();
   }, [open]);
-  // The first render already shows the loading screen.
+  // The first render already shows the loading screen. Strict Mode runs this twice in
+  // development; only the last run's result is used.
   useEffect(() => {
-    void open();
+    let current = true;
+    void open(() => current);
+    return () => {
+      current = false;
+    };
   }, [open]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (dirty.current) {
+      if (dirty.current || pending.current) {
         event.preventDefault();
         event.returnValue = "";
       }
@@ -257,6 +271,10 @@ export default function AccountApp() {
       completeRun: (run) => enqueue({ kind: "run", run }),
       saveProfile: (baseLanguage, learningLanguage) =>
         enqueue({ kind: "profile", baseLanguage, learningLanguage }),
+      pending: (value) => {
+        pending.current = value;
+        setHasPending(value);
+      },
     }),
     [enqueue],
   );
@@ -282,6 +300,12 @@ export default function AccountApp() {
     if (dirty.current) {
       setSaveError(
         "Save your changes before signing out. Retry saving, or export your word lists before reloading.",
+      );
+      return;
+    }
+    if (pending.current) {
+      setSaveError(
+        "Some edits aren't saved yet. Finish or remove the unfinished word pairs, or import the pasted list, before signing out.",
       );
       return;
     }
@@ -382,8 +406,8 @@ export default function AccountApp() {
             safe.
           </p>
           <p className="auth-note">
-            One essential sign-in cookie. No analytics, advertising or tracking.{" "}
-            <a href="/privacy">Privacy and cookies</a>
+            One essential sign-in cookie, and your practice settings in your browser. No analytics,
+            advertising or tracking. <a href="/privacy">Privacy and cookies</a>
           </p>
           {error && (
             <button className="text-button" onClick={() => void load()}>
@@ -396,7 +420,8 @@ export default function AccountApp() {
   const account: WorkspaceAccount = {
     email: loaded.user.email,
     isAdmin: !!loaded.user.is_admin,
-    save,
+    // Unreported edits are unsaved, unless something is saving or failed.
+    save: save === "saved" && hasPending ? "unsaved" : save,
     saveError,
     busy,
     onRetry: () => void flush(),

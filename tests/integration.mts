@@ -318,6 +318,18 @@ test("real HTTP: deleting a list removes its words and keeps completed sessions"
   const review = { id: randomUUID(), wordId: word.id, direction: "forward", correct: true };
   assert.equal((await api("/api/reviews", "POST", review, cookie)).status, 404);
 
+  // While being written, a list may have no name and no words yet (#67, migration 006).
+  const draftId = randomUUID();
+  const draft = { ...list, title: "", words: [] };
+  const savedDraft = await api(
+    `/api/lists/${draftId}`,
+    "PUT",
+    { revision: null, list: draft },
+    cookie,
+  );
+  assert.equal(savedDraft.status, 200, await savedDraft.clone().text());
+  assert.equal((await api(`/api/lists/${draftId}`, "DELETE", { revision: 1 }, cookie)).status, 200);
+
   const dump = (await (await api("/api/workspace", "GET", undefined, cookie)).json()).data;
   assert.equal(dump.lists.length, 0);
   assert.equal(dump.runs.length, 1);

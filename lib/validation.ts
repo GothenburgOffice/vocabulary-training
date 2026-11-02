@@ -6,13 +6,14 @@ const direction = z.enum(["forward", "reverse"]);
 const timestamp = z.number().int().nonnegative().max(8640000000000000);
 
 // PUT /api/lists/:id: the whole list with its words, as the editor saves it. revision is the
-// one last loaded or saved, or null for a new list.
+// one last loaded or saved, or null for a new list. The editor autosaves, so a list may have
+// no name or no words yet; every word has both sides.
 export const listSaveSchema = z
   .object({
     revision: z.number().int().positive().nullable(),
     list: z
       .object({
-        title: text,
+        title: z.string().trim().max(200),
         description: z.string().max(1000),
         from: language,
         to: language,
@@ -21,7 +22,6 @@ export const listSaveSchema = z
           .array(
             z.object({ id, front: text, back: text, accepted: z.array(text).max(20).default([]) }),
           )
-          .min(1)
           .max(1000),
       })
       .refine((l) => l.from !== l.to, "Languages must differ")

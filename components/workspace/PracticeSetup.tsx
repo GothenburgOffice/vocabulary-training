@@ -1,6 +1,6 @@
 import { ArrowLeftRight, ArrowRight, ChevronDown, ListChecks, Plus, Settings2 } from "lucide-react";
 import { BookMark } from "../../lib/brand";
-import type { List } from "../../lib/learning";
+import { listTitle, type List } from "../../lib/learning";
 import type { Mode, PracticeSettings } from "../../lib/practice";
 import Button from "./Button";
 
@@ -29,7 +29,7 @@ export default function PracticeSetup({
       </div>
       {list ? (
         <>
-          <h3>{list.title}</h3>
+          <h3>{listTitle(list)}</h3>
           <p>{list.description || "A fresh set of words to make your own."}</p>
           <div className="direction-card">
             <span>{direction === "forward" ? list.from : list.to}</span>

@@ -26,7 +26,10 @@ export default async function PrivacyPage() {
           </span>
         </Link>
         <h1>Privacy and cookies</h1>
-        <p>One essential sign-in cookie. No analytics, advertising or tracking.</p>
+        <p>
+          One essential sign-in cookie, and your practice settings in your browser. No analytics,
+          advertising or tracking.
+        </p>
 
         <h2>Who is responsible</h2>
         {ready ? (
@@ -70,11 +73,20 @@ export default async function PrivacyPage() {
           Audio is kept in the server&apos;s memory for up to an hour and never written to disk.
         </p>
 
-        <h2>The cookie</h2>
+        <h2>The cookie and your browser</h2>
         <p>
           <code>vocabulary_session</code> keeps you signed in. It can&apos;t be read by scripts, is
-          only sent to this site, and expires after 14 days or when you sign out. Nothing else is
-          stored in your browser, so there is nothing to accept.
+          only sent to this site, and expires after 14 days or when you sign out.
+        </p>
+        <p>
+          Your practice settings (direction, practice mode, session size, case and accents) are
+          remembered in your browser&apos;s local storage, so they stay as you set them. They are
+          never sent to the server or anyone else. Clearing this site&apos;s data resets them to the
+          defaults.
+        </p>
+        <p>
+          Both are needed for what you ask the site to do, so there is nothing to accept. Nothing
+          else is stored in your browser.
         </p>
 
         <h2>How long, and your rights</h2>

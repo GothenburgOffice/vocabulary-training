@@ -2513,3 +2513,7 @@ main > .save-error {
   margin: 2px 6px;
   padding: 4px 12px;
 }
+.lost-edits {
+  margin: 0 0 20px;
+  padding-left: 20px;
+}

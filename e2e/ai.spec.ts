@@ -1,18 +1,20 @@
 import type { Page, Request } from "@playwright/test";
 import { test, expect, createList, prompt, answer } from "./fixtures";
 
-// The test stack has no Requesty keys, so the AI features are switched on in the workspace
-// response and both AI routes are answered here. No provider is ever called.
-async function fakeAi(page: Page) {
-  const calls = { feedback: [] as Request[], speech: [] as Request[] };
+// The AI features the workspace response reports, whatever the stack has configured (a dev
+// stack may have real keys).
+async function setAi(page: Page, ai: { languageNotes: boolean; speech: string[] }) {
   await page.route("/api/workspace", async (route) => {
     const response = await route.fetch();
-    const json = await response.json();
-    await route.fulfill({
-      response,
-      json: { ...json, ai: { languageNotes: true, speech: ["Swedish", "French"] } },
-    });
+    await route.fulfill({ response, json: { ...(await response.json()), ai } });
   });
+}
+
+// The AI features are switched on in the workspace response and both AI routes are answered
+// here. No provider is ever called.
+async function fakeAi(page: Page) {
+  const calls = { feedback: [] as Request[], speech: [] as Request[] };
+  await setAi(page, { languageNotes: true, speech: ["Swedish", "French"] });
   await page.route("/api/feedback", (route) => {
     calls.feedback.push(route.request());
     return route.fulfill({ json: { status: "ready", comment: "Merci ends in -ci, not -cy." } });
@@ -85,6 +87,7 @@ test("language notes only after wrong answers, answer audio only after grading",
 });
 
 test("without AI features there are no speaker buttons, notes or AI requests", async ({ page }) => {
+  await setAi(page, { languageNotes: false, speech: [] });
   const requests: string[] = [];
   page.on("request", (r) => {
     if (/\/api\/(feedback|speech)/.test(r.url())) requests.push(r.url());

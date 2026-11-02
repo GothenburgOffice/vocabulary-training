@@ -1,29 +1,28 @@
 import { useState } from "react";
-import { Check, LogOut, Settings, Shield, UserRound } from "lucide-react";
+import { LogOut, Settings, Shield, UserRound } from "lucide-react";
 import { pickerLanguages, type Language } from "../../lib/languages";
 import type { WorkspaceAccount } from "../../lib/workspace";
-import Button from "./Button";
 
 // The account popup: who is signed in, links out, and the profile's base language.
 export default function ProfileDialog({
   account,
   baseLanguage,
   languageList,
-  practising,
+  locked,
   onSave,
 }: {
   account?: WorkspaceAccount;
   baseLanguage: string;
   languageList: Language[];
-  practising: boolean;
-  // Throws an Error to show when the base language can't change.
+  // Why the base language can't change right now, or "".
+  locked: string;
+  // Applies a picked base language (and closes); throws an Error to show when it can't.
   onSave: (baseLanguage: string) => void;
 }) {
-  const [profileBase, setProfileBase] = useState(baseLanguage);
   const [error, setError] = useState("");
-  function save() {
+  function pick(language: string) {
     try {
-      onSave(profileBase);
+      onSave(language);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -60,11 +59,11 @@ export default function ProfileDialog({
         Native / base language
         <select
           aria-label="Native / base language"
-          value={profileBase}
-          disabled={practising}
-          onChange={(e) => setProfileBase(e.target.value)}
+          value={baseLanguage}
+          disabled={!!locked}
+          onChange={(e) => pick(e.target.value)}
         >
-          {pickerLanguages(languageList, [baseLanguage, profileBase]).map((l) => (
+          {pickerLanguages(languageList, [baseLanguage]).map((l) => (
             <option key={l}>{l}</option>
           ))}
         </select>
@@ -79,22 +78,17 @@ export default function ProfileDialog({
           <strong>Your personal workspace</strong>
           <p>
             Lists, profile settings, review progress and completed sessions are saved to your
-            account. The sidebar shows whether everything is saved. CSV exports contain words, not
-            your review history.
+            account as you go. The sidebar shows whether everything is saved. CSV exports contain
+            words, not your review history.
           </p>
         </div>
       </div>
-      {practising && (
-        <p className="error">End your practice session before changing your base language.</p>
-      )}
+      {locked && <p className="error">{locked}</p>}
       {error && (
         <p className="error" role="alert">
           {error}
         </p>
       )}
-      <Button primary onClick={save} disabled={practising}>
-        Save profile <Check size={16} />
-      </Button>
     </>
   );
 }
