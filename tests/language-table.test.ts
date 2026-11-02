@@ -28,7 +28,7 @@ test("a bulk field sets one value on a language, leaving the rest", () => {
   assert.equal(withField({ ...sv, hidden: true }, "hidden", "no").hidden, false);
 });
 
-test("only edited rows that differ are saved, from the server's current revision", () => {
+test("only edited rows that differ are saved, from the revision they were edited from", () => {
   const server = [language("Swedish", "4"), language("French", "2")];
   assert.ok(sameLanguage(language("Swedish", "1"), server[0]));
   const drafts = {
@@ -36,8 +36,9 @@ test("only edited rows that differ are saved, from the server's current revision
     Swedish: { ...language("Swedish", "3") },
     French: withField(language("French", "1"), "hidden", "yes"),
   };
+  // Not rebased onto the server's revision 2: if French changed elsewhere, this must get 409.
   assert.deepEqual(changedLanguages(server, drafts), [
-    { ...language("French", "2"), hidden: true },
+    { ...language("French", "1"), hidden: true },
   ]);
   assert.deepEqual(changedLanguages(server, {}), []);
 });

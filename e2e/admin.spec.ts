@@ -18,25 +18,23 @@ const language = (name: string, code: string): LanguageView => ({
 });
 
 // The languages API, answered here so no real site setting changes: languages can't be
-// deleted, and other tests use them. `refuse` names languages whose next save gets 409.
-async function fakeLanguages(page: Page, refuse: string[] = []) {
+// deleted, and other tests use them. Like the server, a save from an older revision gets 409;
+// `changeElsewhere` changes a language as another tab would.
+async function fakeLanguages(page: Page) {
   let languages = [language("Swedish", "sv"), language("French", "fr"), language("German", "de")];
   const saves: LanguageView[] = [];
+  const bump = (l: LanguageView) => String(Number(l.revision) + 1);
   await page.route("/api/admin/languages", async (route) => {
     const request = route.request();
     const data = request.postDataJSON();
     if (request.method() === "PUT") {
-      if (refuse.includes(data.name)) {
-        refuse.splice(refuse.indexOf(data.name), 1);
+      if (languages.find((l) => l.name === data.name)?.revision !== data.revision)
         return route.fulfill({
           status: 409,
           json: { error: "This language changed in another tab. Reload to see it." },
         });
-      }
       saves.push(data);
-      languages = languages.map((l) =>
-        l.name === data.name ? { ...data, revision: String(Number(l.revision) + 1) } : l,
-      );
+      languages = languages.map((l) => (l.name === data.name ? { ...data, revision: bump(l) } : l));
     } else if (request.method() === "PATCH") {
       languages = data.order.map((name: string) => languages.find((l) => l.name === name)!);
     } else if (request.method() === "POST") {
@@ -44,14 +42,19 @@ async function fakeLanguages(page: Page, refuse: string[] = []) {
     }
     return route.fulfill({ json: { languages } });
   });
-  return saves;
+  const changeElsewhere = (name: string, change: Partial<LanguageView>) => {
+    languages = languages.map((l) =>
+      l.name === name ? { ...l, ...change, revision: bump(l) } : l,
+    );
+  };
+  return { saves, changeElsewhere };
 }
 
 // Signed in once for the whole run by global-setup.ts.
 test.use({ storageState: ADMIN_STATE });
 
 test("languages are edited in place and saved together", async ({ page }) => {
-  const saves = await fakeLanguages(page, ["French"]);
+  const { saves, changeElsewhere } = await fakeLanguages(page);
   await page.goto("/admin/languages");
   const rows = page.locator(".lang-table tbody tr");
   await expect(rows).toHaveCount(3);
@@ -75,7 +78,8 @@ test("languages are edited in place and saved together", async ({ page }) => {
   await expect(page.getByLabel("Swedish speech model")).toHaveValue("");
   await expect(page.getByLabel("German speech voice")).toBeEnabled();
 
-  // French was changed in "another tab": it keeps its edits and says why; the rest save.
+  // French is changed in another tab meanwhile: it keeps its edits and says why; the rest save.
+  changeElsewhere("French", { code: "fr-fr" });
   await expect(save).toHaveText("Save changes (3)");
   await save.click();
   await expect(page.locator(".lang-errors")).toContainText(
@@ -86,9 +90,35 @@ test("languages are edited in place and saved together", async ({ page }) => {
   expect(saves.map((s) => s.name)).toEqual(["Swedish", "German"]);
   expect(saves[1]).toMatchObject({ hidden: true, speech: { model: "openai/gpt-4o-mini-tts" } });
 
+  // Saving again can't overwrite the other tab's change, even after other rows saved.
+  await save.click();
+  await expect(page.getByText("1 not saved.")).toBeVisible();
+  expect(saves.map((s) => s.name)).toEqual(["Swedish", "German"]);
+
+  // Discard shows French as the other tab left it.
   await page.getByRole("button", { name: "Discard" }).click();
   await expect(page.getByLabel("French speech model")).toHaveValue("");
+  await expect(page.getByLabel("French code")).toHaveValue("fr-fr");
   await expect(save).toBeDisabled();
+});
+
+test("leaving by an admin link with unsaved rows asks first", async ({ page }) => {
+  await fakeLanguages(page);
+  await page.goto("/admin/languages");
+  await page.getByLabel("Swedish code").fill("se");
+  const nav = page.getByRole("navigation", { name: "Admin sections" });
+
+  page.once("dialog", (dialog) => {
+    expect(dialog.message()).toBe("Leave without saving 1 changed language?");
+    void dialog.dismiss();
+  });
+  await nav.getByRole("link", { name: "AI settings" }).click();
+  await expect(page).toHaveURL(/\/admin\/languages$/);
+  await expect(page.getByLabel("Swedish code")).toHaveValue("se");
+
+  page.once("dialog", (dialog) => void dialog.accept());
+  await nav.getByRole("link", { name: "AI settings" }).click();
+  await expect(page).toHaveURL(/\/admin\/ai$/);
 });
 
 test("languages are added and reordered from the table", async ({ page }) => {
@@ -113,4 +143,29 @@ test("the table scrolls inside its frame, not the page", async ({ page }) => {
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test("an edit made while saving is kept, and saves next", async ({ page }) => {
+  const { saves } = await fakeLanguages(page);
+  // Hold the save's answer until the row has been edited again (later routes run first).
+  let release = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route("/api/admin/languages", async (route) => {
+    if (route.request().method() === "PUT") await held;
+    await route.fallback();
+  });
+  await page.goto("/admin/languages");
+  const save = page.getByRole("button", { name: /^Save changes/ });
+  await page.getByLabel("Swedish code").fill("se");
+  await save.click();
+  await expect(page.getByText("Saving…")).toBeVisible();
+  await page.getByLabel("Swedish code").fill("sw");
+  release();
+  await expect(page.getByText("Saved.")).toBeVisible();
+  await expect(page.getByLabel("Swedish code")).toHaveValue("sw");
+  await expect(save).toHaveText("Save changes (1)");
+  // Based on the first save's revision, so it isn't refused as stale.
+  await save.click();
+  await expect(save).toBeDisabled();
+  expect(saves.map((s) => s.code)).toEqual(["se", "sw"]);
 });

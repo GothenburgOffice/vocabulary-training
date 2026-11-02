@@ -34,12 +34,26 @@ export default function LanguageSettings() {
       .catch((e: Error) => setError(e.message));
   }, []);
   const changed = languages ? changedLanguages(languages, drafts) : [];
-  // Leaving the page with unsaved rows asks first.
+  // Leaving the page with unsaved rows asks first: closing or reloading the tab, and the admin
+  // links (client-side navigation, which beforeunload doesn't see).
   useEffect(() => {
     if (!changed.length) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    const confirmLink = (event: MouseEvent) => {
+      const link = (event.target as Element).closest?.("a[href]");
+      if (!link || link.getAttribute("href") === location.pathname) return;
+      const count = changed.length;
+      if (!confirm(`Leave without saving ${count} changed language${count === 1 ? "" : "s"}?`)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
     window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
+    document.addEventListener("click", confirmLink, true);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      document.removeEventListener("click", confirmLink, true);
+    };
   }, [changed.length]);
 
   async function send(method: string, data: unknown) {
@@ -65,15 +79,25 @@ export default function LanguageSettings() {
       try {
         const result = await adminRequest<Languages>("/api/admin/languages", "PUT", language);
         setLanguages(result.languages);
+        const revision = result.languages.find((l) => l.name === language.name)?.revision;
         setDrafts((d) => {
           const rest = { ...d };
-          delete rest[language.name];
+          const draft = d[language.name];
+          // Edited again while saving: keep the newer edits, now based on this save.
+          if (draft && !sameLanguage(draft, language) && revision)
+            rest[language.name] = { ...draft, revision };
+          else delete rest[language.name];
           return rest;
         });
       } catch (e) {
         failed[language.name] = (e as Error).message;
       }
     }
+    // After a failure, show the server's current rows; Discard then shows what changed there.
+    if (Object.keys(failed).length)
+      await adminRequest<Languages>("/api/admin/languages")
+        .then((r) => setLanguages(r.languages))
+        .catch(() => undefined);
     setErrors(failed);
     const count = Object.keys(failed).length;
     setStatus(count ? `${count} not saved.` : "Saved.");
@@ -286,7 +310,8 @@ export default function LanguageSettings() {
   );
 }
 
-const voiceListId = (model: string) => `voices-${model.replace(/[^a-z0-9]/gi, "-")}`;
+// One list per model; encodeURIComponent keeps different models apart (and has no spaces).
+const voiceListId = (model: string) => `voices-${encodeURIComponent(model)}`;
 
 function ModelOptions({ id, models }: { id: string; models: ModelList | null }) {
   return (

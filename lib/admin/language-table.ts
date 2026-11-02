@@ -24,15 +24,14 @@ export function withField(language: LanguageView, field: BulkField, value: strin
 export const sameLanguage = (a: LanguageView, b: LanguageView) =>
   JSON.stringify({ ...a, revision: "" }) === JSON.stringify({ ...b, revision: "" });
 
-// The edited rows that differ from the server's, ready to save from its current revision.
+// The edited rows that differ from the server's. Each keeps the revision it was edited from,
+// so a row changed elsewhere since then gets 409 instead of overwriting that change.
 export function changedLanguages(
   languages: LanguageView[],
   drafts: Record<string, LanguageView>,
 ): LanguageView[] {
   return languages.flatMap((language) => {
     const draft = drafts[language.name];
-    return draft && !sameLanguage(draft, language)
-      ? [{ ...draft, revision: language.revision }]
-      : [];
+    return draft && !sameLanguage(draft, language) ? [draft] : [];
   });
 }
