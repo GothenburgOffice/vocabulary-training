@@ -451,7 +451,7 @@ test("real HTTP: the admin area answers 404 to everyone but admins", async () =>
     404,
   );
   assert.equal(
-    (await api("/api/admin/users", "DELETE", { userId: me.user.id }, cookie)).status,
+    (await api("/api/admin/users", "PATCH", { userId: me.user.id, locked: true }, cookie)).status,
     404,
   );
 
@@ -473,15 +473,49 @@ test("real HTTP: the admin area answers 404 to everyone but admins", async () =>
       .status,
     200,
   );
-  assert.equal(
-    (await api("/api/admin/users", "DELETE", { userId: admin.user.id }, adminCookie)).status,
-    400,
-  );
+  const change = (data: object) => api("/api/admin/users", "PATCH", data, adminCookie);
+  const signIn = (password = "integration-test-only-password") =>
+    api("/api/auth", "POST", { action: "login", email, password });
+
+  // An admin can't lock or trash their own account, and a single account is never deleted at
+  // once: only the E2E test-account cleanup deletes immediately.
+  assert.equal((await change({ userId: admin.user.id, locked: true })).status, 400);
+  assert.equal((await change({ userId: admin.user.id, trashed: true })).status, 400);
   assert.equal(
     (await api("/api/admin/users", "DELETE", { userId: me.user.id }, adminCookie)).status,
-    200,
+    400,
   );
+
+  // Lock: the session ends at once and sign-in is refused, but only after the password checks
+  // out, so a wrong password still just says it is wrong.
+  const locked = await change({ userId: me.user.id, locked: true });
+  assert.equal(locked.status, 200, await locked.clone().text());
+  assert.ok((await locked.json()).account.locked_at);
   assert.equal((await api("/api/workspace", "GET", undefined, cookie)).status, 401);
+  assert.equal((await signIn()).status, 403);
+  assert.equal((await signIn("wrong-password-for-this-test")).status, 401);
+  assert.equal((await change({ userId: me.user.id, locked: false })).status, 200);
+  assert.equal((await signIn()).status, 200);
+
+  // Trash: locked at once, listed in the trash, and restorable until it is purged.
+  const trashed = await change({ userId: me.user.id, trashed: true });
+  assert.equal(trashed.status, 200, await trashed.clone().text());
+  assert.ok((await trashed.json()).account.deleted_at);
+  assert.equal((await signIn()).status, 403);
+  const trash = await (
+    await api(
+      `/api/admin/users?scope=trash&q=${encodeURIComponent(email)}`,
+      "GET",
+      undefined,
+      adminCookie,
+    )
+  ).json();
+  assert.equal(trash.total, 1);
+  assert.equal(trash.trashDays, 30);
+  assert.equal((await change({ userId: me.user.id, trashed: false })).status, 200);
+  assert.equal((await signIn()).status, 200);
+  // Left in the trash; the purge 30 days on is checked against the database, not here.
+  assert.equal((await change({ userId: me.user.id, trashed: true })).status, 200);
 });
 
 test("real HTTP: admin AI settings and languages, with dummy keys and no provider calls", async () => {

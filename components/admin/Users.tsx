@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AiLimits } from "../../lib/ai-limits";
-import { isE2eAccountEmail } from "../../lib/admin/users";
+import { purgeDate } from "../../lib/admin/users";
 import { adminRequest } from "./request";
 
 type UsagePeriod = "day" | "week" | "90";
@@ -13,6 +13,8 @@ type Account = {
   last_sign_in_at: string | null;
   ai_tier: "basic" | "plus";
   is_admin: boolean;
+  locked_at: string | null;
+  deleted_at: string | null;
 } & Record<`${UsageKind}_${"calls" | "letters"}_${UsagePeriod}`, number | string>;
 type View = {
   viewerId: string;
@@ -21,6 +23,7 @@ type View = {
   total: number;
   testAccounts: number;
   pageSize: number;
+  trashDays: number;
 };
 const PERIODS: { name: UsagePeriod; label: string; days: number }[] = [
   { name: "day", label: "24 hours", days: 1 },
@@ -99,24 +102,44 @@ export default function Users() {
     }
   }
 
-  async function deleteAccount(account: Account) {
-    if (!window.confirm(`Permanently delete ${account.email} and all of its data?`)) return;
+  // Locks or unlocks an account, or moves it to or from the trash.
+  async function changeAccess(
+    account: Account,
+    change: { locked: boolean } | { trashed: boolean },
+    trashDays: number,
+  ) {
+    if ("trashed" in change && change.trashed) {
+      const when = purgeDate(new Date()).toLocaleDateString();
+      if (
+        !window.confirm(
+          `Move ${account.email} to the trash? It is locked now, and it and all its data are deleted on ${when} (${trashDays} days) unless you restore it.`,
+        )
+      )
+        return;
+    }
     setBusy(account.id);
     setError("");
     setStatus("");
     try {
-      await adminRequest("/api/admin/users", "DELETE", { userId: account.id });
-      const test = isE2eAccountEmail(account.email) && !account.is_admin;
+      const result = await adminRequest<{
+        account: Pick<Account, "id" | "locked_at" | "deleted_at">;
+      }>("/api/admin/users", "PATCH", { userId: account.id, ...change });
       setView(
         (current) =>
           current && {
             ...current,
-            total: current.total - 1,
-            testAccounts: test ? current.testAccounts - 1 : current.testAccounts,
-            accounts: current.accounts.filter((user) => user.id !== account.id),
+            accounts: current.accounts.map((user) =>
+              user.id === account.id ? { ...user, ...result.account } : user,
+            ),
           },
       );
-      setStatus(`Deleted ${account.email}.`);
+      setStatus(
+        "locked" in change
+          ? `${change.locked ? "Locked" : "Unlocked"} ${account.email}.`
+          : change.trashed
+            ? `Moved ${account.email} to the trash.`
+            : `Restored ${account.email}.`,
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -164,6 +187,7 @@ export default function Users() {
             <option value="all">All accounts</option>
             <option value="regular">Non-test accounts</option>
             <option value="test">E2E test accounts</option>
+            <option value="trash">In the trash</option>
           </select>
         </label>
         <button
@@ -216,22 +240,45 @@ export default function Users() {
                   <option value="plus">Plus</option>
                 </select>
               </label>
-              <button
-                className="button danger"
-                disabled={account.id === view.viewerId || busy !== null}
-                aria-label={
-                  account.id === view.viewerId
-                    ? `Cannot delete your account ${account.email}`
-                    : `Delete account ${account.email}`
-                }
-                onClick={() => void deleteAccount(account)}
-                title={
-                  account.id === view.viewerId ? "You cannot delete your own account." : undefined
-                }
-              >
-                {account.id === view.viewerId ? "Your account" : "Delete"}
-              </button>
+              {account.id === view.viewerId ? (
+                <span className="admin-status">Your account</span>
+              ) : (
+                <div className="admin-actions">
+                  {!account.deleted_at && (
+                    <button
+                      className="button"
+                      disabled={busy !== null}
+                      aria-label={`${account.locked_at ? "Unlock" : "Lock"} account ${account.email}`}
+                      onClick={() =>
+                        void changeAccess(account, { locked: !account.locked_at }, view.trashDays)
+                      }
+                    >
+                      {account.locked_at ? "Unlock" : "Lock"}
+                    </button>
+                  )}
+                  <button
+                    className={account.deleted_at ? "button" : "button danger"}
+                    disabled={busy !== null}
+                    aria-label={`${account.deleted_at ? "Restore" : "Move to trash"} account ${account.email}`}
+                    onClick={() =>
+                      void changeAccess(account, { trashed: !account.deleted_at }, view.trashDays)
+                    }
+                  >
+                    {account.deleted_at ? "Restore" : "Move to trash"}
+                  </button>
+                </div>
+              )}
             </div>
+            {account.deleted_at ? (
+              <p className="user-access" role="note">
+                In the trash since {date(account.deleted_at)}. Deleted for good on{" "}
+                {purgeDate(account.deleted_at).toLocaleDateString()}.
+              </p>
+            ) : account.locked_at ? (
+              <p className="user-access" role="note">
+                Locked since {date(account.locked_at)}. It can’t sign in.
+              </p>
+            ) : null}
             <details className="user-usage">
               <summary>AI usage</summary>
               <div className="user-usage-scroll">

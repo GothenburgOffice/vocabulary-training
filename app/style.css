@@ -2700,6 +2700,12 @@ main > .save-error {
 .user-summary {
   justify-content: space-between;
 }
+/* Locked, or in the trash with its purge date. */
+.user-access {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
 .user-identity {
   display: grid;
   gap: 3px;

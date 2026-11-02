@@ -279,7 +279,9 @@ test("AI limits are edited and saved together, and reset to the defaults", async
   expect(saves[1]).toEqual(defaults);
 });
 
-test("users can be filtered, re-typed and deleted with E2E cleanup", async ({ page }) => {
+test("users can be filtered, re-typed, locked, trashed and restored, with E2E cleanup", async ({
+  page,
+}) => {
   const viewerId = "7199f62c-4c8b-43a6-8ca6-9711c6bffb04";
   const testId = "a620960f-133c-4e1b-8cf6-04bf2d37e8cd";
   const learnerId = "523c4025-e0ca-4898-9d65-a36cf00c424f";
@@ -290,6 +292,8 @@ test("users can be filtered, re-typed and deleted with E2E cleanup", async ({ pa
     last_sign_in_at: null,
     ai_tier: "basic" as const,
     is_admin: false,
+    locked_at: null as string | null,
+    deleted_at: null as string | null,
     speech_calls_day: 2,
     speech_letters_day: 120,
     speech_calls_week: 3,
@@ -323,17 +327,34 @@ test("users can be filtered, re-typed and deleted with E2E cleanup", async ({ pa
   await page.route("**/api/admin/users**", async (route) => {
     const request = route.request();
     if (request.method() === "PATCH") {
-      const { userId, tier } = request.postDataJSON();
-      accounts = accounts.map((user) => (user.id === userId ? { ...user, ai_tier: tier } : user));
-      return route.fulfill({ json: { ok: true } });
+      // Like the server: one change at a time, and the changed access comes back.
+      const { userId, tier, locked, trashed } = request.postDataJSON();
+      const now = "2026-11-02T10:00:00.000Z";
+      accounts = accounts.map((user) =>
+        user.id !== userId
+          ? user
+          : tier
+            ? { ...user, ai_tier: tier }
+            : locked !== undefined
+              ? { ...user, locked_at: locked ? now : null }
+              : { ...user, deleted_at: trashed ? now : null },
+      );
+      const changed = accounts.find((user) => user.id === userId)!;
+      return route.fulfill({
+        json: tier
+          ? { ok: true }
+          : {
+              account: {
+                id: changed.id,
+                locked_at: changed.locked_at,
+                deleted_at: changed.deleted_at,
+              },
+            },
+      });
     }
     if (request.method() === "DELETE") {
-      const data = request.postDataJSON();
-      if (data.testAccounts) {
-        accounts = accounts.filter((user) => !isE2eAccountEmail(user.email));
-        return route.fulfill({ json: { deleted: 1 } });
-      }
-      accounts = accounts.filter((user) => user.id !== data.userId);
+      // Only the E2E cleanup deletes at once.
+      accounts = accounts.filter((user) => !isE2eAccountEmail(user.email));
       return route.fulfill({ json: { deleted: 1 } });
     }
     const params = new URL(request.url()).searchParams;
@@ -344,7 +365,8 @@ test("users can be filtered, re-typed and deleted with E2E cleanup", async ({ pa
       return (
         user.email.toLowerCase().includes(q) &&
         (scope !== "test" || isTestAccount) &&
-        (scope !== "regular" || !isTestAccount)
+        (scope !== "regular" || !isTestAccount) &&
+        (scope !== "trash" || user.deleted_at !== null)
       );
     });
     const offset = Number(params.get("offset") ?? 0);
@@ -356,6 +378,7 @@ test("users can be filtered, re-typed and deleted with E2E cleanup", async ({ pa
         total: matching.length,
         testAccounts: accounts.filter((user) => isE2eAccountEmail(user.email)).length,
         pageSize: USERS_PAGE_SIZE,
+        trashDays: 30,
       },
     });
   });
@@ -372,6 +395,32 @@ test("users can be filtered, re-typed and deleted with E2E cleanup", async ({ pa
   await expect(page.locator(".user-card strong")).toHaveText(["learner@example.test"]);
   await expect(page.getByText("Showing 1 of 1 matching accounts.")).toBeVisible();
   await page.getByLabel("Search by email").fill("");
+  await expect(page.locator(".user-card")).toHaveCount(2);
+
+  // Lock and unlock.
+  const learner = page.locator(".user-card").filter({ hasText: "learner@example.test" });
+  await learner.getByRole("button", { name: "Lock account learner@example.test" }).click();
+  await expect(learner.getByRole("note")).toContainText("Locked since");
+  await expect(learner.getByRole("note")).toContainText("It can’t sign in.");
+  await learner.getByRole("button", { name: "Unlock account learner@example.test" }).click();
+  await expect(learner.getByRole("note")).toHaveCount(0);
+
+  // The trash asks first, says when the account is deleted for good, and can be undone.
+  page.once("dialog", (dialog) => {
+    expect(dialog.message()).toContain("Move learner@example.test to the trash?");
+    expect(dialog.message()).toContain("(30 days)");
+    void dialog.accept();
+  });
+  await learner.getByRole("button", { name: "Move to trash account learner@example.test" }).click();
+  await expect(learner.getByRole("note")).toContainText("In the trash since");
+  await expect(learner.getByRole("note")).toContainText("Deleted for good on");
+  // An account in the trash is locked by being there; it offers only Restore.
+  await expect(learner.getByRole("button", { name: /^Lock account/ })).toHaveCount(0);
+  await page.getByLabel("Account filter").selectOption("trash");
+  await expect(page.locator(".user-card strong")).toHaveText(["learner@example.test"]);
+  await learner.getByRole("button", { name: "Restore account learner@example.test" }).click();
+  await expect(learner.getByRole("note")).toHaveCount(0);
+  await page.getByLabel("Account filter").selectOption("all");
   await expect(page.locator(".user-card")).toHaveCount(2);
 
   await page.getByLabel("Account filter").selectOption("test");

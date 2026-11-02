@@ -1,13 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  accountDeleteSchema,
-  canDeleteAccount,
+  accountChangeSchema,
+  canRemoveAccess,
   escapeLike,
   isE2eAccountEmail,
-  tierChangeSchema,
+  purgeDate,
+  testAccountsDeleteSchema,
+  TRASH_DAYS,
   userListQuerySchema,
 } from "../lib/admin/users.ts";
+
+const userId = "7199f62c-4c8b-43a6-8ca6-9711c6bffb04";
 
 test("the account list takes a trimmed search, one scope and a non-negative offset", () => {
   assert.deepEqual(userListQuerySchema.parse({}), { q: "", scope: "all", offset: 0 });
@@ -16,6 +20,7 @@ test("the account list takes a trimmed search, one scope and a non-negative offs
     scope: "test",
     offset: 50,
   });
+  assert.equal(userListQuerySchema.parse({ scope: "trash" }).scope, "trash");
   assert.equal(userListQuerySchema.safeParse({ scope: "admins" }).success, false);
   assert.equal(userListQuerySchema.safeParse({ offset: "-1" }).success, false);
   assert.equal(userListQuerySchema.safeParse({ offset: "1.5" }).success, false);
@@ -29,20 +34,38 @@ test("search text is escaped so LIKE wildcards match literally", () => {
   assert.equal(escapeLike("plain@example.test"), "plain@example.test");
 });
 
-test("account types accept only a user UUID and a supported tier", () => {
-  const userId = "7199f62c-4c8b-43a6-8ca6-9711c6bffb04";
-  assert.deepEqual(tierChangeSchema.parse({ userId, tier: "plus" }), { userId, tier: "plus" });
-  assert.equal(tierChangeSchema.safeParse({ userId, tier: "admin" }).success, false);
-  assert.equal(tierChangeSchema.safeParse({ userId: "not-an-id", tier: "basic" }).success, false);
-  assert.equal(tierChangeSchema.safeParse({ userId, tier: "basic", isAdmin: true }).success, false);
+test("one account change at a time: a tier, a lock, or the trash", () => {
+  assert.deepEqual(accountChangeSchema.parse({ userId, tier: "plus" }), { userId, tier: "plus" });
+  assert.deepEqual(accountChangeSchema.parse({ userId, locked: true }), { userId, locked: true });
+  assert.deepEqual(accountChangeSchema.parse({ userId, trashed: false }), {
+    userId,
+    trashed: false,
+  });
+  for (const candidate of [
+    { userId, tier: "admin" },
+    { userId: "not-an-id", tier: "basic" },
+    { userId, tier: "basic", isAdmin: true },
+    { userId, locked: "yes" },
+    { userId, locked: true, trashed: true },
+    { userId },
+  ])
+    assert.equal(
+      accountChangeSchema.safeParse(candidate).success,
+      false,
+      JSON.stringify(candidate),
+    );
 });
 
-test("account deletion accepts one account or the explicit test-account cleanup", () => {
-  const userId = "7199f62c-4c8b-43a6-8ca6-9711c6bffb04";
-  assert.deepEqual(accountDeleteSchema.parse({ userId }), { userId });
-  assert.deepEqual(accountDeleteSchema.parse({ testAccounts: true }), { testAccounts: true });
-  assert.equal(accountDeleteSchema.safeParse({ testAccounts: false }).success, false);
-  assert.equal(accountDeleteSchema.safeParse({ userId, testAccounts: true }).success, false);
+test("only the E2E test accounts are deleted at once; others go through the trash", () => {
+  assert.deepEqual(testAccountsDeleteSchema.parse({ testAccounts: true }), { testAccounts: true });
+  assert.equal(testAccountsDeleteSchema.safeParse({ testAccounts: false }).success, false);
+  assert.equal(testAccountsDeleteSchema.safeParse({ userId }).success, false);
+  assert.equal(testAccountsDeleteSchema.safeParse({ userId, testAccounts: true }).success, false);
+});
+
+test("an account in the trash is deleted for good 30 days after it went in", () => {
+  assert.equal(TRASH_DAYS, 30);
+  assert.equal(purgeDate("2026-11-02T10:00:00.000Z").toISOString(), "2026-12-02T10:00:00.000Z");
 });
 
 test("the test-account filter matches only e2e addresses at example.test", () => {
@@ -52,8 +75,8 @@ test("the test-account filter matches only e2e addresses at example.test", () =>
     assert.equal(isE2eAccountEmail(email), false, email);
 });
 
-test("an admin can be deleted only when another admin remains", () => {
-  assert.equal(canDeleteAccount(false, false), true);
-  assert.equal(canDeleteAccount(true, true), true);
-  assert.equal(canDeleteAccount(true, false), false);
+test("an admin can be locked or trashed only while another admin can still sign in", () => {
+  assert.equal(canRemoveAccess(false, false), true);
+  assert.equal(canRemoveAccess(true, true), true);
+  assert.equal(canRemoveAccess(true, false), false);
 });
