@@ -25,9 +25,11 @@ npm run test:e2e        # Playwright browser tests (e2e/); same stack and TEST_B
 npm run build
 ```
 
-Before finishing a change, run lint, format:check, typecheck and the unit
-tests. Also run the integration test when API, auth or DB code changed, and the
-browser tests when UI code changed.
+While iterating, run only typecheck and lint, and keep a note of which tests the
+changes call for. Run the rest before a commit or a PR, or when asked: lint,
+format:check, typecheck and the unit tests, plus the integration test when API,
+auth or DB code changed and the browser tests covering any changed UI. CI runs
+the full browser suite on every PR.
 
 ## Code map
 
