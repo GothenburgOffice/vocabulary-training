@@ -2,6 +2,7 @@
 // and per day, per feature and account type, plus the speech request block and the cooldowns.
 // They are site settings ("limits.…" in site_settings, seeded by migration 008), so they can
 // be changed in the database without a deploy; these defaults apply to any missing or invalid.
+// A letter limit of 0 means no limit (for a site that caps spending only at the provider).
 export type AiKind = "speech" | "note";
 export type KindLimits = {
   lettersPerMinute: number;
@@ -13,12 +14,12 @@ export type AiLimits = { speech: KindLimits; note: KindLimits; speechBlockMs: nu
 export const DEFAULT_LIMITS: AiLimits = {
   speech: {
     lettersPerMinute: 1_200,
-    lettersPerDay: { basic: 20_000, plus: 60_000 },
+    lettersPerDay: { basic: 100_000, plus: 300_000 },
     cooldownMs: 500,
   },
   note: {
     lettersPerMinute: 3_000,
-    lettersPerDay: { basic: 20_000, plus: 60_000 },
+    lettersPerDay: { basic: 100_000, plus: 300_000 },
     cooldownMs: 3_000,
   },
   speechBlockMs: 10_000,
