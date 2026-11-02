@@ -513,7 +513,7 @@ function AddLanguage({ onAdd }: { onAdd: (name: string, code: string) => Promise
         <input
           form="add-language"
           aria-label="New language"
-          placeholder="Add a language"
+          placeholder="New language"
           value={name}
           required
           maxLength={60}

@@ -2365,9 +2365,10 @@ main > .save-error {
   gap: 4px 20px;
 }
 
-/* Admin → Languages: one compact, editable row per language (#73). */
+/* Admin → Languages: one compact, editable row per language (#73). Light like a sheet: only
+   row lines, and cells show they're editable on hover and focus. */
 .admin-main:has(.lang-table) {
-  max-width: 1440px;
+  max-width: none;
 }
 .lang-toolbar,
 .lang-bulk {
@@ -2401,119 +2402,96 @@ main > .save-error {
 .lang-bulk select {
   padding-right: 32px;
 }
+.lang-bulk .lang-bulk-value {
+  width: 260px;
+}
 .lang-errors {
   margin: 0 0 12px;
   padding-left: 32px;
 }
 .lang-table-wrap {
   overflow-x: auto;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
 }
 .lang-table {
-  width: max-content;
-  min-width: 100%;
   border-collapse: collapse;
   font-size: var(--text-xs);
 }
 .lang-table th,
 .lang-table td {
   padding: 0;
-  border: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   text-align: left;
   white-space: nowrap;
 }
 .lang-table thead th {
   padding: 6px 8px;
-  background: var(--soft);
-  font-weight: 600;
+  color: var(--muted);
+  font-weight: 500;
 }
-.lang-table input:not([type="checkbox"]) {
+/* Fixed widths: a long model name is cut off (the full name is its tooltip). */
+.lang-table input:not([type="checkbox"]),
+.lang-table select {
+  display: block;
   width: 100%;
-  min-width: 80px;
   min-height: 32px;
   padding: 4px 8px;
   border: 0;
   border-radius: 0;
-  background: transparent;
-  font-size: var(--text-xs);
-}
-/* Dropdown cells look like the text cells, with the picker's arrow. */
-.lang-table select {
-  width: 100%;
-  min-height: 32px;
-  padding: 4px 28px 4px 8px;
-  border: 0;
-  border-radius: 0;
   background-color: transparent;
-  background-position: right 8px center;
   font-size: var(--text-xs);
+  text-overflow: ellipsis;
 }
+.lang-table select {
+  padding-right: 28px;
+  background-position: right 8px center;
+}
+.lang-table input:not([type="checkbox"]):hover:not(:disabled),
+.lang-table select:hover:not(:disabled) {
+  background-color: var(--soft);
+}
+.lang-table input:not([type="checkbox"]):focus,
 .lang-table select:focus {
   outline: 2px solid var(--blue);
   outline-offset: -2px;
   background-color: var(--surface);
 }
+/* An empty cell that can't be set yet (no model) stays empty, without an arrow. */
+.lang-table input:disabled,
 .lang-table select:disabled {
-  background-color: var(--soft);
   background-image: none;
+  cursor: default;
 }
-.lang-table select.lang-model {
-  min-width: 220px;
-}
-.lang-table select.lang-voice {
-  min-width: 110px;
-}
-.lang-bulk .lang-bulk-value {
-  min-width: 240px;
-}
-.lang-table input:not([type="checkbox"]):focus {
-  outline: 2px solid var(--blue);
-  outline-offset: -2px;
-  background: var(--surface);
-}
-.lang-table input:disabled {
-  background: var(--soft);
-}
+/* Element-qualified, so these beat the cells' width: 100% above; percentage widths would
+   stretch the table to the window. */
 .lang-table input.lang-code {
-  min-width: 0;
   width: 64px;
 }
-.lang-table .lang-model {
-  min-width: 220px;
+.lang-table .lang-model:is(input, select) {
+  width: 200px;
 }
-.lang-table .lang-voice {
-  min-width: 100px;
+.lang-table .lang-voice:is(input, select) {
+  width: 110px;
 }
-.lang-table .lang-instructions {
-  min-width: 180px;
+.lang-table input.lang-instructions {
+  width: 120px;
 }
 .lang-table .lang-select,
 .lang-table .lang-center {
-  width: 32px;
+  width: 36px;
   text-align: center;
 }
 .lang-table .lang-name {
-  /* As narrow as the names allow; the spare width goes to the speech columns. */
-  width: 1%;
   position: sticky;
   left: 0;
   z-index: 1;
-  padding: 0 8px;
-  background: var(--surface);
+  padding: 0 12px 0 8px;
+  background: var(--bg);
   font-weight: 500;
-}
-.lang-table thead .lang-name {
-  background: var(--soft);
 }
 .lang-table .lang-name svg {
   margin-left: 6px;
   vertical-align: -2px;
   color: var(--red);
-}
-.lang-table .lang-order {
-  white-space: nowrap;
 }
 .lang-table .lang-order .icon-button {
   min-width: 28px;
@@ -2533,13 +2511,16 @@ main > .save-error {
   content: " (hidden)";
   font-weight: 400;
 }
+.lang-table tfoot th,
+.lang-table tfoot td {
+  border-bottom: 0;
+}
 .lang-table .lang-add .lang-name input {
-  min-width: 0;
-  width: 120px;
+  width: 110px;
 }
 .lang-table .lang-add .button {
   min-height: 30px;
-  margin: 2px 6px;
+  margin: 4px 8px;
   padding: 4px 12px;
 }
 .lost-edits {
