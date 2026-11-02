@@ -966,6 +966,9 @@ footer button {
   text-align: center;
   margin-top: 40px;
 }
+.ai-disclaimer {
+  margin-top: 8px;
+}
 .feedback {
   margin-top: 24px;
   padding: 20px;
