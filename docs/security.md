@@ -15,6 +15,8 @@ Intended for controlled self-hosting. This is not a security audit.
   create the first admin and never overwrites an existing password.
 - Every workspace read/write derives its owner from the authenticated session.
   The API accepts no client-supplied owner ID.
+- Signed-in users can download their saved workspace as JSON: lists, review progress and the
+  newest 200 completed sessions. This is separate from the admin's compliance export.
 - Mutation endpoints require JSON Content-Type and an Origin that exactly matches
   `APP_ORIGIN` or one of `APP_ORIGIN_ALIASES`.
 - Requesty keys are stored encrypted with AES-256-GCM (`SETTINGS_ENCRYPTION_KEY`)

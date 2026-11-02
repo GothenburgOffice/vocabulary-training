@@ -16,6 +16,7 @@ test("real HTTP and PostgreSQL: accounts, ownership, persistence, conflicts, CSR
   const password = "integration-test-only-password";
   const email = `integration-${randomUUID()}@example.test`;
   assert.equal((await api("/api/workspace")).status, 401);
+  assert.equal((await api("/api/export")).status, 401);
   assert.equal((await api("/api/health")).status, 200);
   assert.match(
     (await api("/api/health")).headers.get("content-security-policy") ?? "",
@@ -87,6 +88,7 @@ test("real HTTP and PostgreSQL: accounts, ownership, persistence, conflicts, CSR
     (await (await api("/api/workspace", "GET", undefined, cookie2)).json()).data.lists.length,
     0,
   );
+  assert.deepEqual((await (await api("/api/export", "GET", undefined, cookie2)).json()).lists, []);
   // Another account can't overwrite the list, take over its words or review them.
   assert.equal((await put(listId, { revision: 2, list }, cookie2)).status, 404);
   assert.equal((await put(listId, { revision: null, list }, cookie2)).status, 404);
@@ -272,6 +274,14 @@ test("real HTTP: lists, reviews, sessions and the profile are saved as rows", as
       ["", "chien", false],
     ],
   );
+  const exportedResponse = await api("/api/export", "GET", undefined, cookie);
+  assert.equal(exportedResponse.status, 200);
+  assert.equal(
+    exportedResponse.headers.get("content-disposition"),
+    'attachment; filename="vocabulary-training-export.json"',
+  );
+  assert.equal(exportedResponse.headers.get("cache-control"), "no-store");
+  assert.deepEqual(await exportedResponse.json(), dump);
 });
 
 test("real HTTP: deleting a list removes its words and keeps completed sessions", async () => {

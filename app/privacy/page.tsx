@@ -96,12 +96,13 @@ export default async function PrivacyPage() {
 
         <h2>How long, and your rights</h2>
         <p>
-          Your account and data are kept until you ask for them to be deleted. You can ask the
-          privacy contact above for a copy of your data, a correction, or deletion, and complain to
-          your data protection authority (in Sweden, IMY). You can export any word list as CSV
-          yourself, and delete a word list with its words and review history at once; completed
-          sessions keep the words they practised. The hosting provider may keep technical logs, such
-          as IP addresses, for security.
+          Your account and data are kept until you ask for them to be deleted. You can download your
+          saved workspace as JSON, including your lists, review progress and newest 200 completed
+          sessions. For a copy of your account data, a correction, or deletion, contact the privacy
+          contact above; you can also complain to your data protection authority (in Sweden, IMY).
+          Individual word lists can be exported as CSV or deleted with their review history;
+          completed sessions keep the words they practised. The hosting provider may keep technical
+          logs, such as IP addresses, for security.
         </p>
 
         <Link href="/" className="text-button">

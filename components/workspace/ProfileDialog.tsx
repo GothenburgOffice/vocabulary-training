@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LogOut, Settings, Shield, UserRound } from "lucide-react";
+import { Download, LogOut, Settings, Shield, UserRound } from "lucide-react";
 import { pickerLanguages, type Language } from "../../lib/languages";
 import type { WorkspaceAccount } from "../../lib/workspace";
 
@@ -43,6 +43,17 @@ export default function ProfileDialog({
             <a className="text-button" href="/privacy">
               <Shield size={15} /> Privacy
             </a>
+            <a
+              className="text-button"
+              href="/api/export"
+              aria-disabled={account.busy || account.save !== "saved"}
+              tabIndex={account.busy || account.save !== "saved" ? -1 : undefined}
+              onClick={(event) => {
+                if (account.busy || account.save !== "saved") event.preventDefault();
+              }}
+            >
+              <Download size={15} /> Download all data
+            </a>
             <button className="text-button" disabled={account.busy} onClick={account.onSignOut}>
               <LogOut size={15} /> Sign out
             </button>
@@ -77,9 +88,8 @@ export default function ProfileDialog({
         <div>
           <strong>Your personal workspace</strong>
           <p>
-            Lists, profile settings, review progress and completed sessions are saved to your
-            account as you go. The sidebar shows whether everything is saved. CSV exports contain
-            words, not your review history.
+            Download a JSON copy of your saved lists, review progress and completed sessions. Save
+            all changes first. CSV exports are still available for individual lists.
           </p>
         </div>
       </div>

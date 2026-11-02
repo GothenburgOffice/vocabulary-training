@@ -182,6 +182,21 @@ test("CSV: import with alternative answers, practise them and export", async ({ 
   await expect(page.getByText("CSV exported.")).toBeVisible();
 });
 
+test("the account dialog downloads the saved workspace as JSON", async ({ page }) => {
+  await page.goto("/");
+  const account = await openAccount(page);
+  const download = page.waitForEvent("download");
+  await account.getByRole("link", { name: "Download all data" }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe("vocabulary-training-export.json");
+  expect(JSON.parse(await readFile((await file.path())!, "utf8"))).toMatchObject({
+    baseLanguage: "Swedish",
+    learningLanguage: "French",
+    lists: [],
+    runs: [],
+  });
+});
+
 test("deleting a list asks first, then removes it for good", async ({ page }) => {
   await page.goto("/");
   await createList(page, "Doomed", [["hej", "bonjour"]]);
