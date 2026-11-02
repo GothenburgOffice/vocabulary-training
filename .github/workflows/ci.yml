@@ -61,6 +61,18 @@ jobs:
           docker compose restart app
           node scripts/wait-health.mjs http://127.0.0.1:3013/api/health
           npx tsx tests/restart.mts verify
+      - name: Install Chromium for the browser tests
+        run: npx playwright install --with-deps --only-shell chromium
+      - run: npm run test:e2e
+      - name: Browser test report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
       - name: Container logs on failure
         if: failure()
         run: docker compose logs --tail=100

@@ -4,3 +4,5 @@ out/
 graphify-out/
 next-env.d.ts
 notes/
+test-results/
+playwright-report/
