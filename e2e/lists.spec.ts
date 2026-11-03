@@ -27,11 +27,12 @@ test("view all words expands the preview in place, and both edit controls open t
   ]);
   await createList(page, "Complete", pairs);
   const rows = page.locator(".word-preview .word-row");
-  const edits = page.getByRole("button", { name: "Edit list", exact: true });
-  const topEdit = edits.first();
-  const bottomEdit = edits.last();
+  // The bottom control reads "Edit list" too, but has its own accessible name.
+  const topEdit = page.getByRole("button", { name: "Edit list", exact: true });
+  const bottomEdit = page.getByRole("button", { name: "Edit this word list", exact: true });
   await expect(rows).toHaveCount(5);
-  await expect(edits).toHaveCount(1);
+  await expect(topEdit).toHaveCount(1);
+  await expect(bottomEdit).toHaveCount(0);
   const disclosure = page.getByRole("button", { expanded: false, name: "View all 7 words" });
   const controlledId = await disclosure.getAttribute("aria-controls");
   expect(controlledId).toBeTruthy();
@@ -41,12 +42,13 @@ test("view all words expands the preview in place, and both edit controls open t
   const collapse = page.getByRole("button", { expanded: true, name: "Show fewer" });
   await expect(collapse).toBeFocused();
   await expect(rows).toHaveText(pairs.map(([front, back]) => new RegExp(`${front}\\s*${back}`)));
-  await expect(edits).toHaveCount(2);
+  await expect(topEdit).toHaveCount(1);
+  await expect(bottomEdit).toHaveText("Edit list");
   await expect(page.getByLabel("List name")).toHaveCount(0);
   await page.keyboard.press("Space");
   await expect(disclosure).toBeFocused();
   await expect(rows).toHaveCount(5);
-  await expect(edits).toHaveCount(1);
+  await expect(bottomEdit).toHaveCount(0);
   await page.keyboard.press("Enter");
 
   await bottomEdit.click();
@@ -84,7 +86,7 @@ test("view all words expands the preview in place, and both edit controls open t
   await createList(page, "Short", pairs.slice(0, 5));
   await expect(rows).toHaveCount(5);
   await expect(page.getByRole("button", { name: /View all .* words/ })).toHaveCount(0);
-  await expect(edits).toHaveCount(1);
+  await expect(bottomEdit).toHaveCount(0);
   await topEdit.click();
   await expect(page.getByLabel("List name")).toHaveValue("Short");
 });
@@ -126,12 +128,12 @@ test("large previews reveal words in steps and fit a 320px screen", async ({ pag
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
   ).toBeLessThanOrEqual(0);
-  const edits = page.getByRole("button", { name: "Edit list", exact: true });
-  await expect(edits).toHaveCount(2);
-  await expect(edits.last()).toBeVisible();
+  const bottomEdit = page.getByRole("button", { name: "Edit this word list", exact: true });
+  await expect(page.getByRole("button", { name: "Edit list", exact: true })).toHaveCount(1);
+  await expect(bottomEdit).toBeVisible();
   await page.getByRole("button", { name: "Show fewer" }).click();
   await expect(rows).toHaveCount(5);
-  await expect(edits).toHaveCount(1);
+  await expect(bottomEdit).toHaveCount(0);
 });
 
 test("a new list starts with its name, then saves pairs as they're typed", async ({ page }) => {

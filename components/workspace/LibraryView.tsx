@@ -291,7 +291,13 @@ export default function LibraryView({
                   </button>
                 )}
                 {expanded && (
-                  <button className="text-button word-preview-edit" onClick={() => onEdit(list)}>
+                  <button
+                    className="text-button word-preview-edit"
+                    // Same visible label as the top control, but its own accessible name, so a
+                    // screen reader (and a locator) can tell the two apart.
+                    aria-label="Edit this word list"
+                    onClick={() => onEdit(list)}
+                  >
                     Edit list <ArrowRight size={15} />
                   </button>
                 )}
