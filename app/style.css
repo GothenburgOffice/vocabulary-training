@@ -2594,26 +2594,14 @@ main > .save-error {
 .requesty-link:hover small {
   text-decoration: none;
 }
-/* The logo shrinks (keeping its shape) when the sidebar is narrow; the text doesn't. */
-.requesty-link img {
+/* The logo shrinks (keeping its shape) when the sidebar is narrow; the text doesn't. Its
+   wordmark takes the theme's text colour, so it needs no chip in dark mode. */
+.requesty-logo {
   display: block;
   flex: 0 1 auto;
   min-width: 0;
   height: auto;
-}
-/* The official wordmark has dark text; in dark mode it sits on a light chip rather than
-   being recoloured. */
-:root[data-theme="dark"] .requesty-link img {
-  background: #f6f7f9;
-  border-radius: 4px;
-  padding: 2px 4px;
-}
-@media (prefers-color-scheme: dark) {
-  :root[data-theme="system"] .requesty-link img {
-    background: #f6f7f9;
-    border-radius: 4px;
-    padding: 2px 4px;
-  }
+  color: var(--text);
 }
 .requesty-link:hover .requesty-text > span {
   color: var(--text);

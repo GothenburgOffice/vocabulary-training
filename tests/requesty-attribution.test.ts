@@ -13,10 +13,12 @@ test("Requesty attribution preserves the referral destination and safe external-
   assert.match(html, /[Oo]pens in a new tab/);
 });
 
-test("Requesty attribution uses a local logo and a visible referral disclosure", () => {
+test("Requesty attribution uses an inline logo and a visible referral disclosure", () => {
   const html = renderToStaticMarkup(createElement(RequestyAttribution));
-  assert.match(html, /src="\.\/requesty-logo\.png"/);
-  assert.match(html, /alt="Requesty"/);
+  // Inline vector logo: no image request, and the name follows the theme colour.
+  assert.doesNotMatch(html, /<img/);
+  assert.match(html, /<svg[^>]*role="img"[^>]*aria-label="Requesty"/);
+  assert.match(html, /<text[^>]*fill="currentColor"[^>]*>Requesty<\/text>/);
   assert.match(html, />AI features by</);
   // Marked as a referral where it is shown, and in full in its label and tooltip.
   assert.match(html, /<small>Referral link<\/small>/);
