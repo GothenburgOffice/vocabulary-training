@@ -2,7 +2,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReportSort } from "../../lib/admin/reports";
 import type { Sort } from "../../lib/admin/sort";
-import { REPORT_REASON_LABELS, type ReportReason } from "../../lib/reports";
+import {
+  REPORT_KIND_LABELS as KIND,
+  REPORT_REASON_LABELS,
+  type ReportReason,
+} from "../../lib/reports";
 import Dialog from "../workspace/Dialog";
 import { adminRequest } from "./request";
 import SortHeader from "./SortHeader";
@@ -31,11 +35,11 @@ type Page = {
 // The pages loaded so far, and whether the last one was full (so another may follow).
 type View = Page & { more: boolean };
 
-const KIND = { speech: "Audio", note: "Language note" } as const;
 const NEWEST: Sort<ReportSort> = { key: "reported", dir: "desc" };
 
-const pageUrl = (sort: Sort<ReportSort>, offset: number) =>
-  `/api/admin/reports?${new URLSearchParams({ sort: sort.key, dir: sort.dir, offset: String(offset) })}`;
+// The first page in an order, or the page after the last report shown.
+const pageUrl = (sort: Sort<ReportSort>, last?: Report) =>
+  `/api/admin/reports?${new URLSearchParams({ sort: sort.key, dir: sort.dir, ...(last ? { after: last.id } : {}) })}`;
 
 // Reported AI results: a read-only table, newest first or sorted by any heading (on the
 // server, as the list loads in pages). A row opens the report with the request that was sent.
@@ -55,7 +59,7 @@ export default function Reports() {
     setBusy(true);
     setError("");
     try {
-      const page = await adminRequest<Page>(pageUrl(order, after.length));
+      const page = await adminRequest<Page>(pageUrl(order, after.at(-1)));
       if (id === latest.current)
         setView({
           ...page,

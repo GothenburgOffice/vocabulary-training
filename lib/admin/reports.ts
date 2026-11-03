@@ -18,11 +18,12 @@ export const REPORT_SORTS = [
 ] as const;
 export type ReportSort = (typeof REPORT_SORTS)[number];
 
-// A page of the list in one order: newest first unless a heading was clicked.
+// A page of the list in one order (newest first unless a heading was clicked), starting after
+// the last report shown, or at the top.
 export const reportListQuerySchema = z.object({
   sort: z.enum(REPORT_SORTS).default("reported"),
   dir: z.enum(["asc", "desc"]).default("desc"),
-  offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
+  after: z.string().uuid().optional(),
 });
 export type ReportListQuery = z.infer<typeof reportListQuerySchema>;
 

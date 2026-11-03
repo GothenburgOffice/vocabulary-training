@@ -4,6 +4,9 @@ import { z } from "zod";
 import type { AiAction, AiActionKind } from "./ai-actions";
 import { MAX_SPEECH_TEXT } from "./ai-words";
 
+// What the admin list calls each kind of result.
+export const REPORT_KIND_LABELS = { speech: "Audio", note: "Language note" } as const;
+
 export const REPORT_REASON_LABELS = {
   pronunciation: "Wrong pronunciation",
   "language-accent": "Wrong language or accent",

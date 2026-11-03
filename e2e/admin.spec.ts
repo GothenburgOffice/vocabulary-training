@@ -560,17 +560,19 @@ test("reports list newest first by page, sort by a heading, show the request, an
       return route.fulfill({ json: { deleted: 2 } });
     }
     const params = new URL(request.url()).searchParams;
-    queries.push(`${params.get("sort")} ${params.get("dir")} ${params.get("offset")}`);
+    const after = params.get("after");
+    queries.push(`${params.get("sort")} ${params.get("dir")} ${after ?? "top"}`);
     const sorted =
       params.get("sort") === "model"
         ? [...reports].sort(
             (a, b) => a.model.localeCompare(b.model) * (params.get("dir") === "asc" ? 1 : -1),
           )
         : reports;
-    const offset = Number(params.get("offset"));
+    // Like the server: the page after the last report shown.
+    const start = after ? sorted.findIndex((row) => row.id === after) + 1 : 0;
     return route.fulfill({
       json: {
-        reports: sorted.slice(offset, offset + 1),
+        reports: sorted.slice(start, start + 1),
         total: reports.length,
         prunable: reports.length,
         retentionDays: 15,
@@ -588,7 +590,7 @@ test("reports list newest first by page, sort by a heading, show the request, an
   );
   await expect(page.locator(".reports-table")).not.toContainText("@");
 
-  // The next page continues where the list ended.
+  // The next page continues after the last report shown.
   await page.getByRole("button", { name: "Load more reports" }).click();
   await expect(rows).toHaveCount(2);
   await expect(rows.nth(1)).toContainText("bonjour");
@@ -605,7 +607,7 @@ test("reports list newest first by page, sort by a heading, show the request, an
   await page.getByRole("button", { name: "Model", exact: true }).click();
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toContainText("acme/chat");
-  expect(queries).toEqual(["reported desc 0", "reported desc 1", "model asc 0"]);
+  expect(queries).toEqual(["reported desc top", `reported desc ${newer.id}`, "model asc top"]);
 
   page.once("dialog", (dialog) => {
     expect(dialog.message()).toBe("Permanently delete 2 reports older than 15 days?");
