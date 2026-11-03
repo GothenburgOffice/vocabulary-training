@@ -48,6 +48,19 @@ jobs:
       # Lets Claude read CI results on a PR.
       actions: read
     steps:
+      - name: Refuse pull requests from forks
+        # `issue_comment` fires for PR conversation comments too, and its payload doesn't say
+        # where the PR's branch lives. Claude would check out and run that branch with this
+        # job's secrets, so a fork PR is refused here; the review events check this in `if`.
+        if: github.event_name == 'issue_comment' && github.event.issue.pull_request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          head=$(gh api "repos/$GITHUB_REPOSITORY/pulls/${{ github.event.issue.number }}" --jq '.head.repo.full_name')
+          if [ "$head" != "$GITHUB_REPOSITORY" ]; then
+            echo "::error::@claude doesn't run on pull requests from forks (head: $head)."
+            exit 1
+          fi
       - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 1
