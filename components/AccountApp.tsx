@@ -16,6 +16,7 @@ import { NO_AI, type AiFeatures, type Language } from "../lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
 import { AiActionLogProvider } from "./AiActionLog";
 import { PASSWORD_MAX, PASSWORD_MIN } from "../lib/validation";
+import { applyTheme, type Theme } from "../lib/theme";
 
 type Account = { id: string; email: string; is_admin?: boolean };
 type Loaded = {
@@ -31,7 +32,8 @@ type Change =
   | { kind: "delete"; listId: string; done: (deleted: boolean) => void }
   | { kind: "review"; review: Review; saved: (history: History | null) => void }
   | { kind: "run"; run: Run }
-  | { kind: "profile"; baseLanguage: string; learningLanguage: string };
+  | { kind: "profile"; baseLanguage: string; learningLanguage: string }
+  | { kind: "theme"; theme: Theme };
 class RequestError extends Error {
   constructor(
     message: string,
@@ -96,6 +98,9 @@ export default function AccountApp() {
             blocked.current = false;
             setSave("saved");
             setSaveError("");
+            // In the same task as the state change, so the workspace's first paint (after a
+            // sign-in or registration without a reload) is already in the account's scheme.
+            applyTheme(result.data.theme ?? "system");
           }
           setLoaded(result);
         })
@@ -208,6 +213,11 @@ export default function AccountApp() {
           results: run.results.map((r) => ({ ...r, answeredAt: r.answeredAt ?? run.completedAt })),
         }),
       });
+    } else if (change.kind === "theme") {
+      await request("/api/profile", {
+        method: "PATCH",
+        body: JSON.stringify({ theme: change.theme }),
+      });
     } else {
       const { baseLanguage, learningLanguage } = change;
       await request("/api/profile", {
@@ -250,7 +260,8 @@ export default function AccountApp() {
       const replaces =
         last > 0 &&
         ((change.kind === "list" && queued.kind === "list" && queued.list.id === change.list.id) ||
-          (change.kind === "profile" && queued.kind === "profile"));
+          (change.kind === "profile" && queued.kind === "profile") ||
+          (change.kind === "theme" && queued.kind === "theme"));
       if (replaces) queue.current[last] = change;
       else queue.current.push(change);
       dirty.current = true;
@@ -272,6 +283,7 @@ export default function AccountApp() {
       completeRun: (run) => enqueue({ kind: "run", run }),
       saveProfile: (baseLanguage, learningLanguage) =>
         enqueue({ kind: "profile", baseLanguage, learningLanguage }),
+      saveTheme: (theme) => enqueue({ kind: "theme", theme }),
       pending: (value) => {
         pending.current = value;
         setHasPending(value);
@@ -313,6 +325,8 @@ export default function AccountApp() {
     setBusy(true);
     try {
       await request("/api/auth", { method: "DELETE", body: "{}" });
+      // Signed out, the device decides again (as the server does for a signed-out page).
+      applyTheme("system");
       setLoaded(null);
       setEmail("");
       setPassword("");

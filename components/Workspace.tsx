@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useContext, useEffect, useReducer, useRef, useState } from "react";
+import { useContext, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { Check, ChevronDown, CircleAlert, X } from "lucide-react";
 import { BookMark } from "../lib/brand";
 import { encodeCSV, listTitle, reviewed, type List } from "../lib/learning";
@@ -43,6 +43,7 @@ import SaveStatus from "./workspace/SaveStatus";
 import Sidebar from "./workspace/Sidebar";
 import { useNow } from "./workspace/useNow";
 import type { Modal, View } from "./workspace/views";
+import { applyTheme, type Theme } from "../lib/theme";
 
 const DIALOG_TITLES: Record<Modal, string> = {
   account: "Your account",
@@ -84,6 +85,15 @@ export default function Workspace({
   const [previewPages, setPreviewPages] = useState<Record<string, number>>({});
   const [baseLanguage, setBaseLanguage] = useState(initial.baseLanguage ?? "Swedish");
   const [learningLanguage, setLearningLanguage] = useState(initial.learningLanguage ?? "French");
+  // The Appearance setting: shown at once, saved with the account.
+  const [theme, setTheme] = useState<Theme>(initial.theme ?? "system");
+  // Before paint, so a change never shows a frame in the old scheme.
+  useLayoutEffect(() => applyTheme(theme), [theme]);
+  function chooseTheme(next: Theme) {
+    applyTheme(next);
+    setTheme(next);
+    sync?.saveTheme(next);
+  }
   // Remembered in this browser only (#67); private windows or blocked storage use the defaults.
   const [settings, setSettings] = useState<PracticeSettings>(() => {
     try {
@@ -534,6 +544,8 @@ ${learningLanguage}`;
                   : ""
             }
             onSave={saveProfile}
+            theme={theme}
+            onTheme={chooseTheme}
           />
         )}
         {modal === "language" && (

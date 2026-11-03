@@ -15,6 +15,7 @@ Built with Next.js, TypeScript and PostgreSQL, and run with Docker Compose.
 - Session history per language pair.
 - A download of all your data (lists, review history, sessions) as one JSON file.
 - Saves after each answer, with conflict detection across browser tabs.
+- Light and dark appearance: follows the device, or set per account.
 - Optional: a short AI language note for wrong answers and click-to-play word
   audio, both via [Requesty](https://www.requesty.ai). Grading never uses AI.
   See [AI features](docs/ai-features.md).

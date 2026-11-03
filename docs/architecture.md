@@ -73,7 +73,9 @@ Saves are small and incremental:
   `review_events`, so a retried request is counted once. It returns the new
   state, which the tab takes unless a later answer for that word is pending.
 - `POST /api/runs` saves a completed session once; `PATCH /api/profile` saves
-  the profile languages.
+  the profile languages, or the Appearance setting (`{ theme }`) on its own. The root
+  layout reads the setting with the session and sets `<html data-theme>`, so pages paint
+  in the right scheme; the colour tokens in `app/style.css` use `light-dark()`.
 - `GET /api/workspace` is the full dump, in the shape the client works with.
 - `GET /api/export` downloads the same data for people to keep (`lib/export.ts`), from one
   read-only snapshot: ISO times, plus the account row, the answer log (`review_events`)

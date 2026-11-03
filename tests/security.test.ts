@@ -8,6 +8,7 @@ import {
   listSaveSchema,
   profileSchema,
   reviewSchema,
+  themeSaveSchema,
   runSaveSchema,
 } from "../lib/validation.ts";
 import {
@@ -86,6 +87,14 @@ test("save requests protect types, limits and language pairs", () => {
   assert(profileSchema.safeParse({ baseLanguage: "Swedish", learningLanguage: "French" }).success);
   assert.equal(
     profileSchema.safeParse({ baseLanguage: "Swedish", learningLanguage: "Swedish" }).success,
+    false,
+  );
+  // The Appearance setting is saved on its own, and only as one of the three choices.
+  for (const theme of ["system", "light", "dark"])
+    assert(themeSaveSchema.safeParse({ theme }).success, theme);
+  assert.equal(themeSaveSchema.safeParse({ theme: "sepia" }).success, false);
+  assert.equal(
+    themeSaveSchema.safeParse({ theme: "dark", baseLanguage: "Swedish" }).success,
     false,
   );
 

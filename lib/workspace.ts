@@ -1,4 +1,5 @@
 import type { Direction, History, List, Word } from "./learning";
+import type { Theme } from "./theme";
 
 // A result keeps only the word's text, not its review history (issue #7).
 export type ResultWord = Pick<Word, "id" | "front" | "back">;
@@ -22,6 +23,8 @@ export type Run = {
 export type WorkspaceData = {
   baseLanguage: string;
   learningLanguage: string;
+  // The Appearance setting; older dumps and test fixtures may leave it out (system).
+  theme?: Theme;
   lists: List[];
   runs: Run[];
 };
@@ -36,6 +39,7 @@ export type WorkspaceSync = {
   review: (review: Review) => Promise<History | null>;
   completeRun: (run: Run) => void;
   saveProfile: (baseLanguage: string, learningLanguage: string) => void;
+  saveTheme: (theme: Theme) => void;
   // Whether the workspace holds edits it hasn't reported yet (an unfinished row, pasted text
   // not imported, a change still waiting to autosave). They count as unsaved changes.
   pending: (pending: boolean) => void;

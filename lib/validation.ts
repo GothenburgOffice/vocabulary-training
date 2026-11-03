@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { THEMES } from "./theme";
 const text = z.string().trim().min(1).max(200);
 const language = z.string().trim().min(1).max(60);
 const id = z.string().uuid();
@@ -66,6 +67,8 @@ export const profileSchema = z
   .object({ baseLanguage: language, learningLanguage: language })
   .strict()
   .refine((p) => p.baseLanguage !== p.learningLanguage, "Languages must differ");
+// PATCH /api/profile with the Appearance setting alone.
+export const themeSaveSchema = z.object({ theme: z.enum(THEMES) }).strict();
 // Only a fixed-length scrypt hash is stored, so the cap just bounds the hashing work.
 export const PASSWORD_MIN = 12;
 export const PASSWORD_MAX = 4096;
