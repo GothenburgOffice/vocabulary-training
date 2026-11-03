@@ -899,6 +899,20 @@ test("real HTTP: share previews, manifest, robots and sitemap use the server's o
   assert.ok(image, "the front page has an og:image");
   assert.equal(new URL(image).origin, new URL(origin).origin);
   assert.match(page, /<meta name="twitter:card" content="summary_large_image"/);
+  // Each page names its own URL.
+  // (Next writes the front page's URL as the bare origin.)
+  const home = page.match(/<meta property="og:url" content="([^"]+)"/)?.[1];
+  assert.equal(home && new URL(home).href, new URL("/", origin).href);
+  const privacy = await (await api("/privacy")).text();
+  assert.ok(
+    privacy.includes(`<meta property="og:url" content="${new URL("/privacy", origin).href}"/>`),
+  );
+  // …and keeps the share image, which a page's own openGraph would otherwise drop.
+  for (const html of [page, privacy]) {
+    assert.match(html, /<meta property="og:image" content="[^"]*\/opengraph-image\.png/);
+    assert.match(html, /<meta name="twitter:image" content="[^"]*\/opengraph-image\.png/);
+    assert.equal(html.match(/<meta property="og:image" /g)?.length, 1, "one og:image");
+  }
   assert.match(page, /<link rel="manifest" href="\/manifest.webmanifest"/);
 
   const preview = await api(new URL(image).pathname + new URL(image).search);

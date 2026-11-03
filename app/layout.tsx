@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import "@fontsource-variable/instrument-sans";
 import "./style.css";
 import { BRAND_BLUE } from "../lib/brand";
-import { SITE_DESCRIPTION, SITE_NAME, siteOrigin } from "../lib/site";
+import { SITE_DESCRIPTION, SITE_NAME, openGraph, siteOrigin } from "../lib/site";
 
 export const viewport: Viewport = { themeColor: BRAND_BLUE };
 
@@ -17,13 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
     description: SITE_DESCRIPTION,
     applicationName: SITE_NAME,
-    openGraph: {
-      type: "website",
-      siteName: SITE_NAME,
-      locale: "en",
-      title: SITE_NAME,
-      description: SITE_DESCRIPTION,
-    },
+    openGraph: openGraph("/"),
     twitter: { card: "summary_large_image", title: SITE_NAME, description: SITE_DESCRIPTION },
   };
 }

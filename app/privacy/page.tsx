@@ -4,11 +4,21 @@ import { ArrowLeft } from "lucide-react";
 import { BookMark } from "../../lib/brand";
 import { privacyReady } from "../../lib/admin/registration";
 import { readPrivacy } from "../../lib/server/site-settings";
+import { SHARE_IMAGE, SITE_NAME, openGraph } from "../../lib/site";
 
 export const dynamic = "force-dynamic";
+const TITLE = "Privacy and cookies";
+const DESCRIPTION = "Who runs this site, what it stores, and the one cookie it uses.";
 export const metadata: Metadata = {
-  title: "Privacy and cookies",
-  description: "Who runs this site, what it stores, and the one cookie it uses.",
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: openGraph("/privacy", `${TITLE} · ${SITE_NAME}`, DESCRIPTION),
+  twitter: {
+    card: "summary_large_image",
+    title: `${TITLE} · ${SITE_NAME}`,
+    description: DESCRIPTION,
+    images: [SHARE_IMAGE],
+  },
 };
 
 // Keep this page in step with what the app stores and sends (docs/architecture.md,
