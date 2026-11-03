@@ -2,13 +2,33 @@ import {
   answersFor,
   isCorrect,
   randomOrder,
+  spacedOrder,
   weightedOrder,
   type Direction,
   type Word,
 } from "./learning";
 import type { Result } from "./workspace";
 
-export type Mode = "adaptive" | "random";
+// "adaptive" is Weighted mix; the id predates the name (#2) and is kept in saved settings
+// and sessions.
+export const MODES = ["adaptive", "spaced", "random"] as const;
+export type Mode = (typeof MODES)[number];
+export const MODE_LABELS: Record<Mode, string> = {
+  adaptive: "Weighted mix",
+  spaced: "Spaced review",
+  random: "Random order",
+};
+export const isMode = (value: unknown): value is Mode =>
+  typeof value === "string" && (MODES as readonly string[]).includes(value);
+// "Next review in 10 minutes", from a word's due date just after an answer.
+export function nextReviewText(due: number, now: number) {
+  const minutes = Math.max(1, Math.round((due - now) / 60000));
+  if (minutes < 60) return `Next review in ${minutes} minute${minutes === 1 ? "" : "s"}.`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `Next review in ${hours} hour${hours === 1 ? "" : "s"}.`;
+  const days = Math.round(hours / 24);
+  return `Next review in ${days} day${days === 1 ? "" : "s"}.`;
+}
 export type PracticeSettings = {
   direction: Direction;
   mode: Mode;
@@ -35,7 +55,7 @@ export function readSettings(stored: string | null): PracticeSettings {
   const d = DEFAULT_SETTINGS;
   return {
     direction: value.direction === "reverse" ? "reverse" : d.direction,
-    mode: value.mode === "random" ? "random" : d.mode,
+    mode: isMode(value.mode) ? value.mode : d.mode,
     length: [5, 8, 1000].includes(value.length as number) ? (value.length as number) : d.length,
     caseSensitive: typeof value.caseSensitive === "boolean" ? value.caseSensitive : d.caseSensitive,
     accents: typeof value.accents === "boolean" ? value.accents : d.accents,
@@ -99,7 +119,11 @@ export function practiceQueue(
   const wrong = new Set(mistakes?.filter((r) => !r.correct).map((r) => r.word.id));
   const pool = mistakes ? words.filter((w) => wrong.has(w.id)) : words;
   const ordered =
-    settings.mode === "adaptive" ? weightedOrder(pool, settings.direction, now) : randomOrder(pool);
+    settings.mode === "adaptive"
+      ? weightedOrder(pool, settings.direction, now)
+      : settings.mode === "spaced"
+        ? spacedOrder(pool, settings.direction, now)
+        : randomOrder(pool);
   return ordered.slice(0, mistakes ? pool.length : settings.length);
 }
 

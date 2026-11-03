@@ -34,9 +34,7 @@ test("the help dialog opens and closes", async ({ page }) => {
   await openMenu(page);
   await page.getByRole("button", { name: "How practice works" }).click();
   const dialog = page.getByRole("dialog");
-  await expect(
-    dialog.getByRole("heading", { name: "A smarter mix, not a black box." }),
-  ).toBeVisible();
+  await expect(dialog.getByRole("heading", { name: "How practice works" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 });
@@ -102,9 +100,9 @@ test("the save status shows without opening the menu", async ({ page }) => {
 test("the practice mode help is next to the practice mode", async ({ page }) => {
   await page.goto("/");
   await createList(page, "Help", [["hej", "bonjour"]]);
-  await page.getByRole("button", { name: "How Smart mix and Random order work" }).click();
+  await page.getByRole("button", { name: "How each mode works" }).click();
   await expect(
-    page.getByRole("dialog").getByRole("heading", { name: "A smarter mix, not a black box." }),
+    page.getByRole("dialog").getByRole("heading", { name: "How practice works" }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
   // The label still belongs to the select.

@@ -13,6 +13,9 @@ import {
   randomOrder,
   weight,
   reviewed,
+  retrievability,
+  spacedOrder,
+  freshHistory,
   listStats,
   listTitle,
   parseCSV,
@@ -75,21 +78,78 @@ test("weighted order includes each word exactly once", () => {
   assert.equal(ids.length, 3);
   assert.equal(new Set(ids).size, 3);
   assert.ok(
-    weight({ correct: 1, wrong: 5, streak: 0, due: 0 }, 100) >
-      weight({ correct: 5, wrong: 0, streak: 3, due: 1000 }, 100),
+    weight({ ...freshHistory(), correct: 1, wrong: 5, streak: 0, due: 0 }, 100) >
+      weight({ ...freshHistory(), correct: 5, wrong: 0, streak: 3, due: 1000 }, 100),
   );
   assert.equal(new Set(randomOrder(words)).size, 3);
 });
-test("review scheduling updates one independent history", () => {
+const MINUTE = 60000;
+const DAY = 86400000;
+test("FSRS scheduling: short steps, then days; a lapse comes back in 10 minutes", () => {
   const word = makeWord();
-  let h = reviewed(word.forward, true, 0);
-  assert.equal(h.due, 86400000);
-  h = reviewed(h, true, 0);
-  assert.equal(h.due, 2 * 86400000);
-  h = reviewed(h, false, 100);
-  assert.equal(h.due, 600100);
-  assert.equal(h.streak, 0);
+  const t0 = Date.parse("2026-11-04T10:00:00Z");
+  // A new word answered right: the second short step, 10 minutes.
+  let h = reviewed(word.forward, true, t0);
+  assert.equal(h.state, "learning");
+  assert.equal(h.due, t0 + 10 * MINUTE);
+  assert.equal(h.lastReview, t0);
+  // Right again after the step: day-long reviews.
+  const t1 = t0 + 10 * MINUTE;
+  h = reviewed(h, true, t1);
+  assert.equal(h.state, "review");
+  assert.ok(h.due >= t1 + DAY, "at least a day");
+  assert.equal(h.streak, 2);
+  // Remembered after a longer gap, the interval grows more than when reviewed early.
+  const onTime = reviewed(h, true, h.due);
+  const early = reviewed(h, true, t1 + MINUTE);
+  assert.ok(onTime.stability > early.stability);
+  assert.ok(onTime.due - h.due > early.due - (t1 + MINUTE));
+  // A wrong answer: relearning, back in 10 minutes, harder, one lapse.
+  const t2 = onTime.lastReview!;
+  const lapse = reviewed(onTime, false, t2 + 20 * DAY);
+  assert.equal(lapse.state, "relearning");
+  assert.equal(lapse.due, t2 + 20 * DAY + 10 * MINUTE);
+  assert.equal(lapse.lapses, 1);
+  assert.equal(lapse.streak, 0);
+  assert.ok(lapse.stability < onTime.stability);
+  assert.ok(lapse.difficulty > onTime.difficulty);
+  assert.equal(lapse.correct + lapse.wrong, 4);
+  // The other direction is untouched, and the same answers always give the same schedule.
   assert.equal(word.reverse.correct, 0);
+  assert.deepEqual(reviewed(word.forward, true, t0), reviewed(word.forward, true, t0));
+});
+test("retrievability: none for a new word, falling over time", () => {
+  const t0 = Date.parse("2026-11-04T10:00:00Z");
+  assert.equal(retrievability(freshHistory(), t0), null);
+  const h = reviewed(reviewed(freshHistory(), true, t0), true, t0 + 10 * MINUTE);
+  const soon = retrievability(h, t0 + DAY)!;
+  const later = retrievability(h, t0 + 30 * DAY)!;
+  assert.ok(soon > later && later > 0 && soon <= 1);
+});
+test("spaced order: due words most forgotten first, then new words, then the rest", () => {
+  const t0 = Date.parse("2026-11-04T10:00:00Z");
+  const learned = (days: number) =>
+    reviewed(reviewed(freshHistory(), true, t0 - days * DAY), true, t0 - days * DAY + 10 * MINUTE);
+  const word = (id: string, forward = freshHistory()) => ({ ...makeWord(id, id, id), forward });
+  const words = [
+    word("new-1"),
+    word("fresh", learned(0)), // reviewed just now: not due
+    word("long-ago", learned(60)), // long overdue
+    word("new-2"),
+    word("a-while", learned(5)), // just due
+  ];
+  assert.deepEqual(spacedOrder(words, "forward", t0), [
+    "long-ago",
+    "a-while",
+    "new-1",
+    "new-2",
+    "fresh",
+  ]);
+  // The reverse direction has no history: list order.
+  assert.deepEqual(
+    spacedOrder(words, "reverse", t0),
+    words.map((w) => w.id),
+  );
 });
 test("CSV handles old codes, quoting, commas and line endings", () => {
   assert.deepEqual(parseCSV("\uFEFFsv,fr\r\nhej,bonjour\r\n"), [
@@ -180,9 +240,9 @@ test("list statistics count established and due words per direction", () => {
   const fresh = makeWord("ny", "nouveau");
   const due = {
     ...makeWord("hej", "bonjour"),
-    forward: { correct: 1, wrong: 1, streak: 0, due: now },
+    forward: { ...freshHistory(), correct: 1, wrong: 1, streak: 0, due: now },
   };
-  const later = { correct: 3, wrong: 0, streak: 3, due: now + 1 };
+  const later = { ...freshHistory(), correct: 3, wrong: 0, streak: 3, due: now + 1 };
   const known = { ...makeWord("tack", "merci"), forward: later, reverse: later };
   assert.deepEqual(listStats({ words: [fresh, due, known] }, "forward", now), {
     learned: 1,
@@ -196,4 +256,26 @@ test("list statistics count established and due words per direction", () => {
 test("a list without a name is shown as Untitled list", () => {
   assert.equal(listTitle({ title: "Basics" }), "Basics");
   assert.equal(listTitle({ title: "  " }), "Untitled list");
+});
+test("a word seeded from the old schedule (migration 013) schedules normally", () => {
+  const due = Date.parse("2026-11-04T10:00:00Z");
+  const seeded = {
+    ...freshHistory(),
+    correct: 5,
+    wrong: 0,
+    streak: 5,
+    due,
+    state: "review" as const,
+    stability: 16,
+    difficulty: 5,
+    scheduledDays: 16,
+    lastReview: due - 16 * DAY,
+  };
+  const right = reviewed(seeded, true, due);
+  assert.equal(right.state, "review");
+  assert.ok(right.stability > 16);
+  assert.ok(right.due > due + 16 * DAY);
+  const wrong = reviewed(seeded, false, due);
+  assert.equal(wrong.state, "relearning");
+  assert.equal(wrong.due, due + 10 * MINUTE);
 });

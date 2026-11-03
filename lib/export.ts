@@ -5,8 +5,8 @@ import type { WorkspaceData } from "./workspace";
 // one JSON file meant for people to keep and read. There is no import for it yet.
 // Times are ISO 8601 (UTC). Bump EXPORT_VERSION when the shape changes.
 export const EXPORT_FORMAT = "vocabulary.training export";
-// 2: profile.aiEnabled (#113).
-export const EXPORT_VERSION = 2;
+// 2: profile.aiEnabled (#113). 3: review.*.fsrs (#2).
+export const EXPORT_VERSION = 3;
 
 export type ExportAccount = {
   email: string;
@@ -41,6 +41,14 @@ function review(h: History) {
     wrong: h.wrong,
     streak: h.streak,
     due: h.correct + h.wrong > 0 ? iso(h.due) : null,
+    // FSRS memory state (#2): days until recall falls to 90%, difficulty 1-10, and so on.
+    fsrs: {
+      state: h.state,
+      stability: h.stability,
+      difficulty: h.difficulty,
+      lapses: h.lapses,
+      lastReview: h.lastReview === null ? null : iso(h.lastReview),
+    },
   };
 }
 

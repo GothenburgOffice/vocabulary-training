@@ -30,7 +30,7 @@ const data: WorkspaceData = {
           front: "äpple",
           back: "pomme",
           accepted: ["la pomme"],
-          forward: { correct: 2, wrong: 1, streak: 1, due },
+          forward: { ...freshHistory(), correct: 2, wrong: 1, streak: 1, due },
           reverse: freshHistory(),
         },
       ],
@@ -116,9 +116,21 @@ test("the data export holds the account, lists with review history, sessions and
     prompt: "äpple",
     answers: ["pomme", "la pomme"],
     review: {
-      forward: { correct: 2, wrong: 1, streak: 1, due: "2026-11-04T00:00:00.000Z" },
+      forward: {
+        correct: 2,
+        wrong: 1,
+        streak: 1,
+        due: "2026-11-04T00:00:00.000Z",
+        fsrs: { state: "new", stability: 0, difficulty: 0, lapses: 0, lastReview: null },
+      },
       // Never practised this way: nothing is scheduled.
-      reverse: { correct: 0, wrong: 0, streak: 0, due: null },
+      reverse: {
+        correct: 0,
+        wrong: 0,
+        streak: 0,
+        due: null,
+        fsrs: { state: "new", stability: 0, difficulty: 0, lapses: 0, lastReview: null },
+      },
     },
     // The answer log: every checked answer, oldest first.
     answerLog: [
