@@ -2400,9 +2400,12 @@ main > .save-error {
 }
 
 /* Admin → Languages: one compact, editable row per language (#73), in an .admin-table. */
-/* Wide enough for an admin table (its columns have fixed widths), and centered like the rest. */
+/* A page with an admin table is as wide as the table: the heading, help text and toolbar wrap
+   to it, and the whole block is centred with equal space either side. A table too wide for the
+   window scrolls inside its frame. */
 .admin-main:has(.admin-table) {
-  max-width: 1300px;
+  width: min-content;
+  max-width: 100%;
 }
 .lang-toolbar,
 .lang-bulk {
