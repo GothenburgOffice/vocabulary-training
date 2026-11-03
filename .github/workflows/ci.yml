@@ -2,7 +2,9 @@ name: Verify
 on:
   push:
     branches: [main]
+  # Draft PRs don't run the checks; marking one ready for review starts them.
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 permissions:
   contents: read
@@ -12,6 +14,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   unit:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -19,9 +22,15 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 22.23.4
-          cache: npm
       - run: npm install --global npm@12.2.1
-      - run: npm ci
+      - name: Restore node_modules
+        id: node-modules
+        uses: actions/cache@v6.1.0
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node22.23.4-${{ hashFiles('package-lock.json') }}
+      - if: steps.node-modules.outputs.cache-hit != 'true'
+        run: npm ci
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
@@ -29,6 +38,7 @@ jobs:
       - run: npm run build
       - run: npm audit --audit-level=high
   containers:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -49,9 +59,15 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 22.23.4
-          cache: npm
       - run: npm install --global npm@12.2.1
-      - run: npm ci
+      - name: Restore node_modules
+        id: node-modules
+        uses: actions/cache@v6.1.0
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node22.23.4-${{ hashFiles('package-lock.json') }}
+      - if: steps.node-modules.outputs.cache-hit != 'true'
+        run: npm ci
       - name: Start container stack
         run: docker compose up --build -d --wait --wait-timeout 240
       - run: npm run test:integration
@@ -81,6 +97,10 @@ jobs:
         run: docker compose down -v
   publish:
     name: Test release image and publish to GHCR
+    # The containers job already builds and tests the same production target from source, so
+    # PRs skip this job: the image-only Compose files and the push are checked on main, before
+    # anything is published.
+    if: github.event_name != 'pull_request'
     needs: [unit, containers]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -88,8 +108,7 @@ jobs:
       contents: read
       packages: write
     concurrency:
-      # PRs only test the image, so they get their own group and never queue against a main publish.
-      group: publish-ghcr-${{ github.event_name == 'pull_request' && github.ref || github.repository }}
+      group: publish-ghcr-${{ github.repository }}
       cancel-in-progress: false
     env:
       POSTGRES_PASSWORD: ci-only-disposable-image-test-password
@@ -109,9 +128,15 @@ jobs:
       - uses: actions/setup-node@v7.1.0
         with:
           node-version: 22.23.4
-          cache: npm
       - run: npm install --global npm@12.2.1
-      - run: npm ci
+      - name: Restore node_modules
+        id: node-modules
+        uses: actions/cache@v6.1.0
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node22.23.4-${{ hashFiles('package-lock.json') }}
+      - if: steps.node-modules.outputs.cache-hit != 'true'
+        run: npm ci
       - name: Build release candidate
         run: docker build --target production --label "org.opencontainers.image.revision=$GITHUB_SHA" --tag "$VOCABULARY_IMAGE" .
       - name: Test image-only Compose deployment
@@ -124,14 +149,14 @@ jobs:
           node scripts/wait-health.mjs http://127.0.0.1:3013/api/health
           npx tsx tests/restart.mts verify
       - name: Sign in to GHCR
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main'
         uses: docker/login-action@v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish the exact tested image
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main'
         env:
           REPOSITORY: ${{ github.repository }}
         run: |
@@ -147,7 +172,7 @@ jobs:
             echo 'This exact linux/amd64 image passed image-only deployment, HTTP/database and restart checks before publishing.'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Verify public anonymous pull
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main'
         run: |
           mkdir -p "$RUNNER_TEMP/anonymous-docker"
           if ! docker --config "$RUNNER_TEMP/anonymous-docker" pull "$PUBLISHED_IMAGE"; then

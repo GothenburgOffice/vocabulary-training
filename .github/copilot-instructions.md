@@ -111,8 +111,9 @@ the full browser suite on every PR.
 - Never label issues `good first issue` or `help wanted`. The owner applies
   `help wanted` by hand when they want outside help (see [CONTRIBUTING.md](CONTRIBUTING.md)).
 - `notes/` is gitignored, for private scratch and session notes only. Nothing there is public.
-- Branch from `main`, open a PR, and let CI pass. Pushing to `main` publishes the
-  GHCR image, so only push or merge with the owner's go-ahead.
+- Branch from `main`, open the PR as a draft, and mark it ready for review when it's done:
+  CI skips draft PRs, so work-in-progress pushes don't cost a full run. Then let CI pass.
+  Pushing to `main` publishes the GHCR image, so only push or merge with the owner's go-ahead.
 - Keep formatting-only changes in separate commits, and add them to `.git-blame-ignore-revs`.
 - Never run `docker compose down -v` on a stack with real data.
 - Stay compatible with **Node 22** (`engines`, Dockerfile, CI) for broad hosting
