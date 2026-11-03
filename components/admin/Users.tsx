@@ -230,7 +230,7 @@ export default function Users() {
         </p>
       )}
       <div className="admin-table-wrap">
-        <table className="admin-table users-table">
+        <table className="admin-table clickable-rows users-table">
           <thead>
             <tr>
               <SortHeader
@@ -322,7 +322,7 @@ export default function Users() {
       {loading && <p>Loading…</p>}
       {hasMore && !loading && (
         <button
-          className="button users-more"
+          className="button admin-more"
           onClick={() => void loadPage(filter.trim(), accountFilter, sort, shown, true)}
         >
           Load more accounts

@@ -2784,17 +2784,21 @@ main > .save-error {
   color: var(--muted);
   font-weight: 400;
 }
-/* A row opens the account's card; the email is its keyboard button. */
-.users-table > tbody > tr {
+/* A long address is cut off with an ellipsis; the full one is its tooltip and the card's title. */
+.users-table .user-email .row-open {
+  max-width: 240px;
+}
+/* A table whose rows open a card (Users, Reports); the first cell's button is the keyboard's
+   way in. */
+.clickable-rows > tbody > tr {
   cursor: pointer;
 }
-.users-table > tbody > tr:hover > * {
+.clickable-rows > tbody > tr:hover > * {
   background: var(--soft);
 }
-/* A long address is cut off with an ellipsis; the full one is its tooltip and the card's title. */
-.users-table .row-open {
+.admin-table .row-open {
   display: inline-block;
-  max-width: 240px;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: middle;
@@ -2806,7 +2810,7 @@ main > .save-error {
   font: inherit;
   cursor: pointer;
 }
-.users-table .row-open:focus-visible {
+.admin-table .row-open:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
@@ -2882,26 +2886,27 @@ main > .save-error {
 .users-table tr.is-trashed .user-state {
   color: var(--danger-text);
 }
-.users-more {
+.admin-more {
   margin-top: 12px;
 }
-/* The account card: one section per topic, so more can join later. */
-dialog:has(.user-card) {
+/* A card opened from a table row (an account, a report): one section per topic, so more can
+   join later. */
+dialog:has(.detail-card) {
   width: min(640px, calc(100% - 32px));
 }
-dialog:has(.user-card) .dialog-head h2 {
+dialog:has(.detail-card) .dialog-head h2 {
   overflow-wrap: anywhere;
 }
-.user-card section + section {
+.detail-card section + section {
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
 }
-.user-card h3 {
+.detail-card h3 {
   margin-bottom: 10px;
   font-size: var(--text-base);
 }
-.user-card h4 {
+.detail-card h4 {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2910,30 +2915,30 @@ dialog:has(.user-card) .dialog-head h2 {
   font-size: var(--text-sm);
   font-weight: 600;
 }
-.user-card h4 .usage-stat {
+.detail-card h4 .usage-stat {
   font-weight: 400;
   font-size: var(--text-xs);
 }
-.user-facts {
+.detail-facts {
   display: grid;
   grid-template-columns: max-content 1fr;
   gap: 8px 20px;
   margin: 0;
   font-size: var(--text-sm);
 }
-.user-facts dt {
+.detail-facts dt {
   color: var(--muted);
 }
-.user-facts dd {
+.detail-facts dd {
   margin: 0;
 }
-.user-facts dd small {
+.detail-facts dd small {
   display: block;
   margin-top: 2px;
   color: var(--muted);
   font-size: var(--text-xs);
 }
-.user-facts select {
+.detail-facts select {
   min-height: 34px;
   padding: 4px 32px 4px 8px;
 }
@@ -2943,14 +2948,14 @@ dialog:has(.user-card) .dialog-head h2 {
   gap: 16px 24px;
   font-size: var(--text-xs);
 }
-.user-card .usage-breakdown {
+.detail-card .usage-breakdown {
   width: 100%;
   font-variant-numeric: tabular-nums;
 }
-.user-card .field-help {
+.detail-card .field-help {
   margin: 6px 0 0;
 }
-.user-card .admin-actions {
+.detail-card .admin-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -2965,17 +2970,27 @@ dialog:has(.user-card) .dialog-head h2 {
     min-width: 0;
   }
 }
-/* Admin → Reports (#95): long requests and the cluster table scroll inside their card. */
-.report-list {
-  display: grid;
-  gap: 12px;
-  margin-top: 16px;
+/* Admin → Reports (#95): one .admin-table row per report; the request shows in its card. */
+.reports-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 20px 0 8px;
 }
-.report-card h2 {
-  overflow-wrap: anywhere;
+.reports-toolbar p {
+  margin: 0;
 }
-.report-request pre {
-  max-height: 240px;
+/* Long words and model names are cut off; the full text is the tooltip and in the card. */
+.reports-table .report-word,
+.reports-table .report-model {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.report-request {
+  max-height: min(420px, 50dvh);
   overflow: auto;
   padding: 12px;
   background: var(--surface);

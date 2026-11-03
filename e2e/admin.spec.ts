@@ -516,28 +516,40 @@ test("users can be filtered, re-typed, locked, trashed and restored, with E2E cl
   await expect(rows).toHaveCount(0);
 });
 
-test("reports list newest first by page, show the request sent, and prune old ones", async ({
+test("reports list newest first by page, sort by a heading, show the request, and prune", async ({
   page,
 }) => {
-  const report = (id: string, word: string, on: string) => ({
+  const report = (id: string, word: string, on: string, kind: string, model: string) => ({
     id,
     reported_on: on,
     activity_on: on,
-    kind: "speech",
-    reason: "pronunciation",
+    kind,
+    reason: kind === "speech" ? "pronunciation" : "incorrect-note",
     word,
     language: "French",
-    model: "vendor/tts",
-    voice: "Mia",
+    model,
+    voice: kind === "speech" ? "Mia" : null,
     tier: "basic",
-    prompt: { part: "learning" },
+    prompt: kind === "speech" ? { part: "learning" } : { model, messages: [] },
   });
-  const newer = report("0f8c2f8e-5d0a-4a57-9a43-2f1b0f6d2a11", "merci", "2026-11-03");
-  const older = report("1a2b3c4d-5e6f-4a57-9a43-2f1b0f6d2a11", "bonjour", "2026-10-01");
+  const newer = report(
+    "0f8c2f8e-5d0a-4a57-9a43-2f1b0f6d2a11",
+    "merci",
+    "2026-11-03",
+    "speech",
+    "vendor/tts",
+  );
+  const older = report(
+    "1a2b3c4d-5e6f-4a57-9a43-2f1b0f6d2a11",
+    "bonjour",
+    "2026-10-01",
+    "note",
+    "acme/chat",
+  );
   let reports = [newer, older];
-  const pages: (string | null)[] = [];
+  const queries: string[] = [];
   const prunes: unknown[] = [];
-  // Like the server: newest first, one report per page here so "Load more" shows the cursor.
+  // Like the server: newest first unless sorted, one report per page here so "Load more" shows.
   await page.route(/\/api\/admin\/reports(\?.*)?$/, async (route) => {
     const request = route.request();
     if (request.method() === "DELETE") {
@@ -545,13 +557,18 @@ test("reports list newest first by page, show the request sent, and prune old on
       reports = [];
       return route.fulfill({ json: { deleted: 2 } });
     }
-    const url = new URL(request.url());
-    const beforeId = url.searchParams.get("beforeId");
-    pages.push(beforeId && `${url.searchParams.get("beforeOn")}/${beforeId}`);
-    const start = beforeId ? reports.findIndex((row) => row.id === beforeId) + 1 : 0;
+    const params = new URL(request.url()).searchParams;
+    queries.push(`${params.get("sort")} ${params.get("dir")} ${params.get("offset")}`);
+    const sorted =
+      params.get("sort") === "model"
+        ? [...reports].sort(
+            (a, b) => a.model.localeCompare(b.model) * (params.get("dir") === "asc" ? 1 : -1),
+          )
+        : reports;
+    const offset = Number(params.get("offset"));
     return route.fulfill({
       json: {
-        reports: reports.slice(start, start + 1),
+        reports: sorted.slice(offset, offset + 1),
         total: reports.length,
         prunable: reports.length,
         retentionDays: 15,
@@ -561,24 +578,32 @@ test("reports list newest first by page, show the request sent, and prune old on
   });
 
   await page.goto("/admin/reports");
-  const cards = page.locator(".report-card");
-  await expect(cards).toHaveCount(1);
-  await expect(cards.first()).toContainText("Audio · merci");
-  await expect(cards.first()).toContainText(
-    "Wrong pronunciation · French · vendor/tts · Mia · basic",
+  const rows = page.locator(".reports-table > tbody > tr");
+  await expect(rows).toHaveCount(1);
+  // One row with everything: dates only (reports keep no times), and no account.
+  await expect(rows.first()).toHaveText(
+    /2026-11-03\s*2026-11-03\s*Audio\s*Wrong pronunciation\s*merci\s*French\s*vendor\/tts\s*Mia\s*Basic/,
   );
-  // Dates only: reports keep no times.
-  await expect(cards.first()).toContainText("Reported 2026-11-03 · result from 2026-11-03");
-  await cards.first().getByText("Request sent, as the learner’s browser recorded it").click();
-  await expect(cards.first().locator("pre")).toContainText('"part": "learning"');
-  // No account is shown with a report (the header's email is the signed-in admin).
-  await expect(page.locator(".report-list")).not.toContainText("@");
+  await expect(page.locator(".reports-table")).not.toContainText("@");
 
-  // The next page continues after the last report shown, by date and id.
+  // The next page continues where the list ended.
   await page.getByRole("button", { name: "Load more reports" }).click();
-  await expect(cards).toHaveCount(2);
-  await expect(cards.nth(1)).toContainText("Audio · bonjour");
-  expect(pages).toEqual([null, `2026-11-03/${newer.id}`]);
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(1)).toContainText("bonjour");
+
+  // A row opens the report with the request that was sent.
+  await rows.first().locator("td").first().click();
+  const card = page.getByRole("dialog", { name: "Audio · merci" });
+  await expect(card.locator("pre")).toContainText('"part": "learning"');
+  await expect(card).not.toContainText("@");
+  await page.keyboard.press("Escape");
+  await expect(card).toBeHidden();
+
+  // Sorting asks the server for the first page in the new order.
+  await page.getByRole("button", { name: "Model", exact: true }).click();
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText("acme/chat");
+  expect(queries).toEqual(["reported desc 0", "reported desc 1", "model asc 0"]);
 
   page.once("dialog", (dialog) => {
     expect(dialog.message()).toBe("Permanently delete 2 reports older than 15 days?");

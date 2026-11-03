@@ -37,10 +37,10 @@ export default function UserCard({
 }) {
   const own = account.id === viewerId;
   return (
-    <div className="user-card">
+    <div className="detail-card">
       <section>
         <h3>Account</h3>
-        <dl className="user-facts">
+        <dl className="detail-facts">
           <dt>Role</dt>
           <dd>
             {account.is_admin ? "Admin" : "User"}

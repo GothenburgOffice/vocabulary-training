@@ -1,6 +1,5 @@
 import {
   REPORT_RETENTION_DAYS,
-  reportCursor,
   REPORTS_PAGE_SIZE,
   reportListQuerySchema,
   reportPruneSchema,
@@ -12,8 +11,8 @@ import { countReports, listReports, pruneReports } from "../../../../lib/server/
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// AI results learners reported (#95): newest first, a page at a time, and how many are old
-// enough to prune. No grouping or analysis: the owner wants the plain list for now.
+// AI results learners reported (#95): newest first or by a column, a page at a time, and how
+// many are old enough to prune. No grouping or analysis: the owner wants the plain list for now.
 export async function GET(request: Request) {
   try {
     await requireAdmin();
@@ -22,7 +21,7 @@ export async function GET(request: Request) {
     );
     if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
     const [reports, total, prunable] = await Promise.all([
-      listReports(REPORTS_PAGE_SIZE, reportCursor(parsed.data)),
+      listReports(REPORTS_PAGE_SIZE, parsed.data),
       countReports(),
       countReports(REPORT_RETENTION_DAYS),
     ]);

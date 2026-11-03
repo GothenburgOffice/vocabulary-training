@@ -871,23 +871,29 @@ test("real HTTP: admins list and prune reports without seeing accounts; learners
   assert.match(found.activity_on, /^\d{4}-\d{2}-\d{2}$/);
   assert.equal("summary" in view, false);
   assert.equal(view.retentionDays, 15);
-  // The next page starts strictly after the given report, so it never repeats it.
-  const after = await (
-    await api(
-      `/api/admin/reports?beforeOn=${found.reported_on}&beforeId=${found.id}`,
-      "GET",
-      undefined,
-      adminCookie,
-    )
-  ).json();
+  // The next page continues after the first, so it never repeats a report.
+  const get = async (query: string) => {
+    const response = await api(`/api/admin/reports?${query}`, "GET", undefined, adminCookie);
+    assert.equal(response.status, 200, await response.clone().text());
+    return response.json();
+  };
+  const after = await get(`offset=${view.pageSize}`);
+  const firstIds = new Set(view.reports.map((row: { id: string }) => row.id));
   assert.equal(
-    after.reports.some((row: { id: string }) => row.id === found.id),
+    after.reports.some((row: { id: string }) => firstIds.has(row.id)),
     false,
   );
-  assert.equal(
-    (await api("/api/admin/reports?beforeOn=2026-11-03", "GET", undefined, adminCookie)).status,
-    400,
+  // Sorted by a column on the server, which accepts only known columns and directions.
+  const byModel = (await get("sort=model&dir=asc")).reports.map((row: { model: string }) =>
+    row.model.toLowerCase(),
   );
+  assert.deepEqual(byModel, [...byModel].sort());
+  for (const query of ["sort=prompt", "sort=model%3B%20DROP%20TABLE%20issue_reports", "dir=up"])
+    assert.equal(
+      (await api(`/api/admin/reports?${query}`, "GET", undefined, adminCookie)).status,
+      400,
+      query,
+    );
 
   // Only the retention period is accepted, and a prune never removes a fresh report.
   assert.equal(

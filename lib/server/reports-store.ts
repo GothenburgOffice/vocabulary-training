@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { db } from "./db";
-import type { ReportCursor } from "../admin/reports";
+import type { ReportListQuery, ReportSort } from "../admin/reports";
 import type { ReportInput } from "../reports";
 
 // Saves one learner report, anonymously: only the tier comes from the session, no account is
@@ -32,23 +32,29 @@ export async function saveReport(tier: string, report: ReportInput) {
 
 // Admin only (#95): reports newest first, one page after `before` (keyset paging, so a report
 // arriving or a prune between pages never repeats or skips a row). Reports carry no account.
-export async function listReports(limit: number, before?: ReportCursor) {
-  const result = before
-    ? await db.query(
-        `SELECT id, reported_on::text AS reported_on, activity_on::text AS activity_on, kind, reason, word, language, model, voice, tier, prompt
-         FROM issue_reports
-         WHERE (reported_on, id) < ($1::date, $2::uuid)
-         ORDER BY issue_reports.reported_on DESC, issue_reports.id DESC
-         LIMIT $3`,
-        [before.on, before.id, limit],
-      )
-    : await db.query(
-        `SELECT id, reported_on::text AS reported_on, activity_on::text AS activity_on, kind, reason, word, language, model, voice, tier, prompt
-         FROM issue_reports
-         ORDER BY issue_reports.reported_on DESC, issue_reports.id DESC
-         LIMIT $1`,
-        [limit],
-      );
+// What each sortable column orders by; the column and direction come from fixed lists, never
+// from the request text. Ties fall back to newest first, then id, so pages don't overlap.
+const REPORT_ORDER: Record<ReportSort, string> = {
+  reported: "reported_on",
+  activity: "activity_on",
+  kind: "kind",
+  reason: "reason",
+  word: "lower(word)",
+  language: "lower(language)",
+  model: "lower(model)",
+  voice: "lower(voice)",
+  tier: "tier",
+};
+
+export async function listReports(limit: number, query: ReportListQuery) {
+  const dir = query.dir === "asc" ? "ASC" : "DESC";
+  const result = await db.query(
+    `SELECT id, reported_on::text AS reported_on, activity_on::text AS activity_on, kind, reason, word, language, model, voice, tier, prompt
+     FROM issue_reports
+     ORDER BY ${REPORT_ORDER[query.sort]} ${dir} NULLS LAST, reported_on DESC, id DESC
+     LIMIT $1 OFFSET $2`,
+    [limit, query.offset],
+  );
   return result.rows;
 }
 
