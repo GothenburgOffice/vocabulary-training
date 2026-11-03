@@ -75,7 +75,8 @@ the full browser suite on every PR.
     letters per minute and per day (`limits.*` site settings, #82).
   - **Reports** (`/api/reports`, #95) are not an AI call: a learner reports one recent result,
     and it is never sent to a provider. The recent-results list is browser memory only; keep
-    any per-user AI activity out of the database except a report the learner sends.
+    per-user AI results (requests and model output) out of the database except a report the
+    learner sends. `ai_usage` (letters and times, for the limits) is separate and stays.
 - Grading is deterministic pattern matching, not AI: an AI call never sets or changes a
   grade. Statistics and scheduling are deterministic code too.
 - Send a provider only what its call needs: never account IDs or whole lists.

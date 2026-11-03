@@ -45,9 +45,9 @@ A word with several accepted answers speaks its primary answer.
 
 ## Reporting a wrong result
 
-A learner can report a wrong language note or a bad clip, so an admin can see
-which languages, models and voices need attention (#81, #95). Reporting sends
-nothing to a provider and never touches a grade.
+A learner can report a wrong language note or a bad clip, so an admin knows
+what to check (#81, #95). Reporting sends nothing to a provider and never
+touches a grade.
 
 - **Browser-only log.** The page keeps the tab's last 20 AI results in memory
   (`lib/ai-actions.ts`, `components/AiActionLog.tsx`), not in browser storage,
@@ -60,14 +60,17 @@ nothing to a provider and never touches a grade.
   is a result. The learner picks one and a reason that fits its kind; the
   browser sends it to `POST /api/reports`. Only what is reported is stored
   (`issue_reports`): the word, language, model, voice, the recorded request,
-  the reason and the times. Reports are anonymous and one-way: signing in is
-  needed to send one, but no account is stored, so a report can't be linked
-  back or shown to anyone after it is sent. Only the tier comes from the
-  session. The result's random id keeps it once. The note's text itself is not
-  stored.
-- **Admin → Reports** lists the reports, shows where they
-  cluster by kind, language, model and voice, and deletes reports older than
-  15 days on a confirmed click. Nothing prunes on a schedule.
+  the reason, the tier and the dates. Reports are one-way: the learner can't
+  see a report again after sending it, and no account is stored with it.
+  Signing in is needed to send one; only the tier comes from the session.
+  Reports keep dates, not times, and the result's id is stored hashed (it
+  starts with the call time), so a report can't be matched to `ai_usage` by
+  time. Each account may send 20 reports an hour, counted in the server
+  process and never stored. The model's output (the note's text, the audio)
+  is never stored.
+- **Admin → Reports** shows administrators the reports, newest first, a page
+  at a time, and deletes reports older than 15 days on a confirmed click.
+  Nothing prunes on a schedule.
 - The snapshot is what the browser recorded; the server doesn't re-verify that
   the call happened.
 
