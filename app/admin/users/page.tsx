@@ -9,7 +9,8 @@ export default async function UsersPage() {
         <div>
           <h1>Users</h1>
           <p>
-            Accounts, account types and AI usage. Deleting an account permanently deletes its data.
+            Accounts, account types and AI usage. An account moved to the trash is locked at once
+            and deleted with its data 30 days later.
           </p>
         </div>
       </header>

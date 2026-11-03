@@ -38,11 +38,14 @@ export async function GET(request: Request) {
       Object.fromEntries(new URL(request.url).searchParams),
     );
     if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
-    // Expired trash goes before the list is read, so it never shows accounts past their date.
-    await purgeTrashedAccounts().catch((e) =>
-      console.error("Trash purge failed:", e instanceof Error ? e.name : "unknown"),
-    );
     const { q, scope, offset } = parsed.data;
+    // Expired trash goes before the first page is read, so the list never shows an account past
+    // its date. Later pages append to that same view, so search-as-you-type and "Load more"
+    // don't each issue a DELETE.
+    if (offset === 0)
+      await purgeTrashedAccounts().catch((e) =>
+        console.error("Trash purge failed:", e instanceof Error ? e.name : "unknown"),
+      );
     const filter = accountFilter(q, scope);
     const limitParam = filter.params.length + 1;
     const offsetParam = filter.params.length + 2;
@@ -131,6 +134,9 @@ export async function PATCH(request: Request) {
         change.userId,
       ]);
       if (!target.rowCount) throw new HttpError(404, "Account not found.");
+      // Unreachable for a single request (the actor is an active admin other than the target),
+      // but it is what stops two admins who lock each other at the same moment: the advisory
+      // lock runs them one after the other, and the second finds no other active admin left.
       if (removing && target.rows[0].is_admin) {
         const other = await client.query(
           `SELECT 1 FROM users

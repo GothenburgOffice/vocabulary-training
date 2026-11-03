@@ -7,7 +7,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   {
     href: "/admin/users",
     title: "Users",
-    description: "Account details, per-account AI usage, account types and deletion.",
+    description: "Account details, per-account AI usage, account types, locks and the trash.",
   },
   {
     href: "/admin/ai",
