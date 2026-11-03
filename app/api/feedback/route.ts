@@ -33,9 +33,14 @@ export async function POST(request: Request) {
     if (!word) throw new HttpError(404, "Word not found.");
     const input = noteInput(word, parsed.data);
     if (!shouldRequestFeedback(input)) return json({ status: "not-needed" });
-    const config = aiConfig(user.ai_tier, await loadAiSettings());
+    const config = aiConfig(user.ai_tier, await loadAiSettings(), user.ai_enabled);
     if (!config.languageNotes)
-      return json({ status: "disabled", message: "AI comments are not enabled on this server." });
+      return json({
+        status: "disabled",
+        message: user.ai_enabled
+          ? "AI comments are not enabled on this server."
+          : "AI features are turned off in your profile.",
+      });
     const provider = { apiKey: config.apiKey, model: config.languageNoteModel };
     // Before the charge: letters count only for a call that can reach the provider.
     checkFeedbackConfig(provider);

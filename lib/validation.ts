@@ -69,6 +69,8 @@ export const profileSchema = z
   .refine((p) => p.baseLanguage !== p.learningLanguage, "Languages must differ");
 // PATCH /api/profile with the Appearance setting alone.
 export const themeSaveSchema = z.object({ theme: z.enum(THEMES) }).strict();
+// PATCH /api/profile with the AI features switch alone (#113).
+export const aiEnabledSaveSchema = z.object({ aiEnabled: z.boolean() }).strict();
 // Only a fixed-length scrypt hash is stored, so the cap just bounds the hashing work.
 export const PASSWORD_MIN = 12;
 export const PASSWORD_MAX = 4096;

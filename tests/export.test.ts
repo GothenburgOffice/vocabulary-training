@@ -16,6 +16,7 @@ const data: WorkspaceData = {
   baseLanguage: "Swedish",
   learningLanguage: "French",
   theme: "dark",
+  aiEnabled: false,
   lists: [
     {
       id: "list-1",
@@ -108,6 +109,7 @@ test("the data export holds the account, lists with review history, sessions and
     baseLanguage: "Swedish",
     learningLanguage: "French",
     theme: "dark",
+    aiEnabled: false,
   });
   assert.deepEqual(doc.lists[0].words[0], {
     id: "word-1",

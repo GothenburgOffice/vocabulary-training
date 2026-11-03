@@ -6,6 +6,20 @@ sets them in the admin area (**AI settings** and **Languages**); changes apply
 without a restart. A feature without a key and a model is hidden, and practice
 works normally. **Grading, statistics and scheduling never use AI.**
 
+## Turning AI features off
+
+Each account has one switch, **Use AI features** in the profile dialog (#113),
+on by default (`users.ai_enabled`). Off, the account gets none of the AI
+features: `aiConfig()` in `lib/server/ai-config.ts` takes the switch as a
+required argument and returns no key, no models and no features, so a route
+that asks it for a provider answers `disabled` before charging letters or
+calling one. Any AI feature added later goes through `aiConfig()` too, so the
+switch covers it. The workspace response still says what the site offers
+(`ai`), with the switch in `data.aiEnabled`; while it is off the workspace
+hides every AI feature and the report entry, and the profile shows the switch
+only when the site offers something to turn off. A request already sent when
+the switch is turned off completes as normal.
+
 Keys are stored encrypted (AES-256-GCM, with `SETTINGS_ENCRYPTION_KEY` from
 `.env`) and never sent back to the browser: the admin page only shows whether a
 key is set and its last four characters. Never put a key in a `NEXT_PUBLIC_`

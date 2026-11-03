@@ -1,7 +1,8 @@
 // Requesty settings per account tier (users.ai_tier), from the admin area. Each tier has
 // its own key, so budgets and fallback routing are set on that key in Requesty. Plus
-// settings left blank use the basic value. A feature without a key and a model is off.
-import type { AiFeatures, Language } from "../languages";
+// settings left blank use the basic value. A feature without a key and a model is off, and
+// so is every feature for an account that turned AI features off (users.ai_enabled, #113).
+import { NO_AI, type AiFeatures, type Language } from "../languages";
 
 export const AI_TIERS = ["basic", "plus"] as const;
 export type AiTier = (typeof AI_TIERS)[number];
@@ -17,7 +18,9 @@ export const EMPTY_AI_SETTINGS: AiSettings = {
   languages: [],
 };
 
-export function aiConfig(tier: string | undefined, settings: AiSettings) {
+// `enabled` is the account's AI features switch. Every route that calls a provider goes
+// through here, so none can skip it.
+export function aiConfig(tier: string | undefined, settings: AiSettings, enabled: boolean) {
   const plus = tier === "plus";
   const apiKey = (plus && settings.plus.apiKey) || settings.basic.apiKey;
   const languageNoteModel = (plus && settings.plus.model) || settings.basic.model;
@@ -30,16 +33,29 @@ export function aiConfig(tier: string | undefined, settings: AiSettings) {
     return chosen.model ? chosen : null;
   };
   const languageNotes = Boolean(apiKey && languageNoteModel);
-  const features: AiFeatures = {
+  // What the site offers this tier, whatever the account's switch says: the profile shows the
+  // switch only when there is something to turn off.
+  const offered: AiFeatures = {
     languageNotes,
     speech: settings.languages.filter((l) => speech(l.name)).map((l) => l.name),
   };
+  if (!enabled)
+    return {
+      tier: plus ? "plus" : "basic",
+      apiKey: "",
+      languageNoteModel: "",
+      languageNotes: false,
+      speech: (): SpeechSettings | null => null,
+      features: NO_AI,
+      offered,
+    };
   return {
     tier: plus ? "plus" : "basic",
     apiKey,
     languageNoteModel,
     languageNotes,
     speech,
-    features,
+    features: offered,
+    offered,
   };
 }

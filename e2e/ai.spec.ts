@@ -1,5 +1,5 @@
 import type { Page, Request } from "@playwright/test";
-import { test, expect, createList, openMenu, prompt, answer } from "./fixtures";
+import { test, expect, createList, openAccount, openMenu, prompt, answer, saved } from "./fixtures";
 
 // The AI features the workspace response reports, whatever the stack has configured (a dev
 // stack may have real keys).
@@ -113,6 +113,56 @@ test("without AI features there are no speaker buttons, notes or AI requests", a
   await expect(page.locator(".speech-button")).toHaveCount(0);
   await expect(page.getByRole("complementary", { name: "AI language note" })).toHaveCount(0);
   expect(requests).toEqual([]);
+});
+
+test("AI features turned off in the profile hide notes and audio, and stay off", async ({
+  page,
+}) => {
+  const calls = await fakeAi(page);
+  await page.goto("/");
+  await createList(page, "Opt out", [["tack", "merci"]]);
+  await expect(page.getByRole("button", { name: "Play tack in Swedish" })).toBeVisible();
+
+  const dialog = await openAccount(page);
+  const toggle = dialog.getByRole("checkbox", { name: "Use AI features" });
+  await expect(toggle).toBeChecked();
+  const save = page.waitForResponse(
+    (r) => r.url().endsWith("/api/profile") && r.request().method() === "PATCH" && r.ok(),
+  );
+  await toggle.uncheck();
+  expect((await save).request().postDataJSON()).toEqual({ aiEnabled: false });
+  await dialog.getByRole("button", { name: "Close dialog" }).click();
+  await expect(page.locator(".speech-button")).toHaveCount(0);
+
+  // Saved on the account: still off after a reload.
+  await page.reload();
+  await saved(page);
+  await expect(page.locator(".speech-button")).toHaveCount(0);
+  await openMenu(page);
+  await expect(page.getByRole("link", { name: /^AI features by Requesty/ })).toHaveCount(0);
+  const close = page.getByRole("button", { name: "Close menu" });
+  if (await close.isVisible()) await close.click();
+  await page.getByRole("button", { name: "Start practice" }).click();
+  await expect(
+    page.getByText("Audio and language notes are AI-generated and can make mistakes."),
+  ).toHaveCount(0);
+  await answer(page, "mercy");
+  await expect(page.getByText("Not quite.")).toBeVisible();
+  await expect(page.locator(".speech-button")).toHaveCount(0);
+  await expect(page.getByRole("complementary", { name: "AI language note" })).toHaveCount(0);
+  expect(calls.feedback).toEqual([]);
+  expect(calls.speech).toEqual([]);
+  await expect(
+    (await openAccount(page)).getByRole("checkbox", { name: "Use AI features" }),
+  ).not.toBeChecked();
+});
+
+test("the AI features switch is hidden when the site offers no AI features", async ({ page }) => {
+  await setAi(page, { languageNotes: false, speech: [] });
+  await page.goto("/");
+  const dialog = await openAccount(page);
+  await expect(dialog.getByLabel("Appearance")).toBeVisible();
+  await expect(dialog.getByRole("checkbox", { name: "Use AI features" })).toHaveCount(0);
 });
 
 test("speech for an unrelated language does not show the practice disclaimer", async ({ page }) => {

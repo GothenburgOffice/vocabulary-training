@@ -12,11 +12,17 @@ export async function requireUser() {
   if (!token || !/^[a-f0-9]{64}$/.test(token)) throw new HttpError(401, "Sign in to continue.");
   const result = await db.query(
     // A locked account, or one in the trash, has no valid session even if one was left behind.
-    "SELECT u.id,u.email,u.ai_tier,u.is_admin FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now() AND u.locked_at IS NULL AND u.deleted_at IS NULL",
+    "SELECT u.id,u.email,u.ai_tier,u.ai_enabled,u.is_admin FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now() AND u.locked_at IS NULL AND u.deleted_at IS NULL",
     [hashToken(token)],
   );
   if (!result.rowCount) throw new HttpError(401, "Your session has expired. Sign in again.");
-  return result.rows[0] as { id: string; email: string; ai_tier: string; is_admin: boolean };
+  return result.rows[0] as {
+    id: string;
+    email: string;
+    ai_tier: string;
+    ai_enabled: boolean;
+    is_admin: boolean;
+  };
 }
 // The signed-in account's Appearance setting, for <html data-theme> on every page, so the
 // first paint is already in the right colours. Signed out (or if the lookup fails): system.

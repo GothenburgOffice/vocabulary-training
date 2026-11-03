@@ -13,6 +13,8 @@ export default function ProfileDialog({
   onSave,
   theme = "system",
   onTheme,
+  aiEnabled = true,
+  onAiEnabled,
 }: {
   account?: WorkspaceAccount;
   baseLanguage: string;
@@ -24,6 +26,10 @@ export default function ProfileDialog({
   // The Appearance setting, applied and saved as soon as it is picked.
   theme?: Theme;
   onTheme?: (theme: Theme) => void;
+  // The AI features switch, saved as soon as it changes. Left out when the site offers no AI
+  // features to this account.
+  aiEnabled?: boolean;
+  onAiEnabled?: (enabled: boolean) => void;
 }) {
   const [error, setError] = useState("");
   function pick(language: string) {
@@ -96,6 +102,22 @@ export default function ProfileDialog({
             ))}
           </select>
         </label>
+      )}
+      {onAiEnabled && (
+        <>
+          <label className="profile-check">
+            <input
+              type="checkbox"
+              checked={aiEnabled}
+              onChange={(e) => onAiEnabled(e.target.checked)}
+            />
+            Use AI features
+          </label>
+          <p>
+            Language notes on wrong answers and word audio use an AI provider. Turned off, nothing
+            of yours is sent to one, and that includes AI features added later.
+          </p>
+        </>
       )}
       <div className="account-future">
         <UserRound size={24} />

@@ -33,7 +33,8 @@ type Change =
   | { kind: "review"; review: Review; saved: (history: History | null) => void }
   | { kind: "run"; run: Run }
   | { kind: "profile"; baseLanguage: string; learningLanguage: string }
-  | { kind: "theme"; theme: Theme };
+  | { kind: "theme"; theme: Theme }
+  | { kind: "aiEnabled"; enabled: boolean };
 class RequestError extends Error {
   constructor(
     message: string,
@@ -213,6 +214,11 @@ export default function AccountApp() {
           results: run.results.map((r) => ({ ...r, answeredAt: r.answeredAt ?? run.completedAt })),
         }),
       });
+    } else if (change.kind === "aiEnabled") {
+      await request("/api/profile", {
+        method: "PATCH",
+        body: JSON.stringify({ aiEnabled: change.enabled }),
+      });
     } else if (change.kind === "theme") {
       await request("/api/profile", {
         method: "PATCH",
@@ -261,7 +267,8 @@ export default function AccountApp() {
         last > 0 &&
         ((change.kind === "list" && queued.kind === "list" && queued.list.id === change.list.id) ||
           (change.kind === "profile" && queued.kind === "profile") ||
-          (change.kind === "theme" && queued.kind === "theme"));
+          (change.kind === "theme" && queued.kind === "theme") ||
+          (change.kind === "aiEnabled" && queued.kind === "aiEnabled"));
       if (replaces) queue.current[last] = change;
       else queue.current.push(change);
       dirty.current = true;
@@ -284,6 +291,7 @@ export default function AccountApp() {
       saveProfile: (baseLanguage, learningLanguage) =>
         enqueue({ kind: "profile", baseLanguage, learningLanguage }),
       saveTheme: (theme) => enqueue({ kind: "theme", theme }),
+      saveAiEnabled: (enabled) => enqueue({ kind: "aiEnabled", enabled }),
       pending: (value) => {
         pending.current = value;
         setHasPending(value);

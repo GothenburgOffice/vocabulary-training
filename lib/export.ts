@@ -82,6 +82,7 @@ export function exportDocument({ account, data, reviewEvents, aiUsage }: ExportS
       baseLanguage: data.baseLanguage,
       learningLanguage: data.learningLanguage,
       theme: data.theme,
+      aiEnabled: data.aiEnabled ?? true,
     },
     lists: data.lists.map((list) => exportList(list, answerLog)),
     sessions: data.runs.map((run) => ({

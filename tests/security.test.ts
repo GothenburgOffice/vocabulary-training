@@ -9,6 +9,7 @@ import {
   profileSchema,
   reviewSchema,
   themeSaveSchema,
+  aiEnabledSaveSchema,
   runSaveSchema,
 } from "../lib/validation.ts";
 import {
@@ -97,6 +98,12 @@ test("save requests protect types, limits and language pairs", () => {
     themeSaveSchema.safeParse({ theme: "dark", baseLanguage: "Swedish" }).success,
     false,
   );
+  // The AI features switch is a boolean, saved on its own (#113).
+  for (const aiEnabled of [true, false])
+    assert(aiEnabledSaveSchema.safeParse({ aiEnabled }).success);
+  for (const aiEnabled of ["false", 0, null])
+    assert.equal(aiEnabledSaveSchema.safeParse({ aiEnabled }).success, false, String(aiEnabled));
+  assert.equal(aiEnabledSaveSchema.safeParse({ aiEnabled: false, theme: "dark" }).success, false);
 
   const run = {
     id: crypto.randomUUID(),
