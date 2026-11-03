@@ -123,10 +123,11 @@ export default async function PrivacyPage() {
           Your account and data are kept until you ask for them to be deleted. A deleted account is
           locked at once, and it and all its data are erased after 30 days. You can ask the privacy
           contact above for a copy of your data, a correction, or deletion, and complain to your
-          data protection authority (in Sweden, IMY). You can export any word list as CSV yourself,
-          and delete a word list with its words and review history at once; completed sessions keep
-          the words they practised. The hosting provider may keep technical logs, such as IP
-          addresses, for security.
+          data protection authority (in Sweden, IMY). You can download all your data as one JSON
+          file from your account (Export my data), export any word list as CSV, and delete a word
+          list with its words and review history at once; completed sessions keep the words they
+          practised. The hosting provider may keep technical logs, such as IP addresses, for
+          security.
         </p>
 
         <Link href="/" className="text-button">

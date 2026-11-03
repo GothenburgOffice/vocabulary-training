@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LogOut, Settings, Shield, UserRound } from "lucide-react";
+import { Download, LogOut, Settings, Shield, UserRound } from "lucide-react";
 import { pickerLanguages, type Language } from "../../lib/languages";
 import type { WorkspaceAccount } from "../../lib/workspace";
 
@@ -40,6 +40,9 @@ export default function ProfileDialog({
                 <Settings size={15} /> Admin
               </a>
             )}
+            <a className="text-button" href="/api/export" download>
+              <Download size={15} /> Export my data
+            </a>
             <a className="text-button" href="/privacy">
               <Shield size={15} /> Privacy
             </a>
@@ -78,8 +81,9 @@ export default function ProfileDialog({
           <strong>Your personal workspace</strong>
           <p>
             Lists, profile settings, review progress and completed sessions are saved to your
-            account as you go. The sidebar shows whether everything is saved. CSV exports contain
-            words, not your review history.
+            account as you go. The sidebar shows whether everything is saved. A list&apos;s CSV
+            export contains its words; Export my data downloads everything, review history and
+            sessions included, as one JSON file.
           </p>
         </div>
       </div>
