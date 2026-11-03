@@ -103,7 +103,10 @@ export default function ReportDialog({
         </p>
       )}
       <div className="inline-actions">
-        <Button onClick={onClose}>Cancel</Button>
+        {/* type="button": in the form, a plain button would submit the report on Cancel. */}
+        <Button type="button" onClick={onClose}>
+          Cancel
+        </Button>
         <Button type="submit" disabled={!selectedReason || state === "sending"}>
           Send report
         </Button>

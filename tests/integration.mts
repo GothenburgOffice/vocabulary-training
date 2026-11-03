@@ -673,4 +673,13 @@ test("real HTTP: AI result reports are saved once per result, anonymously, and c
   // An oversized request is refused by size, not stored truncated.
   const huge = { ...report, activityId: "int-huge", prompt: { text: "x".repeat(30_000) } };
   assert.equal((await api("/api/reports", "POST", huge, cookie)).status, 413);
+
+  // Each account may send 20 reports an hour (the first two above count, the refused ones
+  // don't); the account is counted in memory, never stored.
+  for (let i = 0; i < 18; i++) {
+    const next = { ...report, activityId: `int-limit-${randomUUID().slice(0, 8)}` };
+    assert.equal((await api("/api/reports", "POST", next, cookie)).status, 200, `report ${i}`);
+  }
+  const over = { ...report, activityId: `int-limit-${randomUUID().slice(0, 8)}` };
+  assert.equal((await api("/api/reports", "POST", over, cookie)).status, 429);
 });

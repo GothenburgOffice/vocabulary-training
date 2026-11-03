@@ -61,6 +61,14 @@ test("a language note is reported once, with the request that was sent", async (
     "Something else",
   ]);
   await expect(dialog.getByRole("button", { name: "Send report" })).toBeDisabled();
+  // Cancel discards, even with a reason chosen: it must not submit the form.
+  await dialog.getByLabel("What is wrong?").selectOption("incorrect-note");
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden();
+  expect(posted).toHaveLength(0);
+
+  // The sidebar is still open (on a phone, as the menu), so the entry is right there.
+  await page.getByRole("button", { name: "Report an AI result" }).click();
   await dialog.getByLabel("What is wrong?").selectOption("incorrect-note");
   await dialog.getByRole("button", { name: "Send report" }).click();
   await expect(dialog.getByRole("status")).toContainText("Thank you");

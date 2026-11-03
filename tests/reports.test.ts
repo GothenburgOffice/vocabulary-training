@@ -1,9 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { AiAction } from "../lib/ai-actions.ts";
+import { MAX_SPEECH_TEXT } from "../lib/ai-words.ts";
 import {
   MAX_REPORT_PROMPT_CHARS,
   REASONS_FOR_KIND,
+  ReportLimiter,
+  REPORTS_PER_HOUR,
   reportFromAction,
   reportSchema,
 } from "../lib/reports.ts";
@@ -58,4 +61,21 @@ test("the report carries no key and no other learner's data", () => {
   const sent = JSON.stringify(reportFromAction(action, "other"));
   assert.equal(sent.includes("apiKey"), false);
   assert.equal(sent.includes("wordId"), false);
+});
+
+test("a long audio text is clipped to what can be read aloud, not refused", () => {
+  const long = { ...action, word: "a".repeat(MAX_SPEECH_TEXT + 50) };
+  const report = reportFromAction(long, "garbled-audio");
+  assert.equal(report.word.length, MAX_SPEECH_TEXT);
+  assert.equal(reportSchema.safeParse(report).success, true);
+});
+
+test("each account may send a limited number of reports per hour", () => {
+  const limiter = new ReportLimiter(3, 1000);
+  assert.equal(REPORTS_PER_HOUR, 20);
+  for (let i = 0; i < 3; i++) assert.equal(limiter.take("a", 100 + i), true);
+  assert.equal(limiter.take("a", 200), false);
+  // Another account has its own allowance, and the window moves on.
+  assert.equal(limiter.take("b", 200), true);
+  assert.equal(limiter.take("a", 1200), true);
 });

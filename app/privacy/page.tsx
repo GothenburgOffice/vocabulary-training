@@ -59,8 +59,8 @@ export default async function PrivacyPage() {
           </li>
           <li>
             Reports of a wrong AI result, if you send one: the result (the word, its language, the
-            model and the request that was sent) and the reason you chose. They are stored without
-            your account, so they can&apos;t be linked back to you.
+            model and voice, and the request that was sent), the reason you chose, your account type
+            and the date. They are stored without your account, and with dates rather than times.
           </li>
           <li>
             Sign-in sessions, stored only as hashes of their tokens. Sign-in attempt limits use

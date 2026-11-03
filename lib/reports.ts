@@ -2,6 +2,7 @@
 // the report, and the server, which checks it. Pure: no server imports.
 import { z } from "zod";
 import type { AiAction, AiActionKind } from "./ai-actions";
+import { MAX_SPEECH_TEXT } from "./ai-words";
 
 export const REPORT_REASON_LABELS = {
   pronunciation: "Wrong pronunciation",
@@ -26,7 +27,8 @@ export const reportSchema = z
     activityId: z.string().min(1).max(64),
     kind: z.enum(["speech", "note"]),
     reason: z.enum(Object.keys(REPORT_REASON_LABELS) as [ReportReason, ...ReportReason[]]),
-    word: z.string().min(1).max(500),
+    // An audio result can read every accepted answer, up to MAX_SPEECH_TEXT.
+    word: z.string().min(1).max(MAX_SPEECH_TEXT),
     language: z.string().min(1).max(60),
     model: z.string().min(1).max(200),
     voice: z.string().max(60).optional(),
@@ -51,11 +53,41 @@ export function reportFromAction(action: AiAction, reason: ReportReason) {
     activityId: action.id,
     kind: action.kind,
     reason,
-    word: action.word,
+    // The text on screen can be longer than what was read aloud; keep what fits.
+    word: action.word.slice(0, MAX_SPEECH_TEXT),
     language: action.language,
     model: action.model,
     ...(action.voice !== undefined ? { voice: action.voice } : {}),
     prompt: action.prompt,
     at: action.at,
   };
+}
+
+// How many reports one account may send per hour. The account is only counted, in the server
+// process, never stored with a report.
+export const REPORTS_PER_HOUR = 20;
+const HOUR_MS = 60 * 60 * 1000;
+
+export class ReportLimiter {
+  private sent = new Map<string, number[]>();
+  constructor(
+    private readonly max = REPORTS_PER_HOUR,
+    private readonly windowMs = HOUR_MS,
+  ) {}
+
+  // Counts one report for the account, or returns false when the hour's allowance is used up.
+  take(account: string, now: number) {
+    const recent = (this.sent.get(account) ?? []).filter((at) => at > now - this.windowMs);
+    if (recent.length >= this.max) {
+      this.sent.set(account, recent);
+      return false;
+    }
+    recent.push(now);
+    this.sent.set(account, recent);
+    // Forget accounts whose reports have all left the window, so the map stays small.
+    if (this.sent.size > 1000)
+      for (const [key, times] of this.sent)
+        if (times.every((at) => at <= now - this.windowMs)) this.sent.delete(key);
+    return true;
+  }
 }
