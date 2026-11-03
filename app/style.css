@@ -1162,6 +1162,17 @@ dialog .field {
 dialog > .button {
   margin-top: 12px;
 }
+/* The account's AI features switch, in the profile dialog. */
+.profile-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-weight: 600;
+}
+.profile-check + p {
+  margin-top: 0;
+}
 .account-future {
   display: flex;
   gap: 16px;

@@ -25,6 +25,8 @@ export type WorkspaceData = {
   learningLanguage: string;
   // The Appearance setting; older dumps and test fixtures may leave it out (system).
   theme?: Theme;
+  // The AI features switch (#113); left out means on.
+  aiEnabled?: boolean;
   lists: List[];
   runs: Run[];
 };
@@ -40,6 +42,7 @@ export type WorkspaceSync = {
   completeRun: (run: Run) => void;
   saveProfile: (baseLanguage: string, learningLanguage: string) => void;
   saveTheme: (theme: Theme) => void;
+  saveAiEnabled: (enabled: boolean) => void;
   // Whether the workspace holds edits it hasn't reported yet (an unfinished row, pasted text
   // not imported, a change still waiting to autosave). They count as unsaved changes.
   pending: (pending: boolean) => void;

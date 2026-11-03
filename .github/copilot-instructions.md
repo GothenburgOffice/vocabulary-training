@@ -72,6 +72,9 @@ the full browser suite on every PR.
     with semicolons. Only plays on click, one request at a time per account (held in the
     server process: the app runs as one), and the answer's audio button stays hidden until
     the answer is graded or skipped.
+  - Every AI call is covered by the account's **Use AI features** switch (#113, on by
+    default): `aiConfig()` takes it as a required argument and turns every feature off
+    with it, so a new AI call must go through `aiConfig()` too.
   - Both take a word id, never text: the server reads the word from the account's lists, so
     only the learner's typed answer comes from the browser. Both are limited per account in
     letters per minute and per day (`limits.*` site settings, #82).

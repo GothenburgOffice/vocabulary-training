@@ -48,7 +48,7 @@ export function loadWorkspace(userId: string) {
 }
 async function readWorkspace(c: pg.PoolClient, userId: string) {
   const profile = await c.query(
-    "SELECT native_language, learning_language, theme FROM users WHERE id=$1",
+    "SELECT native_language, learning_language, theme, ai_enabled FROM users WHERE id=$1",
     [userId],
   );
   if (!profile.rowCount) throw new HttpError(404, "Account not found.");
@@ -126,6 +126,7 @@ async function readWorkspace(c: pg.PoolClient, userId: string) {
     baseLanguage: profile.rows[0].native_language,
     learningLanguage: profile.rows[0].learning_language,
     theme: profile.rows[0].theme,
+    aiEnabled: profile.rows[0].ai_enabled,
     lists: lists.rows.map((l) => ({
       id: l.id,
       title: l.title,
@@ -374,6 +375,10 @@ export async function saveProfile(userId: string, profile: z.infer<typeof profil
 
 export async function saveTheme(userId: string, theme: Theme) {
   await db.query("UPDATE users SET theme=$2 WHERE id=$1", [userId, theme]);
+}
+
+export async function saveAiEnabled(userId: string, enabled: boolean) {
+  await db.query("UPDATE users SET ai_enabled=$2 WHERE id=$1", [userId, enabled]);
 }
 
 // One of this account's words, for an AI call (#82): its native text, languages and accepted

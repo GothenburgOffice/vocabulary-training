@@ -658,7 +658,23 @@ test("real HTTP: admin AI settings and languages, with dummy keys and no provide
       const limitedClip = await api("/api/speech", "POST", { wordId, part: "learning" }, admin);
       assert.equal(limitedClip.status, 429);
       assert.equal((await limitedClip.json()).status, "limited");
+
+      // With the account's AI switch off (#113), neither call gets as far as the letter
+      // charge: "disabled", not "limited". The workspace still says what the site offers.
+      assert.equal((await api("/api/profile", "PATCH", { aiEnabled: false }, admin)).status, 200);
+      const offNote = await (await ask("goodbye")).json();
+      assert.equal(offNote.status, "disabled");
+      assert.match(offNote.message, /turned off in your profile/);
+      const offClip = await api("/api/speech", "POST", { wordId, part: "learning" }, admin);
+      assert.equal(offClip.status, 503);
+      assert.equal((await offClip.json()).status, "disabled");
+      const offWorkspace = await (await api("/api/workspace", "GET", undefined, admin)).json();
+      assert.equal(offWorkspace.data.aiEnabled, false);
+      assert.deepEqual(offWorkspace.ai, { languageNotes: true, speech: ["English"] });
+      assert.equal((await api("/api/profile", "PATCH", { aiEnabled: true }, admin)).status, 200);
+      assert.equal((await (await ask("goodbye")).json()).status, "limited");
     } finally {
+      await api("/api/profile", "PATCH", { aiEnabled: true }, admin);
       await api("/api/admin/limits", "PUT", limitsNow, admin);
       await api(`/api/lists/${aiList}`, "DELETE", { revision: 1 }, admin);
     }
@@ -962,6 +978,78 @@ test("real HTTP: the Appearance setting is saved on the account and set on every
   assert.equal((await workspace()).theme, "dark");
 });
 
+test("real HTTP: the AI features switch is saved on the account, on its own", async () => {
+  const register = async () => {
+    const reg = await api("/api/auth", "POST", {
+      action: "register",
+      email: `ai-switch-${randomUUID()}@example.test`,
+      password: "integration-test-only-password",
+    });
+    assert.equal(reg.status, 200, await reg.clone().text());
+    return reg.headers.get("set-cookie")!.split(";")[0];
+  };
+  const cookie = await register();
+  const other = await register();
+  const workspace = async (who = cookie) =>
+    (await (await api("/api/workspace", "GET", undefined, who)).json()).data;
+  assert.equal((await workspace()).aiEnabled, true);
+
+  const save = (data: unknown) => api("/api/profile", "PATCH", data, cookie);
+  assert.equal((await save({ aiEnabled: "false" })).status, 400);
+  assert.equal((await save({ aiEnabled: false, theme: "dark" })).status, 400);
+  assert.equal((await api("/api/profile", "PATCH", { aiEnabled: false })).status, 401);
+  const crossOrigin = await api("/api/profile", "PATCH", { aiEnabled: false }, cookie, {
+    Origin: "https://attacker.invalid",
+  });
+  assert.equal(crossOrigin.status, 403);
+  assert.equal((await workspace()).aiEnabled, true);
+
+  assert.equal((await save({ aiEnabled: false })).status, 200);
+  assert.equal((await workspace()).aiEnabled, false);
+  // Only this account's switch.
+  assert.equal((await workspace(other)).aiEnabled, true);
+  // Off, a language note is refused before any AI setting is read, whatever the stack has.
+  // (A note needs a word: the account's own.)
+  const listId = randomUUID();
+  const wordId = randomUUID();
+  const created = await api(
+    `/api/lists/${listId}`,
+    "PUT",
+    {
+      revision: null,
+      list: {
+        title: "AI off",
+        description: "",
+        from: "Swedish",
+        to: "French",
+        words: [{ id: wordId, front: "hej", back: "bonjour" }],
+      },
+    },
+    cookie,
+  );
+  assert.equal(created.status, 200, await created.clone().text());
+  const note = await api(
+    "/api/feedback",
+    "POST",
+    { wordId, direction: "forward", answer: "salut", requireAccents: true, caseSensitive: false },
+    cookie,
+  );
+  const noteResult = await note.json();
+  assert.equal(noteResult.status, "disabled");
+  assert.match(noteResult.message, /turned off in your profile/);
+  const clip = await api("/api/speech", "POST", { wordId, part: "native" }, cookie);
+  assert.equal(clip.status, 503);
+  // Other profile saves leave the switch alone, and the export includes it.
+  assert.equal((await save({ theme: "dark" })).status, 200);
+  assert.equal((await save({ baseLanguage: "Swedish", learningLanguage: "German" })).status, 200);
+  assert.equal((await workspace()).aiEnabled, false);
+  const exported = await (await api("/api/export", "GET", undefined, cookie)).json();
+  assert.equal(exported.profile.aiEnabled, false);
+
+  assert.equal((await save({ aiEnabled: true })).status, 200);
+  assert.equal((await workspace()).aiEnabled, true);
+});
+
 test("real HTTP: the data export downloads only this account's data, as JSON", async () => {
   assert.equal((await api("/api/export")).status, 401);
   const register = async (prefix: string) => {
@@ -1024,7 +1112,7 @@ test("real HTTP: the data export downloads only this account's data, as JSON", a
   );
   assert.equal(res.headers.get("cache-control"), "no-store");
   const doc = await res.json();
-  assert.equal(doc.version, 1);
+  assert.equal(doc.version, 2);
   assert.match(doc.account.email, /^export-/);
   assert.deepEqual(
     doc.lists.map((l: { title: string }) => l.title),

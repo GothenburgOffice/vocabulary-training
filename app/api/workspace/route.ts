@@ -13,7 +13,8 @@ export async function GET() {
     const { data, listRevisions } = await loadWorkspace(user.id);
     const settings = await loadAiSettings();
     // The language list (names, CSV codes, hidden and highlighted flags) and which AI
-    // features this account can use. Never keys or model settings.
+    // features the site offers this account. Never keys or model settings. The account's own
+    // switch is data.aiEnabled; the workspace hides the features while it is off.
     const languages = settings.languages.map(({ name, code, hidden, highlighted }) => ({
       name,
       code,
@@ -25,7 +26,7 @@ export async function GET() {
       data,
       listRevisions,
       languages,
-      ai: aiConfig(user.ai_tier, settings).features,
+      ai: aiConfig(user.ai_tier, settings, user.ai_enabled).offered,
     });
   } catch (e) {
     return fail(e);

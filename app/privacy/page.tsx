@@ -99,6 +99,11 @@ export default async function PrivacyPage() {
           hour and never written to disk.
         </p>
         <p>
+          You can turn AI features off in your profile (Use AI features). Then nothing of yours is
+          sent to an AI provider, including by AI features added later, until you turn them on
+          again. The setting is kept with your account.
+        </p>
+        <p>
           The page keeps your last 20 AI results in memory so you can report one; reloading or
           signing out clears them. Reports are never sent to the AI provider.
         </p>

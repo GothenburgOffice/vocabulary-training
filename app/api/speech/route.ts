@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     const word = await readWordForAi(user.id, parsed.data.wordId);
     if (!word) return json({ status: "not-found" }, 404);
     const input = speechText(word, parsed.data.part);
-    const config = aiConfig(user.ai_tier, await loadAiSettings());
+    const config = aiConfig(user.ai_tier, await loadAiSettings(), user.ai_enabled);
     const settings = config.speech(input.language);
     if (!settings) return json({ status: "disabled" }, 503);
     const limits = await readLimits();

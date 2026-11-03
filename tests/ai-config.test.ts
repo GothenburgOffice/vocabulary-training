@@ -31,21 +31,21 @@ const settings: AiSettings = {
 };
 
 test("nothing configured means every AI feature is off", () => {
-  const config = aiConfig("basic", { ...EMPTY_AI_SETTINGS, languages: settings.languages });
+  const config = aiConfig("basic", { ...EMPTY_AI_SETTINGS, languages: settings.languages }, true);
   assert.deepEqual(config.features, { languageNotes: false, speech: [] });
   assert.equal(config.speech("Swedish"), null);
 });
 
 test("a key without a model, or a model without a key, keeps language notes off", () => {
   const noModel = { ...settings, basic: { apiKey: "basic-key", model: "" } };
-  assert.equal(aiConfig("basic", noModel).languageNotes, false);
+  assert.equal(aiConfig("basic", noModel, true).languageNotes, false);
   const noKey = { ...settings, basic: { apiKey: "", model: "basic/chat" } };
-  assert.equal(aiConfig("basic", noKey).languageNotes, false);
-  assert.deepEqual(aiConfig("basic", noKey).features.speech, []);
+  assert.equal(aiConfig("basic", noKey, true).languageNotes, false);
+  assert.deepEqual(aiConfig("basic", noKey, true).features.speech, []);
 });
 
 test("basic accounts get basic speech only for languages with a basic model", () => {
-  const config = aiConfig("basic", settings);
+  const config = aiConfig("basic", settings, true);
   assert.equal(config.languageNotes, true);
   assert.equal(config.languageNoteModel, "basic/chat");
   assert.deepEqual(config.features.speech, ["Swedish", "French"]);
@@ -55,7 +55,7 @@ test("basic accounts get basic speech only for languages with a basic model", ()
 });
 
 test("plus accounts use plus speech where set, else the three basic settings together", () => {
-  const config = aiConfig("plus", settings);
+  const config = aiConfig("plus", settings, true);
   assert.deepEqual(config.speech("French"), plusSpeech);
   assert.deepEqual(config.speech("Swedish"), basicSpeech);
   assert.deepEqual(config.speech("German"), plusSpeech);
@@ -64,17 +64,30 @@ test("plus accounts use plus speech where set, else the three basic settings tog
 });
 
 test("plus settings left blank use the basic key and model; set ones replace them", () => {
-  assert.equal(aiConfig("plus", settings).apiKey, "basic-key");
-  assert.equal(aiConfig("plus", settings).languageNoteModel, "basic/chat");
+  assert.equal(aiConfig("plus", settings, true).apiKey, "basic-key");
+  assert.equal(aiConfig("plus", settings, true).languageNoteModel, "basic/chat");
   const own = { ...settings, plus: { apiKey: "plus-key", model: "plus/chat" } };
-  assert.equal(aiConfig("plus", own).apiKey, "plus-key");
-  assert.equal(aiConfig("plus", own).languageNoteModel, "plus/chat");
-  assert.equal(aiConfig("basic", own).apiKey, "basic-key");
+  assert.equal(aiConfig("plus", own, true).apiKey, "plus-key");
+  assert.equal(aiConfig("plus", own, true).languageNoteModel, "plus/chat");
+  assert.equal(aiConfig("basic", own, true).apiKey, "basic-key");
+});
+
+test("an account with AI features turned off gets none, though the site offers them", () => {
+  for (const tier of ["basic", "plus"]) {
+    const config = aiConfig(tier, settings, false);
+    assert.deepEqual(config.features, { languageNotes: false, speech: [] });
+    assert.equal(config.languageNotes, false);
+    assert.equal(config.apiKey, "");
+    assert.equal(config.languageNoteModel, "");
+    for (const l of settings.languages) assert.equal(config.speech(l.name), null);
+    // What the profile's switch would turn back on.
+    assert.deepEqual(config.offered, aiConfig(tier, settings, true).features);
+  }
 });
 
 test("unknown or missing tiers are treated as basic", () => {
   for (const tier of [undefined, "gold"]) {
-    assert.equal(aiConfig(tier, settings).tier, "basic");
-    assert.equal(aiConfig(tier, settings).speech("German"), null);
+    assert.equal(aiConfig(tier, settings, true).tier, "basic");
+    assert.equal(aiConfig(tier, settings, true).speech("German"), null);
   }
 });

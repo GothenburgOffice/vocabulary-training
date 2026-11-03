@@ -18,6 +18,7 @@ import {
 import type { WorkspaceAccount, WorkspaceData, Run, WorkspaceSync } from "../lib/workspace";
 import {
   DEFAULT_LANGUAGES,
+  NO_AI,
   languageCodes,
   pickerLanguages,
   sortLanguageNames,
@@ -72,7 +73,16 @@ export default function Workspace({
 }) {
   // For the library's due counts; handlers read the clock when they run.
   const now = useNow();
-  const ai = useContext(AiFeaturesContext);
+  // What the site offers this account; while the account's AI switch is off (#113), the
+  // workspace's views see no AI features at all.
+  const offeredAi = useContext(AiFeaturesContext);
+  const [aiEnabled, setAiEnabled] = useState(initial.aiEnabled ?? true);
+  const ai = aiEnabled ? offeredAi : NO_AI;
+  const aiOffered = offeredAi.languageNotes || offeredAi.speech.length > 0;
+  function chooseAiEnabled(next: boolean) {
+    setAiEnabled(next);
+    sync?.saveAiEnabled(next);
+  }
   // Visible languages and Other; hidden ones only where already in use (added below).
   const languages = pickerLanguages(languageList);
   const codes = languageCodes(languageList);
@@ -380,7 +390,7 @@ ${learningLanguage}`;
       text: "CSV exported. It includes language names and word pairs, not review history.",
     });
   }
-  return (
+  const shell = (
     <div className="app-shell">
       <a className="skip" href="#content">
         Skip to content
@@ -407,7 +417,7 @@ ${learningLanguage}`;
               : startTest()
         }
         onHelp={() => setModal("help")}
-        reportable={aiActions.length}
+        reportable={aiEnabled ? aiActions.length : 0}
         onReport={() => setModal("report")}
       />
       <header className="mobile-bar">
@@ -546,6 +556,8 @@ ${learningLanguage}`;
             onSave={saveProfile}
             theme={theme}
             onTheme={chooseTheme}
+            aiEnabled={aiEnabled}
+            onAiEnabled={aiOffered ? chooseAiEnabled : undefined}
           />
         )}
         {modal === "language" && (
@@ -609,4 +621,5 @@ ${learningLanguage}`;
       </Dialog>
     </div>
   );
+  return <AiFeaturesContext.Provider value={ai}>{shell}</AiFeaturesContext.Provider>;
 }
