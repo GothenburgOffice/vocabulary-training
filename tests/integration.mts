@@ -446,6 +446,21 @@ test("real HTTP: the admin area answers 404 to everyone but admins", async () =>
     (await api("/api/admin/users?offset=-1", "GET", undefined, adminCookie)).status,
     400,
   );
+  // Sorted on the server, usage included (it's summed before the page is cut); only known
+  // columns and directions are accepted.
+  const bySpeech = (
+    await (await api("/api/admin/users?sort=speech&dir=desc", "GET", undefined, adminCookie)).json()
+  ).accounts.map((account: { speech_letters_90: string }) => Number(account.speech_letters_90));
+  assert.deepEqual(
+    bySpeech,
+    [...bySpeech].sort((a, b) => b - a),
+  );
+  for (const query of ["sort=password_hash", "sort=email%3B%20DROP%20TABLE%20users", "dir=up"])
+    assert.equal(
+      (await api(`/api/admin/users?${query}`, "GET", undefined, adminCookie)).status,
+      400,
+      query,
+    );
   assert.equal(
     (await api("/api/admin/users", "PATCH", { userId: me.user.id, tier: "plus" }, cookie)).status,
     404,
@@ -839,40 +854,61 @@ test("real HTTP: admins list and prune reports without seeing accounts; learners
   assert.equal(login.status, 200, await login.clone().text());
   const adminCookie = login.headers.get("set-cookie")!.split(";")[0];
 
-  const list = async () => {
-    const response = await api("/api/admin/reports", "GET", undefined, adminCookie);
+  const get = async (query: string) => {
+    const response = await api(`/api/admin/reports?${query}`, "GET", undefined, adminCookie);
     assert.equal(response.status, 200, await response.clone().text());
     return response.json();
   };
-  const view = await list();
-  const found = view.reports.find((row: { word: string }) => row.word === word);
+  let view = await get("");
+  assert.equal("summary" in view, false);
+  assert.equal(view.retentionDays, 15);
+  // Newest first, page after page: each page starts after the last report shown, so none
+  // repeats. The new report is today's, among others from today on a busy test database.
+  type Row = { id: string; word: string; reported_on: string; activity_on: string };
+  const findReport = async () => {
+    const seen = new Set<string>();
+    let page: { reports: Row[] } = view;
+    for (let pages = 0; pages < 40 && page.reports.length; pages++) {
+      for (const row of page.reports) {
+        assert.equal(seen.has(row.id), false, "a report repeats across pages");
+        seen.add(row.id);
+      }
+      const match = page.reports.find((row) => row.word === word);
+      if (match) return match as Row & Record<string, unknown>;
+      page = await get(`after=${page.reports.at(-1)!.id}`);
+    }
+  };
+  const found = await findReport();
   assert.ok(found, "the new report is listed");
   assert.deepEqual(found.prompt, { part: "learning" });
   assert.equal(found.tier, "basic");
   // No account in the admin view.
   for (const key of ["user_id", "userId", "email"]) assert.equal(key in found, false, key);
-  // Dates only, no times; and no clustering, just the newest first.
+  // Dates only, no times; and no clustering.
   assert.match(found.reported_on, /^\d{4}-\d{2}-\d{2}$/);
   assert.match(found.activity_on, /^\d{4}-\d{2}-\d{2}$/);
-  assert.equal("summary" in view, false);
-  assert.equal(view.retentionDays, 15);
-  // The next page starts strictly after the given report, so it never repeats it.
-  const after = await (
-    await api(
-      `/api/admin/reports?beforeOn=${found.reported_on}&beforeId=${found.id}`,
-      "GET",
-      undefined,
-      adminCookie,
-    )
-  ).json();
-  assert.equal(
-    after.reports.some((row: { id: string }) => row.id === found.id),
-    false,
+  // Sorted by a column on the server, which accepts only known columns and directions.
+  const byModel = (await get("sort=model&dir=asc")).reports.map((row: { model: string }) =>
+    row.model.toLowerCase(),
   );
+  assert.deepEqual(byModel, [...byModel].sort());
+  // Type sorts by the label shown (Audio before Language note), not the stored code.
+  const byType = (await get("sort=kind&dir=asc")).reports.map((row: { kind: string }) => row.kind);
   assert.equal(
-    (await api("/api/admin/reports?beforeOn=2026-11-03", "GET", undefined, adminCookie)).status,
-    400,
+    byType.indexOf("note") === -1 || byType.lastIndexOf("speech") < byType.indexOf("note"),
+    true,
   );
+  for (const query of [
+    "sort=prompt",
+    "sort=model%3B%20DROP%20TABLE%20issue_reports",
+    "dir=up",
+    "after=50",
+  ])
+    assert.equal(
+      (await api(`/api/admin/reports?${query}`, "GET", undefined, adminCookie)).status,
+      400,
+      query,
+    );
 
   // Only the retention period is accepted, and a prune never removes a fresh report.
   assert.equal(
@@ -890,7 +926,9 @@ test("real HTTP: admins list and prune reports without seeing accounts; learners
   const pruned = await api("/api/admin/reports", "DELETE", { olderThanDays: 15 }, adminCookie);
   assert.equal(pruned.status, 200, await pruned.clone().text());
   assert.equal(typeof (await pruned.json()).deleted, "number");
-  assert.ok((await list()).reports.some((row: { word: string }) => row.word === word));
+  // A fresh report survives the prune.
+  view = await get("");
+  assert.ok(await findReport());
 });
 
 test("real HTTP: the Appearance setting is saved on the account and set on every page", async () => {

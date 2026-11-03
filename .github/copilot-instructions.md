@@ -48,6 +48,8 @@ the full browser suite on every PR.
   with one module per section. To add a section: `app/admin/<slug>/page.tsx` (calls
   `adminPage()`), components in `components/admin/`, API in `app/api/admin/<slug>/`
   (`requireOrigin`, then `requireAdmin`), and an entry in `lib/admin/sections.ts`.
+  A list of records (accounts, languages) is a compact `.admin-table`, one row per record
+  with everything visible, like Languages and Users: no cards, no collapsed details.
 - `components/Workspace.tsx`: the signed-in UI, a client component. It holds the shared
   state and every change it saves; the views and dialogs in `components/workspace/` render
   and report back. A practice session is `lib/practice.ts` (a reducer, grading and the

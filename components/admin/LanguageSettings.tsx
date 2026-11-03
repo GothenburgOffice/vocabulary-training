@@ -7,11 +7,15 @@ import {
   changedLanguages,
   isFlag,
   sameLanguage,
+  sortLanguages,
   withField,
   type BulkField,
+  type LanguageSort,
 } from "../../lib/admin/language-table";
+import type { Sort } from "../../lib/admin/sort";
 import { voicesFor } from "../../lib/admin/voices";
 import { adminRequest } from "./request";
+import SortHeader from "./SortHeader";
 import { useModels } from "./useModels";
 
 type Languages = { languages: LanguageView[] };
@@ -27,6 +31,8 @@ export default function LanguageSettings() {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
+  // The server's order (highlighted first, then by name) until a heading is clicked.
+  const [sort, setSort] = useState<Sort<LanguageSort> | null>(null);
   const basicModels = useModels();
   const plusModels = useModels();
   // The model lists fill the model dropdowns; listing models calls no model. Without a key, a
@@ -130,7 +136,8 @@ export default function LanguageSettings() {
   }
 
   if (!languages) return error ? <p className="error">{error}</p> : <p>Loading…</p>;
-  const rows = languages.map((l) => drafts[l.name] ?? l);
+  const ordered = sortLanguages(languages, sort);
+  const rows = ordered.map((l) => drafts[l.name] ?? l);
   const allSelected = selected.size === languages.length;
   return (
     <>
@@ -188,8 +195,8 @@ export default function LanguageSettings() {
           ))}
         </ul>
       )}
-      <div className="lang-table-wrap">
-        <table className="lang-table">
+      <div className="admin-table-wrap">
+        <table className="admin-table lang-table">
           <thead>
             <tr>
               <th rowSpan={2} className="lang-select">
@@ -202,27 +209,51 @@ export default function LanguageSettings() {
                   }
                 />
               </th>
-              <th rowSpan={2} className="lang-name">
-                Language
-              </th>
-              <th rowSpan={2}>Code</th>
-              <th rowSpan={2}>Highlighted</th>
-              <th rowSpan={2}>Hidden</th>
+              <SortHeader
+                rowSpan={2}
+                className="row-head lang-name"
+                label="Language"
+                sortKey="name"
+                sort={sort}
+                onSort={setSort}
+              />
+              <SortHeader rowSpan={2} label="Code" sortKey="code" sort={sort} onSort={setSort} />
+              <SortHeader
+                rowSpan={2}
+                label="Highlighted"
+                sortKey="highlighted"
+                sort={sort}
+                onSort={setSort}
+                firstDir="desc"
+              />
+              <SortHeader
+                rowSpan={2}
+                label="Hidden"
+                sortKey="hidden"
+                sort={sort}
+                onSort={setSort}
+                firstDir="desc"
+              />
               <th colSpan={3}>Speech</th>
               <th colSpan={3}>Plus speech (blank: basic)</th>
             </tr>
             <tr>
-              <th>Model</th>
-              <th>Voice</th>
-              <th>Instructions</th>
-              <th>Model</th>
-              <th>Voice</th>
-              <th>Instructions</th>
+              {(["speech", "plusSpeech"] as const).flatMap((tier) =>
+                (["model", "voice", "instructions"] as const).map((field) => (
+                  <SortHeader
+                    key={`${tier}.${field}`}
+                    label={field[0].toUpperCase() + field.slice(1)}
+                    sortKey={`${tier}.${field}` as const}
+                    sort={sort}
+                    onSort={setSort}
+                  />
+                )),
+              )}
             </tr>
           </thead>
           <tbody>
             {rows.map((language, index) => {
-              const server = languages[index];
+              const server = ordered[index];
               const dirty = !sameLanguage(language, server);
               return (
                 <tr
@@ -241,7 +272,7 @@ export default function LanguageSettings() {
                       onChange={() => toggle(language.name)}
                     />
                   </td>
-                  <th scope="row" className="lang-name">
+                  <th scope="row" className="row-head lang-name">
                     {language.name}
                     {errors[language.name] && (
                       <CircleAlert size={14} aria-label={errors[language.name]} />
@@ -506,7 +537,7 @@ function AddLanguage({ onAdd }: { onAdd: (name: string, code: string) => Promise
   return (
     <tr className="lang-add">
       <td />
-      <th scope="row" className="lang-name">
+      <th scope="row" className="row-head lang-name">
         <form id="add-language" onSubmit={(e) => void submit(e)} />
         <input
           form="add-language"

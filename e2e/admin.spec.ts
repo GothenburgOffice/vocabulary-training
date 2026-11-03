@@ -154,6 +154,29 @@ test("highlighted languages come first, the rest by name", async ({ page }) => {
   await expect(names).toHaveText(["German", "Swedish", "Finnish", "French"]);
 });
 
+test("language headings sort the table, and an edited row stays put", async ({ page }) => {
+  await fakeLanguages(page);
+  await page.goto("/admin/languages");
+  const names = page.locator(".lang-table tbody .lang-name");
+  const code = page.getByRole("button", { name: "Code", exact: true });
+  await code.click();
+  await expect(names).toHaveText(["German", "French", "Swedish"]);
+  await expect(page.getByRole("columnheader", { name: "Code" })).toHaveAttribute(
+    "aria-sort",
+    "ascending",
+  );
+  await code.click();
+  await expect(names).toHaveText(["Swedish", "French", "German"]);
+  // Sorted by saved values: typing a new code doesn't move the row under the cursor.
+  await page.getByLabel("German code").fill("aa");
+  await expect(names).toHaveText(["Swedish", "French", "German"]);
+  // Yes/no columns put the ticked rows first.
+  await page.getByLabel("French hidden").check();
+  await page.getByRole("button", { name: /^Save changes/ }).click();
+  await page.getByRole("button", { name: "Hidden", exact: true }).click();
+  await expect(names.first()).toHaveText(/French/);
+});
+
 test("the table scrolls inside its frame, not the page", async ({ page }) => {
   await fakeLanguages(page);
   await page.goto("/admin/languages");
@@ -253,14 +276,16 @@ test("AI limits are edited and saved together, and reset to the defaults", async
     }
     await route.fulfill({ json: { limits, defaults } });
   });
-  await page.goto("/admin/limits");
-  const save = page.getByRole("button", { name: "Save limits" });
+  // Limits are a section of AI settings, with the keys and models above them.
+  await page.goto("/admin/ai");
+  const section = page.getByRole("region", { name: "Limits" });
+  const save = section.getByRole("button", { name: "Save limits" });
   await expect(save).toBeDisabled();
   await page.getByLabel("Speech: Letters per minute").fill("300");
   await page.getByLabel("Language notes: Letters per day, plus").fill("90000");
   await page.getByLabel("Speech request block (seconds)").fill("15");
   await save.click();
-  await expect(page.getByRole("status")).toHaveText("Saved.");
+  await expect(section.getByRole("status")).toHaveText("Saved.");
   expect(saves).toEqual([
     {
       ...defaults,
@@ -271,11 +296,11 @@ test("AI limits are edited and saved together, and reset to the defaults", async
   ]);
   await expect(save).toBeDisabled();
 
-  await page.getByRole("button", { name: "Reset to defaults" }).click();
+  await section.getByRole("button", { name: "Reset to defaults" }).click();
   await expect(page.getByLabel("Speech: Letters per minute")).toHaveValue("1200");
   await expect(page.getByLabel("Speech request block (seconds)")).toHaveValue("10");
   await save.click();
-  await expect(page.getByRole("status")).toHaveText("Saved.");
+  await expect(section.getByRole("status")).toHaveText("Saved.");
   expect(saves[1]).toEqual(defaults);
 });
 
@@ -369,6 +394,11 @@ test("users can be filtered, re-typed, locked, trashed and restored, with E2E cl
         (scope !== "trash" || user.deleted_at !== null)
       );
     });
+    // Only the email sort is faked; the list is otherwise in the order it was made.
+    if (params.get("sort") === "email")
+      matching.sort(
+        (a, b) => a.email.localeCompare(b.email) * (params.get("dir") === "asc" ? 1 : -1),
+      );
     const offset = Number(params.get("offset") ?? 0);
     return route.fulfill({
       json: {
@@ -384,26 +414,61 @@ test("users can be filtered, re-typed, locked, trashed and restored, with E2E cl
   });
 
   await page.goto("/admin/users");
-  await expect(page.locator(".user-card")).toHaveCount(2);
-  await page.locator(".user-usage summary").first().click();
-  await expect(page.getByText("2 calls · 120 / 100,000 letters").first()).toBeVisible();
-  await page.getByLabel("Account type for learner@example.test").selectOption("plus");
-  await expect(page.getByLabel("Account type for learner@example.test")).toHaveValue("plus");
+  const rows = page.locator(".users-table > tbody > tr");
+  const emails = page.locator(".users-table .user-email > button");
+  await expect(rows).toHaveCount(2);
+  // The table only shows: no controls in the rows.
+  await expect(rows.locator("select, input")).toHaveCount(0);
+  // The row shows 90 days of speech (letters, calls) and whether the daily limit blocks it;
+  // hovering shows every period against its budget.
+  const speech = rows.first().locator(".usage-stat").first();
+  await expect(speech).toHaveText("240 (4)");
+  await expect(speech.getByLabel("Not limited")).toBeVisible();
+  await speech.hover();
+  const tip = page.getByRole("tooltip");
+  await expect(tip).toBeVisible();
+  await expect(tip.getByRole("row", { name: /24 hours/ })).toHaveText(
+    /24 hours\s*2\s*120\s*100,000/,
+  );
+  await expect(tip).toContainText("Within the daily limit: 99,880 letters left");
+
+  // Headings sort on the server, as the list loads in pages: the first click on Email is A–Z.
+  await page.getByRole("button", { name: "Email", exact: true }).click();
+  await expect(emails).toHaveText(["e2e-test@example.test", "learner@example.test"]);
+  await page.getByRole("button", { name: "Email", exact: true }).click();
+  await expect(emails).toHaveText(["learner@example.test", "e2e-test@example.test"]);
+  await expect(page.getByRole("columnheader", { name: "Email" })).toHaveAttribute(
+    "aria-sort",
+    "descending",
+  );
 
   // Search runs on the server: the fake narrows the list only when the query is sent.
   await page.getByLabel("Search by email").fill("learner");
-  await expect(page.locator(".user-card strong")).toHaveText(["learner@example.test"]);
+  await expect(emails).toHaveText(["learner@example.test"]);
   await expect(page.getByText("Showing 1 of 1 matching accounts.")).toBeVisible();
   await page.getByLabel("Search by email").fill("");
-  await expect(page.locator(".user-card")).toHaveCount(2);
+  await expect(rows).toHaveCount(2);
+
+  // A row opens the account's card, where its type and access change.
+  const learner = rows.filter({ hasText: "learner@example.test" });
+  const state = learner.locator(".user-state");
+  await expect(state).toHaveText("Active");
+  await learner.locator("td").first().click();
+  const card = page.getByRole("dialog", { name: "learner@example.test" });
+  await expect(card).toBeVisible();
+  await expect(card.getByRole("row", { name: /90 days/ }).first()).toHaveText(
+    /90 days\s*4\s*240\s*9,000,000/,
+  );
+  await card.getByLabel("Account type").selectOption("plus");
+  await expect(card.getByRole("status")).toHaveText("Updated learner@example.test.");
+  await expect(learner.locator("td").first()).toHaveText("Plus");
 
   // Lock and unlock.
-  const learner = page.locator(".user-card").filter({ hasText: "learner@example.test" });
-  await learner.getByRole("button", { name: "Lock account learner@example.test" }).click();
-  await expect(learner.getByRole("note")).toContainText("Locked since");
-  await expect(learner.getByRole("note")).toContainText("It can’t sign in.");
-  await learner.getByRole("button", { name: "Unlock account learner@example.test" }).click();
-  await expect(learner.getByRole("note")).toHaveCount(0);
+  await card.getByRole("button", { name: "Lock account" }).click();
+  await expect(card).toContainText("It can’t sign in.");
+  await expect(state).toHaveText("Locked");
+  await card.getByRole("button", { name: "Unlock account" }).click();
+  await expect(state).toHaveText("Active");
 
   // The trash asks first, says when the account is deleted for good, and can be undone.
   page.once("dialog", (dialog) => {
@@ -411,20 +476,38 @@ test("users can be filtered, re-typed, locked, trashed and restored, with E2E cl
     expect(dialog.message()).toContain("(30 days)");
     void dialog.accept();
   });
-  await learner.getByRole("button", { name: "Move to trash account learner@example.test" }).click();
-  await expect(learner.getByRole("note")).toContainText("In the trash since");
-  await expect(learner.getByRole("note")).toContainText("Deleted for good on");
+  await card.getByRole("button", { name: "Move to trash" }).click();
+  await expect(state).toHaveText("Trash");
+  await expect(card).toContainText("Deleted for good with its data on");
   // An account in the trash is locked by being there; it offers only Restore.
-  await expect(learner.getByRole("button", { name: /^Lock account/ })).toHaveCount(0);
+  await expect(card.getByRole("button", { name: "Lock account" })).toHaveCount(0);
+  await card.getByRole("button", { name: "Close dialog" }).click();
+  await expect(card).toBeHidden();
   await page.getByLabel("Account filter").selectOption("trash");
-  await expect(page.locator(".user-card strong")).toHaveText(["learner@example.test"]);
-  await learner.getByRole("button", { name: "Restore account learner@example.test" }).click();
-  await expect(learner.getByRole("note")).toHaveCount(0);
+  await expect(emails).toHaveText(["learner@example.test"]);
+  // The keyboard's way in: the email is a button.
+  await emails.first().focus();
+  await page.keyboard.press("Enter");
+  await card.getByRole("button", { name: "Restore account" }).click();
+  await expect(state).toHaveText("Active");
+  await page.keyboard.press("Escape");
+  await expect(card).toBeHidden();
   await page.getByLabel("Account filter").selectOption("all");
-  await expect(page.locator(".user-card")).toHaveCount(2);
+  await expect(rows).toHaveCount(2);
+
+  // Your own account can't be locked or trashed from its card.
+  accounts = [...accounts, { ...account(viewerId, "admin@example.test"), is_admin: true }];
+  await page.getByLabel("Search by email").fill("admin@");
+  await expect(emails).toHaveText(["admin@example.test"]);
+  await emails.first().click();
+  const own = page.getByRole("dialog", { name: "admin@example.test" });
+  await expect(own).toContainText("Admin (your account)");
+  await expect(own.getByRole("button", { name: /Lock account|Move to trash/ })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.getByLabel("Search by email").fill("");
 
   await page.getByLabel("Account filter").selectOption("test");
-  await expect(page.locator(".user-card")).toHaveCount(1);
+  await expect(rows).toHaveCount(1);
   await expect(page.getByText("e2e-test@example.test")).toBeVisible();
   page.once("dialog", (dialog) => {
     expect(dialog.message()).toContain("Permanently delete 1 E2E test accounts");
@@ -432,31 +515,43 @@ test("users can be filtered, re-typed, locked, trashed and restored, with E2E cl
   });
   await page.getByRole("button", { name: "Delete test accounts (1)" }).click();
   await expect(page.getByText("Deleted 1 E2E test accounts.")).toBeVisible();
-  await expect(page.locator(".user-card")).toHaveCount(0);
+  await expect(rows).toHaveCount(0);
 });
 
-test("reports list newest first by page, show the request sent, and prune old ones", async ({
+test("reports list newest first by page, sort by a heading, show the request, and prune", async ({
   page,
 }) => {
-  const report = (id: string, word: string, on: string) => ({
+  const report = (id: string, word: string, on: string, kind: string, model: string) => ({
     id,
     reported_on: on,
     activity_on: on,
-    kind: "speech",
-    reason: "pronunciation",
+    kind,
+    reason: kind === "speech" ? "pronunciation" : "incorrect-note",
     word,
     language: "French",
-    model: "vendor/tts",
-    voice: "Mia",
+    model,
+    voice: kind === "speech" ? "Mia" : null,
     tier: "basic",
-    prompt: { part: "learning" },
+    prompt: kind === "speech" ? { part: "learning" } : { model, messages: [] },
   });
-  const newer = report("0f8c2f8e-5d0a-4a57-9a43-2f1b0f6d2a11", "merci", "2026-11-03");
-  const older = report("1a2b3c4d-5e6f-4a57-9a43-2f1b0f6d2a11", "bonjour", "2026-10-01");
+  const newer = report(
+    "0f8c2f8e-5d0a-4a57-9a43-2f1b0f6d2a11",
+    "merci",
+    "2026-11-03",
+    "speech",
+    "vendor/tts",
+  );
+  const older = report(
+    "1a2b3c4d-5e6f-4a57-9a43-2f1b0f6d2a11",
+    "bonjour",
+    "2026-10-01",
+    "note",
+    "acme/chat",
+  );
   let reports = [newer, older];
-  const pages: (string | null)[] = [];
+  const queries: string[] = [];
   const prunes: unknown[] = [];
-  // Like the server: newest first, one report per page here so "Load more" shows the cursor.
+  // Like the server: newest first unless sorted, one report per page here so "Load more" shows.
   await page.route(/\/api\/admin\/reports(\?.*)?$/, async (route) => {
     const request = route.request();
     if (request.method() === "DELETE") {
@@ -464,13 +559,20 @@ test("reports list newest first by page, show the request sent, and prune old on
       reports = [];
       return route.fulfill({ json: { deleted: 2 } });
     }
-    const url = new URL(request.url());
-    const beforeId = url.searchParams.get("beforeId");
-    pages.push(beforeId && `${url.searchParams.get("beforeOn")}/${beforeId}`);
-    const start = beforeId ? reports.findIndex((row) => row.id === beforeId) + 1 : 0;
+    const params = new URL(request.url()).searchParams;
+    const after = params.get("after");
+    queries.push(`${params.get("sort")} ${params.get("dir")} ${after ?? "top"}`);
+    const sorted =
+      params.get("sort") === "model"
+        ? [...reports].sort(
+            (a, b) => a.model.localeCompare(b.model) * (params.get("dir") === "asc" ? 1 : -1),
+          )
+        : reports;
+    // Like the server: the page after the last report shown.
+    const start = after ? sorted.findIndex((row) => row.id === after) + 1 : 0;
     return route.fulfill({
       json: {
-        reports: reports.slice(start, start + 1),
+        reports: sorted.slice(start, start + 1),
         total: reports.length,
         prunable: reports.length,
         retentionDays: 15,
@@ -480,24 +582,32 @@ test("reports list newest first by page, show the request sent, and prune old on
   });
 
   await page.goto("/admin/reports");
-  const cards = page.locator(".report-card");
-  await expect(cards).toHaveCount(1);
-  await expect(cards.first()).toContainText("Audio · merci");
-  await expect(cards.first()).toContainText(
-    "Wrong pronunciation · French · vendor/tts · Mia · basic",
+  const rows = page.locator(".reports-table > tbody > tr");
+  await expect(rows).toHaveCount(1);
+  // One row with everything: dates only (reports keep no times), and no account.
+  await expect(rows.first()).toHaveText(
+    /2026-11-03\s*2026-11-03\s*Audio\s*Wrong pronunciation\s*merci\s*French\s*vendor\/tts\s*Mia\s*Basic/,
   );
-  // Dates only: reports keep no times.
-  await expect(cards.first()).toContainText("Reported 2026-11-03 · result from 2026-11-03");
-  await cards.first().getByText("Request sent, as the learner’s browser recorded it").click();
-  await expect(cards.first().locator("pre")).toContainText('"part": "learning"');
-  // No account is shown with a report (the header's email is the signed-in admin).
-  await expect(page.locator(".report-list")).not.toContainText("@");
+  await expect(page.locator(".reports-table")).not.toContainText("@");
 
-  // The next page continues after the last report shown, by date and id.
+  // The next page continues after the last report shown.
   await page.getByRole("button", { name: "Load more reports" }).click();
-  await expect(cards).toHaveCount(2);
-  await expect(cards.nth(1)).toContainText("Audio · bonjour");
-  expect(pages).toEqual([null, `2026-11-03/${newer.id}`]);
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(1)).toContainText("bonjour");
+
+  // A row opens the report with the request that was sent.
+  await rows.first().locator("td").first().click();
+  const card = page.getByRole("dialog", { name: "Audio · merci" });
+  await expect(card.locator("pre")).toContainText('"part": "learning"');
+  await expect(card).not.toContainText("@");
+  await page.keyboard.press("Escape");
+  await expect(card).toBeHidden();
+
+  // Sorting asks the server for the first page in the new order.
+  await page.getByRole("button", { name: "Model", exact: true }).click();
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText("acme/chat");
+  expect(queries).toEqual(["reported desc top", `reported desc ${newer.id}`, "model asc top"]);
 
   page.once("dialog", (dialog) => {
     expect(dialog.message()).toBe("Permanently delete 2 reports older than 15 days?");
