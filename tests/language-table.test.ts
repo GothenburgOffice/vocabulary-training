@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { LanguageView } from "../lib/admin/ai-settings.ts";
-import { changedLanguages, sameLanguage, withField } from "../lib/admin/language-table.ts";
+import {
+  changedLanguages,
+  sameLanguage,
+  sortLanguages,
+  withField,
+} from "../lib/admin/language-table.ts";
 import { voicesFor } from "../lib/admin/voices.ts";
 
 const blank = { model: "", voice: "", instructions: "" };
@@ -65,4 +70,46 @@ test("voice lists match the providers' docs, grouped by language where they have
   }
   assert.deepEqual(voicesFor("deepinfra/ResembleAI/chatterbox").voices, []);
   assert.deepEqual(voicesFor("unknown/model"), { voices: [], note: "" });
+});
+
+test("languages sort by a heading, empty text last, ties in the server's order", () => {
+  const sv = { ...language("Swedish"), code: "sv", highlighted: true };
+  const fr = { ...language("French"), code: "fr" };
+  const xx = language("Klingon");
+  const de = { ...language("German"), code: "de", speech: { ...blank, model: "b-model" } };
+  const list = [sv, fr, xx, de];
+  const names = (sorted: LanguageView[]) => sorted.map((l) => l.name);
+  assert.equal(sortLanguages(list, null), list);
+  assert.deepEqual(names(sortLanguages(list, { key: "code", dir: "asc" })), [
+    "German",
+    "French",
+    "Swedish",
+    "Klingon",
+  ]);
+  // Reversed, empty text still goes last.
+  assert.deepEqual(names(sortLanguages(list, { key: "code", dir: "desc" })), [
+    "Swedish",
+    "French",
+    "German",
+    "Klingon",
+  ]);
+  assert.deepEqual(names(sortLanguages(list, { key: "name", dir: "asc" })), [
+    "French",
+    "German",
+    "Klingon",
+    "Swedish",
+  ]);
+  // Ticked first when descending; the rest keep the server's order.
+  assert.deepEqual(names(sortLanguages(list, { key: "highlighted", dir: "desc" })), [
+    "Swedish",
+    "French",
+    "Klingon",
+    "German",
+  ]);
+  assert.deepEqual(names(sortLanguages(list, { key: "speech.model", dir: "asc" })), [
+    "German",
+    "Swedish",
+    "French",
+    "Klingon",
+  ]);
 });

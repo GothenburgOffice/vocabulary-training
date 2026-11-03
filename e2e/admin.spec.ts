@@ -154,6 +154,29 @@ test("highlighted languages come first, the rest by name", async ({ page }) => {
   await expect(names).toHaveText(["German", "Swedish", "Finnish", "French"]);
 });
 
+test("language headings sort the table, and an edited row stays put", async ({ page }) => {
+  await fakeLanguages(page);
+  await page.goto("/admin/languages");
+  const names = page.locator(".lang-table tbody .lang-name");
+  const code = page.getByRole("button", { name: "Code", exact: true });
+  await code.click();
+  await expect(names).toHaveText(["German", "French", "Swedish"]);
+  await expect(page.getByRole("columnheader", { name: "Code" })).toHaveAttribute(
+    "aria-sort",
+    "ascending",
+  );
+  await code.click();
+  await expect(names).toHaveText(["Swedish", "French", "German"]);
+  // Sorted by saved values: typing a new code doesn't move the row under the cursor.
+  await page.getByLabel("German code").fill("aa");
+  await expect(names).toHaveText(["Swedish", "French", "German"]);
+  // Yes/no columns put the ticked rows first.
+  await page.getByLabel("French hidden").check();
+  await page.getByRole("button", { name: /^Save changes/ }).click();
+  await page.getByRole("button", { name: "Hidden", exact: true }).click();
+  await expect(names.first()).toHaveText(/French/);
+});
+
 test("the table scrolls inside its frame, not the page", async ({ page }) => {
   await fakeLanguages(page);
   await page.goto("/admin/languages");

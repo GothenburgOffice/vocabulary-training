@@ -1,6 +1,7 @@
 // The admin language table's editing rules (#73): which fields can be set on many languages at
 // once, and which edited rows differ from what the server has.
 import type { LanguageView, Speech } from "./ai-settings";
+import type { Sort } from "./sort";
 
 export const BULK_FIELDS = [
   { key: "speech.model", label: "Speech model" },
@@ -39,4 +40,41 @@ export function changedLanguages(
     const draft = drafts[language.name];
     return draft && !sameLanguage(draft, language) ? [draft] : [];
   });
+}
+
+// The table's sortable columns: the name, the code, and every field that can be set in bulk.
+export type LanguageSort = "name" | "code" | BulkField;
+
+function sortValue(language: LanguageView, key: LanguageSort): string | boolean {
+  if (key === "name" || key === "code" || key === "highlighted" || key === "hidden")
+    return language[key];
+  const [tier, field] = key.split(".") as ["speech" | "plusSpeech", keyof Speech];
+  return language[tier][field];
+}
+
+// The languages in a heading's order, or as the server lists them (highlighted first, then by
+// name) when none is chosen. Yes sorts after no; empty text sorts last either way; ties keep the
+// server's order. The table sorts by saved values, so a row doesn't move while it's edited.
+export function sortLanguages(
+  languages: LanguageView[],
+  sort: Sort<LanguageSort> | null,
+): LanguageView[] {
+  if (!sort) return languages;
+  const direction = sort.dir === "asc" ? 1 : -1;
+  return languages
+    .map((language, index) => ({ language, index, value: sortValue(language, sort.key) }))
+    .sort((a, b) => {
+      let order: number;
+      if (typeof a.value === "boolean" || typeof b.value === "boolean") {
+        order = (Number(a.value) - Number(b.value)) * direction;
+      } else if (!a.value !== !b.value) {
+        return a.value ? -1 : 1;
+      } else {
+        order =
+          a.value.localeCompare(b.value, undefined, { sensitivity: "base", numeric: true }) *
+          direction;
+      }
+      return order || a.index - b.index;
+    })
+    .map((entry) => entry.language);
 }
