@@ -7,7 +7,7 @@ import { readPrivacy } from "../../lib/server/site-settings";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Privacy and cookies · vocabulary.training",
+  title: "Privacy and cookies",
   description: "Who runs this site, what it stores, and the one cookie it uses.",
 };
 

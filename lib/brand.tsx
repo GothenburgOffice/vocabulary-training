@@ -33,8 +33,16 @@ export function BookMark({
   );
 }
 
-/** White book on a rounded brand-blue square, for next/og ImageResponse. */
-export function BrandIcon({ size, mark = 0.62 }: { size: number; mark?: number }) {
+/** White book on a rounded (or, for maskable icons, square) brand-blue tile, for next/og. */
+export function BrandIcon({
+  size,
+  mark = 0.62,
+  square = false,
+}: {
+  size: number;
+  mark?: number;
+  square?: boolean;
+}) {
   const markSize = Math.round(size * mark);
   return (
     <div
@@ -45,7 +53,7 @@ export function BrandIcon({ size, mark = 0.62 }: { size: number; mark?: number }
         alignItems: "center",
         justifyContent: "center",
         background: BRAND_BLUE,
-        borderRadius: Math.round(size * 0.2),
+        borderRadius: square ? 0 : Math.round(size * 0.2),
       }}
     >
       <svg
