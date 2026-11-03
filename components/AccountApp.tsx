@@ -98,6 +98,9 @@ export default function AccountApp() {
             blocked.current = false;
             setSave("saved");
             setSaveError("");
+            // In the same task as the state change, so the workspace's first paint (after a
+            // sign-in or registration without a reload) is already in the account's scheme.
+            applyTheme(result.data.theme ?? "system");
           }
           setLoaded(result);
         })

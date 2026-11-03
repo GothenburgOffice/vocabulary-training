@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useContext, useEffect, useReducer, useRef, useState } from "react";
+import { useContext, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { Check, ChevronDown, CircleAlert, X } from "lucide-react";
 import { BookMark } from "../lib/brand";
 import { encodeCSV, listTitle, reviewed, type List } from "../lib/learning";
@@ -85,8 +85,10 @@ export default function Workspace({
   const [learningLanguage, setLearningLanguage] = useState(initial.learningLanguage ?? "French");
   // The Appearance setting: shown at once, saved with the account.
   const [theme, setTheme] = useState<Theme>(initial.theme ?? "system");
-  useEffect(() => applyTheme(theme), [theme]);
+  // Before paint, so a change never shows a frame in the old scheme.
+  useLayoutEffect(() => applyTheme(theme), [theme]);
   function chooseTheme(next: Theme) {
+    applyTheme(next);
     setTheme(next);
     sync?.saveTheme(next);
   }
