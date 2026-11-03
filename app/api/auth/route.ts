@@ -10,6 +10,7 @@ import {
   json,
   requireOrigin,
 } from "../../../lib/server/http";
+import { purgeTrashedAccounts } from "../../../lib/server/accounts";
 import { cookieName, createSession, limitAuth, requireUser } from "../../../lib/server/auth";
 import { hashPassword, hashToken, verifyPassword } from "../../../lib/server/password";
 import { credentialsSchema } from "../../../lib/validation";
@@ -58,14 +59,26 @@ export async function POST(request: Request) {
           throw e;
         });
     } else {
-      const result = await db.query("SELECT id,password_hash FROM users WHERE email=$1", [email]);
+      const result = await db.query(
+        "SELECT id,password_hash,is_admin,locked_at,deleted_at FROM users WHERE email=$1",
+        [email],
+      );
       const user = result.rows[0];
       // Comparable hash work even for an unknown email.
       const hash = user?.password_hash ?? `scrypt:${"0".repeat(32)}:${"0".repeat(128)}`;
       const valid = await verifyPassword(password, hash);
       if (!user || !valid) throw new HttpError(401, "Email or password is incorrect.");
+      // Only after the password checks out, so the lock isn't revealed to anyone else.
+      if (user.locked_at || user.deleted_at)
+        throw new HttpError(403, "This account is locked. Contact the site's privacy contact.");
       userId = user.id;
+      // No scheduler runs in this app, so an admin's sign-in purges the expired trash.
+      if (user.is_admin)
+        await purgeTrashedAccounts().catch((e) =>
+          console.error("Trash purge failed:", e instanceof Error ? e.name : "unknown"),
+        );
     }
+    await db.query("UPDATE users SET last_sign_in_at=now() WHERE id=$1", [userId!]);
     const token = await createSession(userId!);
     const response = json({ user: { id: userId!, email } });
     response.cookies.set(cookieName, token, cookieOptions(origin));

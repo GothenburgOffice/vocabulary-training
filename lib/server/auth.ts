@@ -10,7 +10,8 @@ export async function requireUser() {
   const token = (await cookies()).get(cookieName)?.value;
   if (!token || !/^[a-f0-9]{64}$/.test(token)) throw new HttpError(401, "Sign in to continue.");
   const result = await db.query(
-    "SELECT u.id,u.email,u.ai_tier,u.is_admin FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()",
+    // A locked account, or one in the trash, has no valid session even if one was left behind.
+    "SELECT u.id,u.email,u.ai_tier,u.is_admin FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now() AND u.locked_at IS NULL AND u.deleted_at IS NULL",
     [hashToken(token)],
   );
   if (!result.rowCount) throw new HttpError(401, "Your session has expired. Sign in again.");

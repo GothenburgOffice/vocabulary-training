@@ -5,6 +5,11 @@ export type AdminSection = { href: string; title: string; description: string };
 export const ADMIN_SECTIONS: AdminSection[] = [
   { href: "/admin", title: "Overview", description: "Accounts and AI usage on this server." },
   {
+    href: "/admin/users",
+    title: "Users",
+    description: "Account details, per-account AI usage, account types, locks and the trash.",
+  },
+  {
     href: "/admin/ai",
     title: "AI settings",
     description: "Requesty keys and the language-note model for basic and plus accounts.",
