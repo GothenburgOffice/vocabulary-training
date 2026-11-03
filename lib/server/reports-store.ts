@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { db } from "./db";
+import type { ReportCursor } from "../admin/reports";
 import type { ReportInput } from "../reports";
 
 // Saves one learner report, anonymously: only the tier comes from the session, no account is
@@ -29,28 +30,25 @@ export async function saveReport(tier: string, report: ReportInput) {
   return result.rowCount ? ("saved" as const) : ("duplicate" as const);
 }
 
-// Admin only (#95): every report on the server, newest first. Reports carry no account.
-export async function listReports(offset: number, limit: number) {
-  const result = await db.query(
-    `SELECT id, created_at, activity_at, kind, reason, word, language, model, voice, tier, prompt
-     FROM issue_reports
-     ORDER BY created_at DESC, id
-     LIMIT $1 OFFSET $2`,
-    [limit, offset],
-  );
-  return result.rows;
-}
-
-// Admin only: where reports cluster, to see which language, model or voice needs attention.
-export async function reportSummary() {
-  const result = await db.query(
-    `SELECT kind, language, model, coalesce(voice, '') AS voice,
-       count(*)::int AS reports, max(created_at) AS last
-     FROM issue_reports
-     GROUP BY kind, language, model, coalesce(voice, '')
-     ORDER BY reports DESC, last DESC
-     LIMIT 20`,
-  );
+// Admin only (#95): reports newest first, one page after `before` (keyset paging, so a report
+// arriving or a prune between pages never repeats or skips a row). Reports carry no account.
+export async function listReports(limit: number, before?: ReportCursor) {
+  const result = before
+    ? await db.query(
+        `SELECT id, reported_on::text AS reported_on, activity_on::text AS activity_on, kind, reason, word, language, model, voice, tier, prompt
+         FROM issue_reports
+         WHERE (reported_on, id) < ($1::date, $2::uuid)
+         ORDER BY issue_reports.reported_on DESC, issue_reports.id DESC
+         LIMIT $3`,
+        [before.on, before.id, limit],
+      )
+    : await db.query(
+        `SELECT id, reported_on::text AS reported_on, activity_on::text AS activity_on, kind, reason, word, language, model, voice, tier, prompt
+         FROM issue_reports
+         ORDER BY issue_reports.reported_on DESC, issue_reports.id DESC
+         LIMIT $1`,
+        [limit],
+      );
   return result.rows;
 }
 
@@ -59,7 +57,7 @@ export async function countReports(olderThanDays?: number) {
     olderThanDays === undefined
       ? await db.query("SELECT count(*)::int AS n FROM issue_reports")
       : await db.query(
-          "SELECT count(*)::int AS n FROM issue_reports WHERE created_at < now() - make_interval(days => $1)",
+          "SELECT count(*)::int AS n FROM issue_reports WHERE reported_on < current_date - $1::int",
           [olderThanDays],
         );
   return result.rows[0].n as number;
@@ -68,7 +66,7 @@ export async function countReports(olderThanDays?: number) {
 // Admin only: deletes reports older than the given number of days.
 export async function pruneReports(olderThanDays: number) {
   const result = await db.query(
-    "DELETE FROM issue_reports WHERE created_at < now() - make_interval(days => $1)",
+    "DELETE FROM issue_reports WHERE reported_on < current_date - $1::int",
     [olderThanDays],
   );
   return result.rowCount ?? 0;

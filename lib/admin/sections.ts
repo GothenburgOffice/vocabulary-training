@@ -22,7 +22,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   {
     href: "/admin/reports",
     title: "Reports",
-    description: "AI results learners reported, where they cluster, and pruning old reports.",
+    description: "AI results learners reported, newest first, and pruning old reports.",
   },
   {
     href: "/admin/registration",

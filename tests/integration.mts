@@ -735,15 +735,26 @@ test("real HTTP: admins list and prune reports without seeing accounts; learners
   assert.equal(found.tier, "basic");
   // No account in the admin view.
   for (const key of ["user_id", "userId", "email"]) assert.equal(key in found, false, key);
-  assert.ok(
-    view.summary.some(
-      (row: { model: string; voice: string; reports: number }) =>
-        row.model === "dummy/tts-model" && row.voice === "Mia" && row.reports >= 1,
-    ),
-  );
+  // Dates only, no times; and no clustering, just the newest first.
+  assert.match(found.reported_on, /^\d{4}-\d{2}-\d{2}$/);
+  assert.match(found.activity_on, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal("summary" in view, false);
   assert.equal(view.retentionDays, 15);
+  // The next page starts strictly after the given report, so it never repeats it.
+  const after = await (
+    await api(
+      `/api/admin/reports?beforeOn=${found.reported_on}&beforeId=${found.id}`,
+      "GET",
+      undefined,
+      adminCookie,
+    )
+  ).json();
   assert.equal(
-    (await api("/api/admin/reports?offset=-1", "GET", undefined, adminCookie)).status,
+    after.reports.some((row: { id: string }) => row.id === found.id),
+    false,
+  );
+  assert.equal(
+    (await api("/api/admin/reports?beforeOn=2026-11-03", "GET", undefined, adminCookie)).status,
     400,
   );
 

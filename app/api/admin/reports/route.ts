@@ -1,23 +1,19 @@
 import {
   REPORT_RETENTION_DAYS,
+  reportCursor,
   REPORTS_PAGE_SIZE,
   reportListQuerySchema,
   reportPruneSchema,
 } from "../../../../lib/admin/reports";
 import { requireAdmin } from "../../../../lib/server/auth";
 import { body, fail, HttpError, json, requireOrigin } from "../../../../lib/server/http";
-import {
-  countReports,
-  listReports,
-  pruneReports,
-  reportSummary,
-} from "../../../../lib/server/reports-store";
+import { countReports, listReports, pruneReports } from "../../../../lib/server/reports-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// AI results learners reported (#95): one page of reports, where they cluster, and how many
-// are old enough to prune.
+// AI results learners reported (#95): newest first, a page at a time, and how many are old
+// enough to prune. No grouping or analysis: the owner wants the plain list for now.
 export async function GET(request: Request) {
   try {
     await requireAdmin();
@@ -25,15 +21,13 @@ export async function GET(request: Request) {
       Object.fromEntries(new URL(request.url).searchParams),
     );
     if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
-    const [reports, summary, total, prunable] = await Promise.all([
-      listReports(parsed.data.offset, REPORTS_PAGE_SIZE),
-      reportSummary(),
+    const [reports, total, prunable] = await Promise.all([
+      listReports(REPORTS_PAGE_SIZE, reportCursor(parsed.data)),
       countReports(),
       countReports(REPORT_RETENTION_DAYS),
     ]);
     return json({
       reports,
-      summary,
       total,
       prunable,
       retentionDays: REPORT_RETENTION_DAYS,

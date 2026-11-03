@@ -2672,9 +2672,6 @@ main > .save-error {
 .report-card h2 {
   overflow-wrap: anywhere;
 }
-.report-scroll {
-  overflow-x: auto;
-}
 .report-request pre {
   max-height: 240px;
   overflow: auto;
