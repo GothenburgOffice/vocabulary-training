@@ -18,5 +18,4 @@ The shared project reference for coding agents (also read by Copilot):
   GitHub issue, and Bash/Edit/Write are denied): review the issue against the code on
   `main`; if it's already done or no longer applies, say so and suggest closing it; otherwise
   reply with a concrete plan (files, steps, tests owed, open questions). Don't try to change
-  files or push there. This rule does not apply to local or devcontainer sessions, which
-  work on issues as usual.
+  files or push there. Every other session, wherever it runs, works on issues as usual.
