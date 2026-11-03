@@ -446,6 +446,21 @@ test("real HTTP: the admin area answers 404 to everyone but admins", async () =>
     (await api("/api/admin/users?offset=-1", "GET", undefined, adminCookie)).status,
     400,
   );
+  // Sorted on the server, usage included (it's summed before the page is cut); only known
+  // columns and directions are accepted.
+  const bySpeech = (
+    await (await api("/api/admin/users?sort=speech&dir=desc", "GET", undefined, adminCookie)).json()
+  ).accounts.map((account: { speech_letters_90: string }) => Number(account.speech_letters_90));
+  assert.deepEqual(
+    bySpeech,
+    [...bySpeech].sort((a, b) => b - a),
+  );
+  for (const query of ["sort=password_hash", "sort=email%3B%20DROP%20TABLE%20users", "dir=up"])
+    assert.equal(
+      (await api(`/api/admin/users?${query}`, "GET", undefined, adminCookie)).status,
+      400,
+      query,
+    );
   assert.equal(
     (await api("/api/admin/users", "PATCH", { userId: me.user.id, tier: "plus" }, cookie)).status,
     404,

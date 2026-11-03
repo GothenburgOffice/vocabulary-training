@@ -392,6 +392,11 @@ test("users can be filtered, re-typed, locked, trashed and restored, with E2E cl
         (scope !== "trash" || user.deleted_at !== null)
       );
     });
+    // Only the email sort is faked; the list is otherwise in the order it was made.
+    if (params.get("sort") === "email")
+      matching.sort(
+        (a, b) => a.email.localeCompare(b.email) * (params.get("dir") === "asc" ? 1 : -1),
+      );
     const offset = Number(params.get("offset") ?? 0);
     return route.fulfill({
       json: {
@@ -407,29 +412,60 @@ test("users can be filtered, re-typed, locked, trashed and restored, with E2E cl
   });
 
   await page.goto("/admin/users");
-  const rows = page.locator(".users-table tbody tr");
+  const rows = page.locator(".users-table > tbody > tr");
+  const emails = page.locator(".users-table .user-email > button");
   await expect(rows).toHaveCount(2);
-  // Everything is in the row: the first usage cell is speech in the last 24 hours, as letters
-  // of the budget and calls.
-  await expect(rows.first().locator(".usage").first()).toHaveText("120 / 100K (2)");
-  await page.getByLabel("Account type for learner@example.test").selectOption("plus");
-  await expect(page.getByLabel("Account type for learner@example.test")).toHaveValue("plus");
+  // The table only shows: no controls in the rows.
+  await expect(rows.locator("select, input")).toHaveCount(0);
+  // The row shows 90 days of speech (letters, calls) and whether the daily limit blocks it;
+  // hovering shows every period against its budget.
+  const speech = rows.first().locator(".usage-stat").first();
+  await expect(speech).toHaveText("240 (4)");
+  await expect(speech.getByLabel("Not limited")).toBeVisible();
+  await speech.hover();
+  const tip = page.getByRole("tooltip");
+  await expect(tip).toBeVisible();
+  await expect(tip.getByRole("row", { name: /24 hours/ })).toHaveText(
+    /24 hours\s*2\s*120\s*100,000/,
+  );
+  await expect(tip).toContainText("Within the daily limit: 99,880 letters left");
+
+  // Headings sort on the server, as the list loads in pages: the first click on Email is A–Z.
+  await page.getByRole("button", { name: "Email", exact: true }).click();
+  await expect(emails).toHaveText(["e2e-test@example.test", "learner@example.test"]);
+  await page.getByRole("button", { name: "Email", exact: true }).click();
+  await expect(emails).toHaveText(["learner@example.test", "e2e-test@example.test"]);
+  await expect(page.getByRole("columnheader", { name: "Email" })).toHaveAttribute(
+    "aria-sort",
+    "descending",
+  );
 
   // Search runs on the server: the fake narrows the list only when the query is sent.
   await page.getByLabel("Search by email").fill("learner");
-  await expect(page.locator(".users-table .user-email")).toHaveText(["learner@example.test"]);
+  await expect(emails).toHaveText(["learner@example.test"]);
   await expect(page.getByText("Showing 1 of 1 matching accounts.")).toBeVisible();
   await page.getByLabel("Search by email").fill("");
   await expect(rows).toHaveCount(2);
 
-  // Lock and unlock.
+  // A row opens the account's card, where its type and access change.
   const learner = rows.filter({ hasText: "learner@example.test" });
   const state = learner.locator(".user-state");
   await expect(state).toHaveText("Active");
-  await learner.getByRole("button", { name: "Lock account learner@example.test" }).click();
-  await expect(state).toContainText("Locked since");
-  await expect(state.locator("span")).toHaveAttribute("title", /It can’t sign in\./);
-  await learner.getByRole("button", { name: "Unlock account learner@example.test" }).click();
+  await learner.locator("td").first().click();
+  const card = page.getByRole("dialog", { name: "learner@example.test" });
+  await expect(card).toBeVisible();
+  await expect(card.getByRole("row", { name: /90 days/ }).first()).toHaveText(
+    /90 days\s*4\s*240\s*9,000,000/,
+  );
+  await card.getByLabel("Account type").selectOption("plus");
+  await expect(card.getByRole("status")).toHaveText("Updated learner@example.test.");
+  await expect(learner.locator("td").first()).toHaveText("Plus");
+
+  // Lock and unlock.
+  await card.getByRole("button", { name: "Lock account" }).click();
+  await expect(card).toContainText("It can’t sign in.");
+  await expect(state).toHaveText("Locked");
+  await card.getByRole("button", { name: "Unlock account" }).click();
   await expect(state).toHaveText("Active");
 
   // The trash asks first, says when the account is deleted for good, and can be undone.
@@ -438,16 +474,35 @@ test("users can be filtered, re-typed, locked, trashed and restored, with E2E cl
     expect(dialog.message()).toContain("(30 days)");
     void dialog.accept();
   });
-  await learner.getByRole("button", { name: "Move to trash account learner@example.test" }).click();
-  await expect(state).toContainText("In the trash, deleted");
+  await card.getByRole("button", { name: "Move to trash" }).click();
+  await expect(state).toHaveText("Trash");
+  await expect(card).toContainText("Deleted for good with its data on");
   // An account in the trash is locked by being there; it offers only Restore.
-  await expect(learner.getByRole("button", { name: /^Lock account/ })).toHaveCount(0);
+  await expect(card.getByRole("button", { name: "Lock account" })).toHaveCount(0);
+  await card.getByRole("button", { name: "Close dialog" }).click();
+  await expect(card).toBeHidden();
   await page.getByLabel("Account filter").selectOption("trash");
-  await expect(page.locator(".users-table .user-email")).toHaveText(["learner@example.test"]);
-  await learner.getByRole("button", { name: "Restore account learner@example.test" }).click();
+  await expect(emails).toHaveText(["learner@example.test"]);
+  // The keyboard's way in: the email is a button.
+  await emails.first().focus();
+  await page.keyboard.press("Enter");
+  await card.getByRole("button", { name: "Restore account" }).click();
   await expect(state).toHaveText("Active");
+  await page.keyboard.press("Escape");
+  await expect(card).toBeHidden();
   await page.getByLabel("Account filter").selectOption("all");
   await expect(rows).toHaveCount(2);
+
+  // Your own account can't be locked or trashed from its card.
+  accounts = [...accounts, { ...account(viewerId, "admin@example.test"), is_admin: true }];
+  await page.getByLabel("Search by email").fill("admin@");
+  await expect(emails).toHaveText(["admin@example.test"]);
+  await emails.first().click();
+  const own = page.getByRole("dialog", { name: "admin@example.test" });
+  await expect(own).toContainText("Admin (your account)");
+  await expect(own.getByRole("button", { name: /Lock account|Move to trash/ })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await page.getByLabel("Search by email").fill("");
 
   await page.getByLabel("Account filter").selectOption("test");
   await expect(rows).toHaveCount(1);

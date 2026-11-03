@@ -7,6 +7,7 @@ import {
   TRASH_DAYS,
   USERS_PAGE_SIZE,
   userListQuerySchema,
+  type UserSort,
 } from "../../../../lib/admin/users";
 import { purgeTrashedAccounts } from "../../../../lib/server/accounts";
 import { readLimits } from "../../../../lib/server/ai-limits";
@@ -16,6 +17,38 @@ import { db } from "../../../../lib/server/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// Calls and letters per feature over the last day, week and 90 days (the window kept).
+const USAGE_COLUMNS = (["speech", "note"] as const).flatMap((kind) =>
+  (
+    [
+      ["day", "AND at > now()-interval '1 day'"],
+      ["week", "AND at > now()-interval '7 days'"],
+      ["90", ""],
+    ] as const
+  ).flatMap(([period, window]) => [
+    {
+      name: `${kind}_calls_${period}`,
+      sum: `count(*) FILTER (WHERE kind='${kind}' ${window})::int AS ${kind}_calls_${period}`,
+    },
+    {
+      name: `${kind}_letters_${period}`,
+      sum: `coalesce(sum(letters) FILTER (WHERE kind='${kind}' ${window}), 0)::bigint AS ${kind}_letters_${period}`,
+    },
+  ]),
+);
+
+// What each sortable column orders by. Status: active, then locked, then in the trash.
+const SORT_SQL: Record<UserSort, string> = {
+  email: "u.email",
+  tier: "u.ai_tier",
+  status:
+    "CASE WHEN u.deleted_at IS NOT NULL THEN 2 WHEN u.locked_at IS NOT NULL THEN 1 ELSE 0 END",
+  created: "u.created_at",
+  lastSignIn: "u.last_sign_in_at",
+  speech: "coalesce(us.speech_letters_90, 0)",
+  note: "coalesce(us.note_letters_90, 0)",
+};
 
 // Filters for the account list. Values are bound as parameters; the e2e pattern is a constant.
 function accountFilter(q: string, scope: "all" | "regular" | "test" | "trash") {
@@ -38,7 +71,7 @@ export async function GET(request: Request) {
       Object.fromEntries(new URL(request.url).searchParams),
     );
     if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
-    const { q, scope, offset } = parsed.data;
+    const { q, scope, offset, sort, dir } = parsed.data;
     // Expired trash goes before the first page is read, so the list never shows an account past
     // its date. Later pages append to that same view, so search-as-you-type and "Load more"
     // don't each issue a DELETE.
@@ -52,33 +85,21 @@ export async function GET(request: Request) {
     const pageParams = [...filter.params, USERS_PAGE_SIZE, offset];
 
     const [page, total, testAccounts, limits] = await Promise.all([
+      // Usage is summed before the page is cut, so the list can sort by it. The sort column
+      // and direction come from fixed lists, never from the request text.
       db.query(
-        `WITH page AS (
-           SELECT u.id, u.email, u.created_at, u.last_sign_in_at, u.ai_tier, u.is_admin,
-             u.locked_at, u.deleted_at
-           FROM users u ${filter.where}
-           ORDER BY u.created_at DESC, u.email, u.id
-           LIMIT $${limitParam} OFFSET $${offsetParam}
+        `WITH usage AS (
+           SELECT user_id, ${USAGE_COLUMNS.map((c) => c.sum).join(", ")}
+           FROM ai_usage WHERE at > now()-interval '90 days'
+           GROUP BY user_id
          )
-         SELECT p.id, p.email, p.created_at, p.last_sign_in_at, p.ai_tier, p.is_admin,
-           p.locked_at, p.deleted_at,
-           count(a.at) FILTER (WHERE a.kind='speech' AND a.at > now()-interval '1 day')::int AS speech_calls_day,
-           coalesce(sum(a.letters) FILTER (WHERE a.kind='speech' AND a.at > now()-interval '1 day'), 0)::bigint AS speech_letters_day,
-           count(a.at) FILTER (WHERE a.kind='speech' AND a.at > now()-interval '7 days')::int AS speech_calls_week,
-           coalesce(sum(a.letters) FILTER (WHERE a.kind='speech' AND a.at > now()-interval '7 days'), 0)::bigint AS speech_letters_week,
-           count(a.at) FILTER (WHERE a.kind='speech')::int AS speech_calls_90,
-           coalesce(sum(a.letters) FILTER (WHERE a.kind='speech'), 0)::bigint AS speech_letters_90,
-           count(a.at) FILTER (WHERE a.kind='note' AND a.at > now()-interval '1 day')::int AS note_calls_day,
-           coalesce(sum(a.letters) FILTER (WHERE a.kind='note' AND a.at > now()-interval '1 day'), 0)::bigint AS note_letters_day,
-           count(a.at) FILTER (WHERE a.kind='note' AND a.at > now()-interval '7 days')::int AS note_calls_week,
-           coalesce(sum(a.letters) FILTER (WHERE a.kind='note' AND a.at > now()-interval '7 days'), 0)::bigint AS note_letters_week,
-           count(a.at) FILTER (WHERE a.kind='note')::int AS note_calls_90,
-           coalesce(sum(a.letters) FILTER (WHERE a.kind='note'), 0)::bigint AS note_letters_90
-         FROM page p
-         LEFT JOIN ai_usage a ON a.user_id=p.id AND a.at > now()-interval '90 days'
-         GROUP BY p.id, p.email, p.created_at, p.last_sign_in_at, p.ai_tier, p.is_admin,
-           p.locked_at, p.deleted_at
-         ORDER BY p.created_at DESC, p.email, p.id`,
+         SELECT u.id, u.email, u.created_at, u.last_sign_in_at, u.ai_tier, u.is_admin,
+           u.locked_at, u.deleted_at,
+           ${USAGE_COLUMNS.map((c) => `coalesce(us.${c.name}, 0) AS ${c.name}`).join(", ")}
+         FROM users u LEFT JOIN usage us ON us.user_id=u.id
+         ${filter.where}
+         ORDER BY ${SORT_SQL[sort]} ${dir === "asc" ? "ASC" : "DESC"} NULLS LAST, u.email, u.id
+         LIMIT $${limitParam} OFFSET $${offsetParam}`,
         pageParams,
       ),
       db.query(`SELECT count(*)::int AS n FROM users u ${filter.where}`, filter.params),

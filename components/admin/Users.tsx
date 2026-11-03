@@ -1,21 +1,20 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AiLimits } from "../../lib/ai-limits";
-import { purgeDate } from "../../lib/admin/users";
+import { dailyLetters, type AiLimits } from "../../lib/ai-limits";
+import type { Sort } from "../../lib/admin/sort";
+import {
+  accountState,
+  accountUsage,
+  purgeDate,
+  type AdminAccount as Account,
+  type UserSort,
+} from "../../lib/admin/users";
+import Dialog from "../workspace/Dialog";
 import { adminRequest } from "./request";
+import SortHeader from "./SortHeader";
+import UsageCell from "./UsageCell";
+import UserCard, { type AccessChange } from "./UserCard";
 
-type UsagePeriod = "day" | "week" | "90";
-type UsageKind = "speech" | "note";
-type Account = {
-  id: string;
-  email: string;
-  created_at: string;
-  last_sign_in_at: string | null;
-  ai_tier: "basic" | "plus";
-  is_admin: boolean;
-  locked_at: string | null;
-  deleted_at: string | null;
-} & Record<`${UsageKind}_${"calls" | "letters"}_${UsagePeriod}`, number | string>;
 type View = {
   viewerId: string;
   accounts: Account[];
@@ -25,18 +24,10 @@ type View = {
   pageSize: number;
   trashDays: number;
 };
-const PERIODS: { name: UsagePeriod; label: string; short: string; days: number }[] = [
-  { name: "day", label: "24 hours", short: "24 h", days: 1 },
-  { name: "week", label: "7 days", short: "7 d", days: 7 },
-  { name: "90", label: "90 days", short: "90 d", days: 90 },
-];
-const KINDS: { kind: UsageKind; label: string }[] = [
+const KINDS = [
   { kind: "speech", label: "Speech" },
   { kind: "note", label: "Language notes" },
-];
-const number = (value: number | string) => Number(value).toLocaleString("en");
-const compact = (value: number) =>
-  value.toLocaleString("en", { notation: "compact", maximumFractionDigits: 1 });
+] as const;
 const date = (value: string) => new Date(value).toLocaleString();
 const day = (value: string | Date) =>
   new Date(value).toLocaleDateString(undefined, {
@@ -45,24 +36,36 @@ const day = (value: string | Date) =>
     year: "numeric",
   });
 
+// The account list: a read-only table, one row per account. A row opens the account's card,
+// where its type and access are changed.
 export default function Users() {
   const [view, setView] = useState<View | null>(null);
   const [filter, setFilter] = useState("");
   const [accountFilter, setAccountFilter] = useState("all");
+  // Newest first until a heading is clicked; the server sorts, since the list loads in pages.
+  const [sort, setSort] = useState<Sort<UserSort>>({ key: "created", dir: "desc" });
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  // The account whose card is open.
+  const [openId, setOpenId] = useState<string | null>(null);
   // Only the newest request may write the list, so a slow earlier search cannot overwrite a later one.
   const latestRequest = useRef(0);
 
   const loadPage = useCallback(
-    async (q: string, scope: string, offset: number, append: boolean) => {
+    async (q: string, scope: string, order: Sort<UserSort>, offset: number, append: boolean) => {
       const id = ++latestRequest.current;
       setLoading(true);
       setError("");
       try {
-        const params = new URLSearchParams({ q, scope, offset: String(offset) });
+        const params = new URLSearchParams({
+          q,
+          scope,
+          sort: order.key,
+          dir: order.dir,
+          offset: String(offset),
+        });
         const next = await adminRequest<View>(`/api/admin/users?${params}`);
         if (id !== latestRequest.current) return;
         setView((current) =>
@@ -79,11 +82,11 @@ export default function Users() {
 
   useEffect(() => {
     const timer = window.setTimeout(
-      () => void loadPage(filter.trim(), accountFilter, 0, false),
+      () => void loadPage(filter.trim(), accountFilter, sort, 0, false),
       250,
     );
     return () => window.clearTimeout(timer);
-  }, [accountFilter, filter, loadPage]);
+  }, [accountFilter, filter, sort, loadPage]);
 
   if (!view) return error ? <p className="error">{error}</p> : <p>Loading accounts…</p>;
 
@@ -111,11 +114,7 @@ export default function Users() {
   }
 
   // Locks or unlocks an account, or moves it to or from the trash.
-  async function changeAccess(
-    account: Account,
-    change: { locked: boolean } | { trashed: boolean },
-    trashDays: number,
-  ) {
+  async function changeAccess(account: Account, change: AccessChange, trashDays: number) {
     if ("trashed" in change && change.trashed) {
       const when = purgeDate(new Date()).toLocaleDateString();
       if (
@@ -171,7 +170,7 @@ export default function Users() {
       });
       setStatus(`Deleted ${result.deleted.toLocaleString("en")} E2E test accounts.`);
       // Many accounts may have gone, so reload the first page with the current filters.
-      await loadPage(filter.trim(), accountFilter, 0, false);
+      await loadPage(filter.trim(), accountFilter, sort, 0, false);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -179,8 +178,16 @@ export default function Users() {
     }
   }
 
+  // A new card starts without the last one's message.
+  function openAccount(id: string) {
+    setStatus("");
+    setError("");
+    setOpenId(id);
+  }
+
   const shown = view.accounts.length;
   const hasMore = shown < view.total;
+  const opened = view.accounts.find((account) => account.id === openId) ?? null;
 
   return (
     <>
@@ -208,15 +215,16 @@ export default function Users() {
       </div>
       <p className="field-help">
         Showing {shown.toLocaleString("en")} of {view.total.toLocaleString("en")} matching accounts.
-        Usage is letters used of the period&apos;s budget, then calls in brackets: the budget is the
-        account type&apos;s daily letter limit times the days, and no budget means unlimited.
+        Speech and language notes show letters in the last 90 days, calls in brackets, and whether
+        the daily limit blocks the account now; hover for every period. Click a heading to sort, and
+        an account to see and change it.
       </p>
-      {status && (
+      {status && !opened && (
         <p className="admin-status" role="status">
           {status}
         </p>
       )}
-      {error && (
+      {error && !opened && (
         <p className="error" role="alert">
           {error}
         </p>
@@ -225,30 +233,41 @@ export default function Users() {
         <table className="admin-table users-table">
           <thead>
             <tr>
-              <th rowSpan={2} className="row-head">
-                Email
-              </th>
-              <th rowSpan={2}>Type</th>
-              <th rowSpan={2}>Status</th>
-              <th rowSpan={2}>Created</th>
-              <th rowSpan={2}>Last sign-in</th>
+              <SortHeader
+                className="row-head"
+                label="Email"
+                sortKey="email"
+                sort={sort}
+                onSort={setSort}
+              />
+              <SortHeader label="Type" sortKey="tier" sort={sort} onSort={setSort} />
+              <SortHeader label="Status" sortKey="status" sort={sort} onSort={setSort} />
+              <SortHeader
+                label="Created"
+                sortKey="created"
+                sort={sort}
+                onSort={setSort}
+                firstDir="desc"
+              />
+              <SortHeader
+                label="Last sign-in"
+                sortKey="lastSignIn"
+                sort={sort}
+                onSort={setSort}
+                firstDir="desc"
+              />
               {KINDS.map(({ kind, label }) => (
-                <th key={kind} colSpan={PERIODS.length}>
-                  {label}
-                </th>
+                <SortHeader
+                  key={kind}
+                  className="num"
+                  label={label}
+                  sortKey={kind}
+                  sort={sort}
+                  onSort={setSort}
+                  firstDir="desc"
+                  title={`${label}: letters in the last 90 days`}
+                />
               ))}
-              <th rowSpan={2}>
-                <span className="visually-hidden">Actions</span>
-              </th>
-            </tr>
-            <tr>
-              {KINDS.flatMap(({ kind }) =>
-                PERIODS.map((period) => (
-                  <th key={`${kind}-${period.name}`} className="num" title={`Last ${period.label}`}>
-                    {period.short}
-                  </th>
-                )),
-              )}
             </tr>
           </thead>
           <tbody>
@@ -256,39 +275,26 @@ export default function Users() {
               <tr
                 key={account.id}
                 className={account.deleted_at ? "is-trashed" : account.locked_at ? "is-locked" : ""}
+                onClick={() => openAccount(account.id)}
               >
-                <th scope="row" className="row-head user-email">
-                  {account.email}
+                <th scope="row" className="row-head user-email" title={account.email}>
+                  {/* The row opens on a click anywhere; the button is the keyboard's way in. */}
+                  <button
+                    type="button"
+                    className="row-open"
+                    aria-haspopup="dialog"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openAccount(account.id);
+                    }}
+                  >
+                    {account.email}
+                  </button>
                   {account.is_admin && <small>admin</small>}
                   {account.id === view.viewerId && <small>you</small>}
                 </th>
-                <td>
-                  <select
-                    className="user-tier"
-                    aria-label={`Account type for ${account.email}`}
-                    value={account.ai_tier}
-                    disabled={busy !== null}
-                    onChange={(event) =>
-                      void changeTier(account, event.target.value as Account["ai_tier"])
-                    }
-                  >
-                    <option value="basic">Basic</option>
-                    <option value="plus">Plus</option>
-                  </select>
-                </td>
-                <td className="cell user-state">
-                  {account.deleted_at ? (
-                    <span title={`In the trash since ${date(account.deleted_at)}`}>
-                      In the trash, deleted {day(purgeDate(account.deleted_at))}
-                    </span>
-                  ) : account.locked_at ? (
-                    <span title={`Locked since ${date(account.locked_at)}. It can’t sign in.`}>
-                      Locked since {day(account.locked_at)}
-                    </span>
-                  ) : (
-                    "Active"
-                  )}
-                </td>
+                <td className="cell">{account.ai_tier === "plus" ? "Plus" : "Basic"}</td>
+                <td className="cell user-state">{accountState(account)}</td>
                 <td className="cell" title={date(account.created_at)}>
                   {day(account.created_at)}
                 </td>
@@ -298,63 +304,15 @@ export default function Users() {
                 >
                   {account.last_sign_in_at ? day(account.last_sign_in_at) : "–"}
                 </td>
-                {KINDS.flatMap(({ kind, label }) =>
-                  PERIODS.map((period) => {
-                    const calls = Number(account[`${kind}_calls_${period.name}`]);
-                    const letters = Number(account[`${kind}_letters_${period.name}`]);
-                    const budget = view.limits[kind].lettersPerDay[account.ai_tier] * period.days;
-                    return (
-                      <td
-                        key={`${kind}-${period.name}`}
-                        className="cell num usage"
-                        title={`${label}, last ${period.label}: ${number(calls)} calls, ${number(letters)} of ${budget ? number(budget) : "unlimited"} letters`}
-                      >
-                        <span className={budget && letters > budget ? "over" : undefined}>
-                          {number(letters)}
-                        </span>
-                        <small>
-                          {budget ? ` / ${compact(budget)}` : ""} ({number(calls)})
-                        </small>
-                      </td>
-                    );
-                  }),
-                )}
-                <td>
-                  {account.id !== view.viewerId && (
-                    <div className="user-actions">
-                      {!account.deleted_at && (
-                        <button
-                          className="button"
-                          disabled={busy !== null}
-                          aria-label={`${account.locked_at ? "Unlock" : "Lock"} account ${account.email}`}
-                          onClick={() =>
-                            void changeAccess(
-                              account,
-                              { locked: !account.locked_at },
-                              view.trashDays,
-                            )
-                          }
-                        >
-                          {account.locked_at ? "Unlock" : "Lock"}
-                        </button>
-                      )}
-                      <button
-                        className={account.deleted_at ? "button" : "button danger"}
-                        disabled={busy !== null}
-                        aria-label={`${account.deleted_at ? "Restore" : "Move to trash"} account ${account.email}`}
-                        onClick={() =>
-                          void changeAccess(
-                            account,
-                            { trashed: !account.deleted_at },
-                            view.trashDays,
-                          )
-                        }
-                      >
-                        {account.deleted_at ? "Restore" : "Trash"}
-                      </button>
-                    </div>
-                  )}
-                </td>
+                {KINDS.map(({ kind, label }) => (
+                  <UsageCell
+                    key={kind}
+                    label={label}
+                    tier={account.ai_tier}
+                    dailyBudget={dailyLetters(view.limits[kind], account.ai_tier)}
+                    usage={accountUsage(account, kind)}
+                  />
+                ))}
               </tr>
             ))}
           </tbody>
@@ -365,11 +323,35 @@ export default function Users() {
       {hasMore && !loading && (
         <button
           className="button users-more"
-          onClick={() => void loadPage(filter.trim(), accountFilter, shown, true)}
+          onClick={() => void loadPage(filter.trim(), accountFilter, sort, shown, true)}
         >
           Load more accounts
         </button>
       )}
+      <Dialog title={opened ? opened.email : null} onClose={() => setOpenId(null)}>
+        {opened && (
+          <>
+            {status && (
+              <p className="admin-status" role="status">
+                {status}
+              </p>
+            )}
+            {error && (
+              <p className="error" role="alert">
+                {error}
+              </p>
+            )}
+            <UserCard
+              account={opened}
+              viewerId={view.viewerId}
+              limits={view.limits}
+              busy={busy !== null}
+              onTier={(tier) => void changeTier(opened, tier)}
+              onAccess={(change) => void changeAccess(opened, change, view.trashDays)}
+            />
+          </>
+        )}
+      </Dialog>
     </>
   );
 }

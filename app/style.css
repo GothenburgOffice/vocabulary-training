@@ -2776,29 +2776,98 @@ main > .save-error {
 .users-toolbar input {
   min-width: min(280px, 70vw);
 }
-.users-table thead tr:first-child th[colspan] {
-  text-align: center;
-}
 .users-table .user-email small {
   margin-left: 6px;
   color: var(--muted);
   font-weight: 400;
 }
-.users-table select.user-tier {
-  width: 84px;
+/* A row opens the account's card; the email is its keyboard button. */
+.users-table > tbody > tr {
+  cursor: pointer;
 }
-/* Usage: letters used of the period's budget, then the number of calls. */
-.users-table .usage small {
+.users-table > tbody > tr:hover > * {
+  background: var(--soft);
+}
+/* A long address is cut off with an ellipsis; the full one is its tooltip and the card's title. */
+.users-table .row-open {
+  display: inline-block;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.users-table .row-open:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+/* Usage: 90 days' letters, calls in brackets, and an icon for the daily limit. Hover or
+   focus shows every period in a tooltip placed against the window. */
+.usage-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 4px;
+  cursor: default;
+}
+.usage-stat:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.usage-stat small {
   color: var(--muted);
 }
-.users-table .usage .over {
-  color: var(--danger-text);
-  font-weight: 600;
+.usage-ok {
+  color: var(--muted);
+  opacity: 0.6;
 }
-.users-table .user-actions {
-  display: flex;
-  gap: 6px;
-  padding: 0 8px;
+.usage-blocked {
+  color: var(--danger-text);
+}
+.usage-tip {
+  position: fixed;
+  z-index: 50;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18);
+  color: var(--text);
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+}
+.usage-tip[hidden] {
+  display: none;
+}
+.usage-breakdown {
+  margin: 6px 0;
+  border-collapse: collapse;
+}
+.usage-breakdown th,
+.usage-breakdown td {
+  padding: 2px 0 2px 14px;
+  border: 0;
+  text-align: right;
+}
+.usage-breakdown th:first-child {
+  padding-left: 0;
+  text-align: left;
+}
+.usage-breakdown thead th {
+  color: var(--muted);
+  font-weight: 500;
+}
+.usage-tip p {
+  max-width: 280px;
+  margin: 0;
+  color: var(--muted);
 }
 .users-table tr.is-locked > .row-head,
 .users-table tr.is-trashed > .row-head {
@@ -2812,6 +2881,77 @@ main > .save-error {
 }
 .users-more {
   margin-top: 12px;
+}
+/* The account card: one section per topic, so more can join later. */
+dialog:has(.user-card) {
+  width: min(640px, calc(100% - 32px));
+}
+dialog:has(.user-card) .dialog-head h2 {
+  overflow-wrap: anywhere;
+}
+.user-card section + section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.user-card h3 {
+  margin-bottom: 10px;
+  font-size: var(--text-base);
+}
+.user-card h4 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.user-card h4 .usage-stat {
+  font-weight: 400;
+  font-size: var(--text-xs);
+}
+.user-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 20px;
+  margin: 0;
+  font-size: var(--text-sm);
+}
+.user-facts dt {
+  color: var(--muted);
+}
+.user-facts dd {
+  margin: 0;
+}
+.user-facts dd small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+.user-facts select {
+  min-height: 34px;
+  padding: 4px 32px 4px 8px;
+}
+.user-usage {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px 24px;
+  font-size: var(--text-xs);
+}
+.user-card .usage-breakdown {
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.user-card .field-help {
+  margin: 6px 0 0;
+}
+.user-card .admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
 }
 @media (max-width: 640px) {
   .users-toolbar {
