@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ArrowRight, RefreshCw } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { BookMark } from "../lib/brand";
 import Workspace from "./Workspace";
 import type {
@@ -412,23 +412,8 @@ export default function AccountApp() {
               : "Already have an account? Sign in"}
           </button>
           <p className="auth-note">
-            No public word lists. Your workspace belongs to your account. Optional AI comments send
-            the current exercise to Requesty and its provider; speaker buttons send only the clicked
-            word.
+            <a href="/privacy">Privacy and cookies</a>
           </p>
-          <p className="auth-note">
-            This first version has no email verification or password recovery. Keep your password
-            safe.
-          </p>
-          <p className="auth-note">
-            One essential sign-in cookie, and your practice settings in your browser. No analytics,
-            advertising or tracking. <a href="/privacy">Privacy and cookies</a>
-          </p>
-          {error && (
-            <button className="text-button" onClick={() => void load()}>
-              <RefreshCw size={15} /> Retry connection
-            </button>
-          )}
         </div>
       </main>
     );
