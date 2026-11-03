@@ -119,4 +119,6 @@ the full browser suite on every PR.
 - Stay compatible with **Node 22** (`engines`, Dockerfile, CI) for broad hosting
   support. Don't use APIs that need a newer Node. PostgreSQL major upgrades need a
   data migration plan, so Dependabot skips major updates for both.
-- `main` is protected: changes go through a PR, and the `unit` and `containers` checks must pass.
+- `main` is protected: changes go through a PR with one approving review, and the `unit` and
+  `containers` checks must pass. Repo admins can bypass the rules when merging a PR, never by
+  pushing. Agents never use that bypass: the owner merges.
