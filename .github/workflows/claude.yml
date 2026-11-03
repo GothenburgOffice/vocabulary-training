@@ -14,10 +14,13 @@ on:
     types: [opened]
 permissions:
   contents: read
-# No concurrency group: GitHub keeps only one pending run per group, so a third mention would
-# cancel the second. A run for an issue gets its own timestamped branch, but runs for an open
-# PR all work on the PR's branch, so wait for one to finish before mentioning @claude again
-# on the same PR.
+concurrency:
+  # One run per issue or PR at a time, because runs on an open PR all push to its head branch
+  # (issue runs get their own timestamped branch). `queue: max` keeps every further mention
+  # pending instead of replacing the earlier pending one, which is the default.
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+  queue: max
 jobs:
   claude:
     # The repo is public: the action refuses anyone whose event it is without write access

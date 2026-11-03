@@ -151,6 +151,9 @@ and recreate the `node_modules` volume. Never remove the database volume to do i
 **CI** ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs format, lint,
 typecheck, unit tests and build, then a Docker Compose integration and restart test.
 Passing `main` pushes build, re-test and publish the image to GHCR.
+A `@claude` mention in an issue, a PR comment or a review runs
+[.github/workflows/claude.yml](.github/workflows/claude.yml), which answers in the thread
+(writers only).
 
 Before contributing, read [CONTRIBUTING.md](CONTRIBUTING.md): outside PRs are only
 reviewed for `help wanted` issues or for plans approved in an issue first.
