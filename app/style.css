@@ -2399,10 +2399,9 @@ main > .save-error {
   gap: 4px 20px;
 }
 
-/* Admin → Languages: one compact, editable row per language (#73). Light like a sheet: only
-   row lines, and cells show they're editable on hover and focus. */
-/* Wide enough for the table (its columns have fixed widths), and centered like the rest. */
-.admin-main:has(.lang-table) {
+/* Admin → Languages: one compact, editable row per language (#73), in an .admin-table. */
+/* Wide enough for an admin table (its columns have fixed widths), and centered like the rest. */
+.admin-main:has(.admin-table) {
   max-width: 1300px;
 }
 .lang-toolbar,
@@ -2444,28 +2443,56 @@ main > .save-error {
   margin: 0 0 12px;
   padding-left: 32px;
 }
-.lang-table-wrap {
+/* Admin lists (Languages, Users): a compact table, one row per record with everything
+   visible, never cards or collapsed details. Light like a sheet: only row lines, and cells
+   show they're editable on hover and focus. The first column stays put while it scrolls. */
+.admin-table-wrap {
   overflow-x: auto;
 }
-.lang-table {
+.admin-table {
   border-collapse: collapse;
   font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
 }
-.lang-table th,
-.lang-table td {
+.admin-table th,
+.admin-table td {
   padding: 0;
   border-bottom: 1px solid var(--border);
   text-align: left;
   white-space: nowrap;
 }
-.lang-table thead th {
+/* Positioned, so a visually hidden label inside stays inside the scrolling frame rather than
+   widening the page. */
+.admin-table thead th {
+  position: relative;
   padding: 6px 8px;
   color: var(--muted);
   font-weight: 500;
 }
+.admin-table .row-head {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  padding: 0 12px 0 8px;
+  background: var(--bg);
+  font-weight: 500;
+}
+/* Read-only cells get the padding that inputs have. */
+.admin-table .cell {
+  padding: 4px 8px;
+}
+.admin-table .num {
+  text-align: right;
+}
+.admin-table .button {
+  min-height: 28px;
+  margin: 2px 0;
+  padding: 2px 10px;
+  font-size: var(--text-xs);
+}
 /* Fixed widths: a long model name is cut off (the full name is its tooltip). */
-.lang-table input:not([type="checkbox"]),
-.lang-table select {
+.admin-table input:not([type="checkbox"]),
+.admin-table select {
   display: block;
   width: 100%;
   min-height: 32px;
@@ -2476,23 +2503,23 @@ main > .save-error {
   font-size: var(--text-xs);
   text-overflow: ellipsis;
 }
-.lang-table select {
+.admin-table select {
   padding-right: 28px;
   background-position: right 8px center;
 }
-.lang-table input:not([type="checkbox"]):hover:not(:disabled),
-.lang-table select:hover:not(:disabled) {
+.admin-table input:not([type="checkbox"]):hover:not(:disabled),
+.admin-table select:hover:not(:disabled) {
   background-color: var(--soft);
 }
-.lang-table input:not([type="checkbox"]):focus,
-.lang-table select:focus {
+.admin-table input:not([type="checkbox"]):focus,
+.admin-table select:focus {
   outline: 2px solid var(--blue);
   outline-offset: -2px;
   background-color: var(--surface);
 }
 /* An empty cell that can't be set yet (no model) stays empty, without an arrow. */
-.lang-table input:disabled,
-.lang-table select:disabled {
+.admin-table input:disabled,
+.admin-table select:disabled {
   background-image: none;
   cursor: default;
 }
@@ -2514,14 +2541,6 @@ main > .save-error {
 .lang-table .lang-center {
   width: 36px;
   text-align: center;
-}
-.lang-table .lang-name {
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  padding: 0 12px 0 8px;
-  background: var(--bg);
-  font-weight: 500;
 }
 .lang-table .lang-name svg {
   margin-left: 6px;
@@ -2703,101 +2722,71 @@ main > .save-error {
   font-size: var(--text-xs);
   white-space: nowrap;
 }
-/* Admin → Users: account details and per-account AI usage. */
-.users-toolbar,
-.user-summary {
+/* Admin → Users: one .admin-table row per account, with its AI usage. */
+.users-toolbar {
   display: flex;
   align-items: end;
   flex-wrap: wrap;
   gap: 12px;
-}
-.users-toolbar {
   margin: 20px 0 8px;
 }
-.users-toolbar label,
-.user-summary label {
+.users-toolbar label {
   display: grid;
   gap: 4px;
   color: var(--muted);
   font-size: var(--text-xs);
 }
 .users-toolbar input,
-.users-toolbar select,
-.user-summary select {
+.users-toolbar select {
   min-height: 36px;
   padding: 4px 8px;
 }
 .users-toolbar input {
   min-width: min(280px, 70vw);
 }
-.users-list {
-  display: grid;
-  gap: 12px;
+.users-table thead tr:first-child th[colspan] {
+  text-align: center;
 }
-.user-card {
-  padding: 16px 20px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-.user-summary {
-  justify-content: space-between;
-}
-/* Locked, or in the trash with its purge date. */
-.user-access {
-  margin: 10px 0 0;
+.users-table .user-email small {
+  margin-left: 6px;
   color: var(--muted);
-  font-size: var(--text-sm);
-}
-.user-identity {
-  display: grid;
-  gap: 3px;
-  min-width: 220px;
-  margin-right: auto;
-}
-.user-identity > span,
-.user-identity small {
-  color: var(--muted);
-  font-size: var(--text-xs);
-}
-.user-usage {
-  margin-top: 12px;
-}
-.user-usage summary {
-  color: var(--blue);
-  cursor: pointer;
-  font-size: var(--text-sm);
-}
-.user-usage-scroll {
-  overflow-x: auto;
-}
-.user-usage .admin-usage {
-  min-width: 620px;
-  margin-top: 8px;
-}
-.user-usage .admin-usage tbody th {
-  min-width: 130px;
-}
-.user-usage .admin-usage small {
-  display: block;
-  color: var(--muted);
-  font-size: var(--text-xs);
   font-weight: 400;
 }
+.users-table select.user-tier {
+  width: 84px;
+}
+/* Usage: letters used of the period's budget, then the number of calls. */
+.users-table .usage small {
+  color: var(--muted);
+}
+.users-table .usage .over {
+  color: var(--danger-text);
+  font-weight: 600;
+}
+.users-table .user-actions {
+  display: flex;
+  gap: 6px;
+  padding: 0 8px;
+}
+.users-table tr.is-locked > .row-head,
+.users-table tr.is-trashed > .row-head {
+  color: var(--muted);
+}
+.users-table .user-state {
+  color: var(--muted);
+}
+.users-table tr.is-trashed .user-state {
+  color: var(--danger-text);
+}
+.users-more {
+  margin-top: 12px;
+}
 @media (max-width: 640px) {
-  .users-toolbar,
-  .user-summary {
+  .users-toolbar {
     align-items: stretch;
     flex-direction: column;
   }
-  .users-toolbar > *,
-  .user-summary > * {
-    width: 100%;
-  }
   .users-toolbar input {
-    min-width: 0;
-  }
-  .user-identity {
     min-width: 0;
   }
 }

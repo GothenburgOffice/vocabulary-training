@@ -25,17 +25,25 @@ type View = {
   pageSize: number;
   trashDays: number;
 };
-const PERIODS: { name: UsagePeriod; label: string; days: number }[] = [
-  { name: "day", label: "24 hours", days: 1 },
-  { name: "week", label: "7 days", days: 7 },
-  { name: "90", label: "90 days", days: 90 },
+const PERIODS: { name: UsagePeriod; label: string; short: string; days: number }[] = [
+  { name: "day", label: "24 hours", short: "24 h", days: 1 },
+  { name: "week", label: "7 days", short: "7 d", days: 7 },
+  { name: "90", label: "90 days", short: "90 d", days: 90 },
 ];
 const KINDS: { kind: UsageKind; label: string }[] = [
   { kind: "speech", label: "Speech" },
   { kind: "note", label: "Language notes" },
 ];
 const number = (value: number | string) => Number(value).toLocaleString("en");
+const compact = (value: number) =>
+  value.toLocaleString("en", { notation: "compact", maximumFractionDigits: 1 });
 const date = (value: string) => new Date(value).toLocaleString();
+const day = (value: string | Date) =>
+  new Date(value).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 
 export default function Users() {
   const [view, setView] = useState<View | null>(null);
@@ -200,8 +208,8 @@ export default function Users() {
       </div>
       <p className="field-help">
         Showing {shown.toLocaleString("en")} of {view.total.toLocaleString("en")} matching accounts.
-        Usage counts provider calls and letters. Period budgets are the daily letter limit
-        multiplied by the number of days; 0 means unlimited.
+        Usage is letters used of the period&apos;s budget, then calls in brackets: the budget is the
+        account type&apos;s daily letter limit times the days, and no budget means unlimited.
       </p>
       {status && (
         <p className="admin-status" role="status">
@@ -213,127 +221,155 @@ export default function Users() {
           {error}
         </p>
       )}
-      <div className="users-list">
-        {view.accounts.map((account) => (
-          <article className="user-card" key={account.id}>
-            <div className="user-summary">
-              <div className="user-identity">
-                <strong>{account.email}</strong>
-                <span>{account.is_admin ? "Admin" : "User"}</span>
-                <small>Created {date(account.created_at)}</small>
-                <small>
-                  Last sign-in{" "}
-                  {account.last_sign_in_at ? date(account.last_sign_in_at) : "not recorded yet"}
-                </small>
-              </div>
-              <label>
-                Account type
-                <select
-                  aria-label={`Account type for ${account.email}`}
-                  value={account.ai_tier}
-                  disabled={busy !== null}
-                  onChange={(event) =>
-                    void changeTier(account, event.target.value as Account["ai_tier"])
-                  }
-                >
-                  <option value="basic">Basic</option>
-                  <option value="plus">Plus</option>
-                </select>
-              </label>
-              {account.id === view.viewerId ? (
-                <span className="admin-status">Your account</span>
-              ) : (
-                <div className="admin-actions">
-                  {!account.deleted_at && (
-                    <button
-                      className="button"
-                      disabled={busy !== null}
-                      aria-label={`${account.locked_at ? "Unlock" : "Lock"} account ${account.email}`}
-                      onClick={() =>
-                        void changeAccess(account, { locked: !account.locked_at }, view.trashDays)
-                      }
-                    >
-                      {account.locked_at ? "Unlock" : "Lock"}
-                    </button>
-                  )}
-                  <button
-                    className={account.deleted_at ? "button" : "button danger"}
+      <div className="admin-table-wrap">
+        <table className="admin-table users-table">
+          <thead>
+            <tr>
+              <th rowSpan={2} className="row-head">
+                Email
+              </th>
+              <th rowSpan={2}>Type</th>
+              <th rowSpan={2}>Status</th>
+              <th rowSpan={2}>Created</th>
+              <th rowSpan={2}>Last sign-in</th>
+              {KINDS.map(({ kind, label }) => (
+                <th key={kind} colSpan={PERIODS.length}>
+                  {label}
+                </th>
+              ))}
+              <th rowSpan={2}>
+                <span className="visually-hidden">Actions</span>
+              </th>
+            </tr>
+            <tr>
+              {KINDS.flatMap(({ kind }) =>
+                PERIODS.map((period) => (
+                  <th key={`${kind}-${period.name}`} className="num" title={`Last ${period.label}`}>
+                    {period.short}
+                  </th>
+                )),
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {view.accounts.map((account) => (
+              <tr
+                key={account.id}
+                className={account.deleted_at ? "is-trashed" : account.locked_at ? "is-locked" : ""}
+              >
+                <th scope="row" className="row-head user-email">
+                  {account.email}
+                  {account.is_admin && <small>admin</small>}
+                  {account.id === view.viewerId && <small>you</small>}
+                </th>
+                <td>
+                  <select
+                    className="user-tier"
+                    aria-label={`Account type for ${account.email}`}
+                    value={account.ai_tier}
                     disabled={busy !== null}
-                    aria-label={`${account.deleted_at ? "Restore" : "Move to trash"} account ${account.email}`}
-                    onClick={() =>
-                      void changeAccess(account, { trashed: !account.deleted_at }, view.trashDays)
+                    onChange={(event) =>
+                      void changeTier(account, event.target.value as Account["ai_tier"])
                     }
                   >
-                    {account.deleted_at ? "Restore" : "Move to trash"}
-                  </button>
-                </div>
-              )}
-            </div>
-            {account.deleted_at ? (
-              <p className="user-access" role="note">
-                In the trash since {date(account.deleted_at)}. Deleted for good on{" "}
-                {purgeDate(account.deleted_at).toLocaleDateString()}.
-              </p>
-            ) : account.locked_at ? (
-              <p className="user-access" role="note">
-                Locked since {date(account.locked_at)}. It can’t sign in.
-              </p>
-            ) : null}
-            <details className="user-usage">
-              <summary>AI usage</summary>
-              <div className="user-usage-scroll">
-                <table className="admin-usage">
-                  <thead>
-                    <tr>
-                      <th scope="col">Feature</th>
-                      {PERIODS.map((period) => (
-                        <th key={period.name} scope="col">
-                          Last {period.label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {KINDS.map(({ kind, label }) => (
-                      <tr key={kind}>
-                        <th scope="row">
-                          {label}
-                          <small>
-                            Daily budget: {number(view.limits[kind].lettersPerDay[account.ai_tier])}{" "}
-                            letters ({account.ai_tier})
-                          </small>
-                        </th>
-                        {PERIODS.map((period) => {
-                          const calls = account[`${kind}_calls_${period.name}`];
-                          const letters = account[`${kind}_letters_${period.name}`];
-                          const dailyBudget = view.limits[kind].lettersPerDay[account.ai_tier];
-                          const budget = dailyBudget * period.days;
-                          return (
-                            <td key={period.name}>
-                              {number(calls)} calls · {number(letters)} /{" "}
-                              {budget ? number(budget) : "unlimited"} letters
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </details>
-          </article>
-        ))}
-        {!shown && !loading && <p>No accounts match this filter.</p>}
-        {loading && <p>Loading…</p>}
-        {hasMore && !loading && (
-          <button
-            className="button"
-            onClick={() => void loadPage(filter.trim(), accountFilter, shown, true)}
-          >
-            Load more accounts
-          </button>
-        )}
+                    <option value="basic">Basic</option>
+                    <option value="plus">Plus</option>
+                  </select>
+                </td>
+                <td className="cell user-state">
+                  {account.deleted_at ? (
+                    <span title={`In the trash since ${date(account.deleted_at)}`}>
+                      In the trash, deleted {day(purgeDate(account.deleted_at))}
+                    </span>
+                  ) : account.locked_at ? (
+                    <span title={`Locked since ${date(account.locked_at)}. It can’t sign in.`}>
+                      Locked since {day(account.locked_at)}
+                    </span>
+                  ) : (
+                    "Active"
+                  )}
+                </td>
+                <td className="cell" title={date(account.created_at)}>
+                  {day(account.created_at)}
+                </td>
+                <td
+                  className="cell"
+                  title={account.last_sign_in_at ? date(account.last_sign_in_at) : undefined}
+                >
+                  {account.last_sign_in_at ? day(account.last_sign_in_at) : "–"}
+                </td>
+                {KINDS.flatMap(({ kind, label }) =>
+                  PERIODS.map((period) => {
+                    const calls = Number(account[`${kind}_calls_${period.name}`]);
+                    const letters = Number(account[`${kind}_letters_${period.name}`]);
+                    const budget = view.limits[kind].lettersPerDay[account.ai_tier] * period.days;
+                    return (
+                      <td
+                        key={`${kind}-${period.name}`}
+                        className="cell num usage"
+                        title={`${label}, last ${period.label}: ${number(calls)} calls, ${number(letters)} of ${budget ? number(budget) : "unlimited"} letters`}
+                      >
+                        <span className={budget && letters > budget ? "over" : undefined}>
+                          {number(letters)}
+                        </span>
+                        <small>
+                          {budget ? ` / ${compact(budget)}` : ""} ({number(calls)})
+                        </small>
+                      </td>
+                    );
+                  }),
+                )}
+                <td>
+                  {account.id !== view.viewerId && (
+                    <div className="user-actions">
+                      {!account.deleted_at && (
+                        <button
+                          className="button"
+                          disabled={busy !== null}
+                          aria-label={`${account.locked_at ? "Unlock" : "Lock"} account ${account.email}`}
+                          onClick={() =>
+                            void changeAccess(
+                              account,
+                              { locked: !account.locked_at },
+                              view.trashDays,
+                            )
+                          }
+                        >
+                          {account.locked_at ? "Unlock" : "Lock"}
+                        </button>
+                      )}
+                      <button
+                        className={account.deleted_at ? "button" : "button danger"}
+                        disabled={busy !== null}
+                        aria-label={`${account.deleted_at ? "Restore" : "Move to trash"} account ${account.email}`}
+                        onClick={() =>
+                          void changeAccess(
+                            account,
+                            { trashed: !account.deleted_at },
+                            view.trashDays,
+                          )
+                        }
+                      >
+                        {account.deleted_at ? "Restore" : "Trash"}
+                      </button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
+      {!shown && !loading && <p>No accounts match this filter.</p>}
+      {loading && <p>Loading…</p>}
+      {hasMore && !loading && (
+        <button
+          className="button users-more"
+          onClick={() => void loadPage(filter.trim(), accountFilter, shown, true)}
+        >
+          Load more accounts
+        </button>
+      )}
     </>
   );
 }

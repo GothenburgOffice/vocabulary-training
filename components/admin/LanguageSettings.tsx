@@ -188,8 +188,8 @@ export default function LanguageSettings() {
           ))}
         </ul>
       )}
-      <div className="lang-table-wrap">
-        <table className="lang-table">
+      <div className="admin-table-wrap">
+        <table className="admin-table lang-table">
           <thead>
             <tr>
               <th rowSpan={2} className="lang-select">
@@ -202,7 +202,7 @@ export default function LanguageSettings() {
                   }
                 />
               </th>
-              <th rowSpan={2} className="lang-name">
+              <th rowSpan={2} className="row-head lang-name">
                 Language
               </th>
               <th rowSpan={2}>Code</th>
@@ -241,7 +241,7 @@ export default function LanguageSettings() {
                       onChange={() => toggle(language.name)}
                     />
                   </td>
-                  <th scope="row" className="lang-name">
+                  <th scope="row" className="row-head lang-name">
                     {language.name}
                     {errors[language.name] && (
                       <CircleAlert size={14} aria-label={errors[language.name]} />
@@ -506,7 +506,7 @@ function AddLanguage({ onAdd }: { onAdd: (name: string, code: string) => Promise
   return (
     <tr className="lang-add">
       <td />
-      <th scope="row" className="lang-name">
+      <th scope="row" className="row-head lang-name">
         <form id="add-language" onSubmit={(e) => void submit(e)} />
         <input
           form="add-language"

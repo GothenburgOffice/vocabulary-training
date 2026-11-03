@@ -384,26 +384,30 @@ test("users can be filtered, re-typed, locked, trashed and restored, with E2E cl
   });
 
   await page.goto("/admin/users");
-  await expect(page.locator(".user-card")).toHaveCount(2);
-  await page.locator(".user-usage summary").first().click();
-  await expect(page.getByText("2 calls · 120 / 100,000 letters").first()).toBeVisible();
+  const rows = page.locator(".users-table tbody tr");
+  await expect(rows).toHaveCount(2);
+  // Everything is in the row: the first usage cell is speech in the last 24 hours, as letters
+  // of the budget and calls.
+  await expect(rows.first().locator(".usage").first()).toHaveText("120 / 100K (2)");
   await page.getByLabel("Account type for learner@example.test").selectOption("plus");
   await expect(page.getByLabel("Account type for learner@example.test")).toHaveValue("plus");
 
   // Search runs on the server: the fake narrows the list only when the query is sent.
   await page.getByLabel("Search by email").fill("learner");
-  await expect(page.locator(".user-card strong")).toHaveText(["learner@example.test"]);
+  await expect(page.locator(".users-table .user-email")).toHaveText(["learner@example.test"]);
   await expect(page.getByText("Showing 1 of 1 matching accounts.")).toBeVisible();
   await page.getByLabel("Search by email").fill("");
-  await expect(page.locator(".user-card")).toHaveCount(2);
+  await expect(rows).toHaveCount(2);
 
   // Lock and unlock.
-  const learner = page.locator(".user-card").filter({ hasText: "learner@example.test" });
+  const learner = rows.filter({ hasText: "learner@example.test" });
+  const state = learner.locator(".user-state");
+  await expect(state).toHaveText("Active");
   await learner.getByRole("button", { name: "Lock account learner@example.test" }).click();
-  await expect(learner.getByRole("note")).toContainText("Locked since");
-  await expect(learner.getByRole("note")).toContainText("It can’t sign in.");
+  await expect(state).toContainText("Locked since");
+  await expect(state.locator("span")).toHaveAttribute("title", /It can’t sign in\./);
   await learner.getByRole("button", { name: "Unlock account learner@example.test" }).click();
-  await expect(learner.getByRole("note")).toHaveCount(0);
+  await expect(state).toHaveText("Active");
 
   // The trash asks first, says when the account is deleted for good, and can be undone.
   page.once("dialog", (dialog) => {
@@ -412,19 +416,18 @@ test("users can be filtered, re-typed, locked, trashed and restored, with E2E cl
     void dialog.accept();
   });
   await learner.getByRole("button", { name: "Move to trash account learner@example.test" }).click();
-  await expect(learner.getByRole("note")).toContainText("In the trash since");
-  await expect(learner.getByRole("note")).toContainText("Deleted for good on");
+  await expect(state).toContainText("In the trash, deleted");
   // An account in the trash is locked by being there; it offers only Restore.
   await expect(learner.getByRole("button", { name: /^Lock account/ })).toHaveCount(0);
   await page.getByLabel("Account filter").selectOption("trash");
-  await expect(page.locator(".user-card strong")).toHaveText(["learner@example.test"]);
+  await expect(page.locator(".users-table .user-email")).toHaveText(["learner@example.test"]);
   await learner.getByRole("button", { name: "Restore account learner@example.test" }).click();
-  await expect(learner.getByRole("note")).toHaveCount(0);
+  await expect(state).toHaveText("Active");
   await page.getByLabel("Account filter").selectOption("all");
-  await expect(page.locator(".user-card")).toHaveCount(2);
+  await expect(rows).toHaveCount(2);
 
   await page.getByLabel("Account filter").selectOption("test");
-  await expect(page.locator(".user-card")).toHaveCount(1);
+  await expect(rows).toHaveCount(1);
   await expect(page.getByText("e2e-test@example.test")).toBeVisible();
   page.once("dialog", (dialog) => {
     expect(dialog.message()).toContain("Permanently delete 1 E2E test accounts");
@@ -432,7 +435,7 @@ test("users can be filtered, re-typed, locked, trashed and restored, with E2E cl
   });
   await page.getByRole("button", { name: "Delete test accounts (1)" }).click();
   await expect(page.getByText("Deleted 1 E2E test accounts.")).toBeVisible();
-  await expect(page.locator(".user-card")).toHaveCount(0);
+  await expect(rows).toHaveCount(0);
 });
 
 test("reports list newest first by page, show the request sent, and prune old ones", async ({
