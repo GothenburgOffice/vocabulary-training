@@ -2466,6 +2466,8 @@ main > .save-error {
 .admin-table thead th {
   position: relative;
   padding: 6px 8px;
+  /* A heading spanning both header rows lines up with the lower row's headings. */
+  vertical-align: bottom;
   color: var(--muted);
   font-weight: 500;
 }
