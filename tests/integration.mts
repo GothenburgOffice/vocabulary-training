@@ -400,6 +400,122 @@ test("real HTTP: the admin area answers 404 to everyone but admins", async () =>
   const page = await api("/admin", "GET", undefined, adminCookie);
   assert.equal(page.status, 200);
   assert.match(await page.text(), /Overview/);
+
+  assert.equal((await api("/api/admin/users", "GET", undefined, cookie)).status, 404);
+  const usersResponse = await api("/api/admin/users", "GET", undefined, adminCookie);
+  assert.equal(usersResponse.status, 200, await usersResponse.clone().text());
+  const users = await usersResponse.json();
+  const managed = users.accounts.find((account: { email: string }) => account.email === email);
+  assert.ok(managed);
+  assert.equal(managed.id, me.user.id);
+  assert.ok(managed.created_at);
+  assert.ok(managed.last_sign_in_at);
+  assert.equal(managed.ai_tier, "basic");
+  assert.equal(managed.is_admin, false);
+  assert.equal(managed.speech_calls_day, 0);
+  assert.equal(managed.note_calls_90, 0);
+  assert.ok(users.limits.speech.lettersPerDay.basic > 0);
+  assert.equal(typeof users.total, "number");
+  assert.ok(users.total >= users.accounts.length);
+  assert.ok(users.accounts.length <= users.pageSize);
+
+  // Search and scope run on the server: a unique address finds exactly the managed account.
+  const searched = await (
+    await api(`/api/admin/users?q=${encodeURIComponent(email)}`, "GET", undefined, adminCookie)
+  ).json();
+  assert.deepEqual(
+    searched.accounts.map((account: { id: string }) => account.id),
+    [me.user.id],
+  );
+  assert.equal(searched.total, 1);
+  // LIKE wildcards in the search are literal, so a bare "%" matches no address.
+  const wildcard = await (
+    await api("/api/admin/users?q=%25", "GET", undefined, adminCookie)
+  ).json();
+  assert.equal(wildcard.total, 0);
+  // E2E accounts are the only ones in the test scope; the managed account is not one of them.
+  const testScope = await (
+    await api("/api/admin/users?scope=test&offset=0", "GET", undefined, adminCookie)
+  ).json();
+  assert.ok(
+    testScope.accounts.every((account: { email: string }) =>
+      /^e2e-.+@example\.test$/i.test(account.email),
+    ),
+  );
+  assert.equal(
+    (await api("/api/admin/users?offset=-1", "GET", undefined, adminCookie)).status,
+    400,
+  );
+  assert.equal(
+    (await api("/api/admin/users", "PATCH", { userId: me.user.id, tier: "plus" }, cookie)).status,
+    404,
+  );
+  assert.equal(
+    (await api("/api/admin/users", "PATCH", { userId: me.user.id, locked: true }, cookie)).status,
+    404,
+  );
+
+  assert.equal(
+    (
+      await api("/api/admin/users", "PATCH", { userId: me.user.id, tier: "plus" }, adminCookie, {
+        Origin: "https://attacker.invalid",
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (await api("/api/admin/users", "PATCH", { userId: me.user.id, tier: "invalid" }, adminCookie))
+      .status,
+    400,
+  );
+  assert.equal(
+    (await api("/api/admin/users", "PATCH", { userId: me.user.id, tier: "plus" }, adminCookie))
+      .status,
+    200,
+  );
+  const change = (data: object) => api("/api/admin/users", "PATCH", data, adminCookie);
+  const signIn = (password = "integration-test-only-password") =>
+    api("/api/auth", "POST", { action: "login", email, password });
+
+  // An admin can't lock or trash their own account, and a single account is never deleted at
+  // once: only the E2E test-account cleanup deletes immediately.
+  assert.equal((await change({ userId: admin.user.id, locked: true })).status, 400);
+  assert.equal((await change({ userId: admin.user.id, trashed: true })).status, 400);
+  assert.equal(
+    (await api("/api/admin/users", "DELETE", { userId: me.user.id }, adminCookie)).status,
+    400,
+  );
+
+  // Lock: the session ends at once and sign-in is refused, but only after the password checks
+  // out, so a wrong password still just says it is wrong.
+  const locked = await change({ userId: me.user.id, locked: true });
+  assert.equal(locked.status, 200, await locked.clone().text());
+  assert.ok((await locked.json()).account.locked_at);
+  assert.equal((await api("/api/workspace", "GET", undefined, cookie)).status, 401);
+  assert.equal((await signIn()).status, 403);
+  assert.equal((await signIn("wrong-password-for-this-test")).status, 401);
+  assert.equal((await change({ userId: me.user.id, locked: false })).status, 200);
+  assert.equal((await signIn()).status, 200);
+
+  // Trash: locked at once, listed in the trash, and restorable until it is purged.
+  const trashed = await change({ userId: me.user.id, trashed: true });
+  assert.equal(trashed.status, 200, await trashed.clone().text());
+  assert.ok((await trashed.json()).account.deleted_at);
+  assert.equal((await signIn()).status, 403);
+  const trash = await (
+    await api(
+      `/api/admin/users?scope=trash&q=${encodeURIComponent(email)}`,
+      "GET",
+      undefined,
+      adminCookie,
+    )
+  ).json();
+  assert.equal(trash.total, 1);
+  assert.equal(trash.trashDays, 30);
+  assert.equal((await change({ userId: me.user.id, trashed: false })).status, 200);
+  assert.equal((await signIn()).status, 200);
+  // Left in the trash; the purge 30 days on is checked against the database, not here.
+  assert.equal((await change({ userId: me.user.id, trashed: true })).status, 200);
 });
 
 test("real HTTP: admin AI settings and languages, with dummy keys and no provider calls", async () => {

@@ -56,6 +56,8 @@ export default async function PrivacyPage() {
           <li>
             AI usage: for each language note and audio request that reaches the AI provider, how
             many letters it sent and when, kept for 90 days to limit misuse. Not the text itself.
+            The site administrator can review these counts by account to operate the service and
+            investigate misuse.
           </li>
           <li>
             Reports of a wrong AI result, if you send one: the result (the word, its language, the
@@ -64,8 +66,10 @@ export default async function PrivacyPage() {
             Administrators can delete reports older than 15 days.
           </li>
           <li>
-            Sign-in sessions, stored only as hashes of their tokens. Sign-in attempt limits use
-            hashed identifiers, never your email address or IP address.
+            Sign-in sessions, stored only as hashes of their tokens. The time of your last
+            successful sign-in is kept with your account so the administrator can manage accounts;
+            it is deleted with your account. Sign-in attempt limits use hashed identifiers, never
+            your email address or IP address.
           </li>
         </ul>
         <p>
@@ -106,12 +110,13 @@ export default async function PrivacyPage() {
 
         <h2>How long, and your rights</h2>
         <p>
-          Your account and data are kept until you ask for them to be deleted. You can ask the
-          privacy contact above for a copy of your data, a correction, or deletion, and complain to
-          your data protection authority (in Sweden, IMY). You can export any word list as CSV
-          yourself, and delete a word list with its words and review history at once; completed
-          sessions keep the words they practised. The hosting provider may keep technical logs, such
-          as IP addresses, for security.
+          Your account and data are kept until you ask for them to be deleted. A deleted account is
+          locked at once, and it and all its data are erased after 30 days. You can ask the privacy
+          contact above for a copy of your data, a correction, or deletion, and complain to your
+          data protection authority (in Sweden, IMY). You can export any word list as CSV yourself,
+          and delete a word list with its words and review history at once; completed sessions keep
+          the words they practised. The hosting provider may keep technical logs, such as IP
+          addresses, for security.
         </p>
 
         <Link href="/" className="text-button">
