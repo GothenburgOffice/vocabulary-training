@@ -14,6 +14,9 @@ The shared project reference for coding agents (also read by Copilot):
 - Never delete `vocabulary.training.code-workspace`: VS Code closes with it and the
   session is lost.
 - On GitHub, a `@claude` mention in an issue runs `.github/workflows/claude.yml`, which is
-  read-only. Review the issue against the code on `main`: if it's already done or no longer
-  applies, say so and suggest closing it; otherwise reply with a concrete plan (files, steps,
-  tests owed, open questions). Don't try to change files or push: those tools are denied.
+  read-only. Only when running in that workflow (the prompt says you are helping with a
+  GitHub issue, and Bash/Edit/Write are denied): review the issue against the code on
+  `main`; if it's already done or no longer applies, say so and suggest closing it; otherwise
+  reply with a concrete plan (files, steps, tests owed, open questions). Don't try to change
+  files or push there. This rule does not apply to local or devcontainer sessions, which
+  work on issues as usual.
