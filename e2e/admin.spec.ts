@@ -276,14 +276,16 @@ test("AI limits are edited and saved together, and reset to the defaults", async
     }
     await route.fulfill({ json: { limits, defaults } });
   });
-  await page.goto("/admin/limits");
-  const save = page.getByRole("button", { name: "Save limits" });
+  // Limits are a section of AI settings, with the keys and models above them.
+  await page.goto("/admin/ai");
+  const section = page.getByRole("region", { name: "Limits" });
+  const save = section.getByRole("button", { name: "Save limits" });
   await expect(save).toBeDisabled();
   await page.getByLabel("Speech: Letters per minute").fill("300");
   await page.getByLabel("Language notes: Letters per day, plus").fill("90000");
   await page.getByLabel("Speech request block (seconds)").fill("15");
   await save.click();
-  await expect(page.getByRole("status")).toHaveText("Saved.");
+  await expect(section.getByRole("status")).toHaveText("Saved.");
   expect(saves).toEqual([
     {
       ...defaults,
@@ -294,11 +296,11 @@ test("AI limits are edited and saved together, and reset to the defaults", async
   ]);
   await expect(save).toBeDisabled();
 
-  await page.getByRole("button", { name: "Reset to defaults" }).click();
+  await section.getByRole("button", { name: "Reset to defaults" }).click();
   await expect(page.getByLabel("Speech: Letters per minute")).toHaveValue("1200");
   await expect(page.getByLabel("Speech request block (seconds)")).toHaveValue("10");
   await save.click();
-  await expect(page.getByRole("status")).toHaveText("Saved.");
+  await expect(section.getByRole("status")).toHaveText("Saved.");
   expect(saves[1]).toEqual(defaults);
 });
 

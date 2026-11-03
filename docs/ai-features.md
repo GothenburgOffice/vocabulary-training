@@ -120,7 +120,7 @@ provider and kept in PostgreSQL (`ai_usage`), so it holds across restarts:
 | Response cap                | 240 characters    | 4 MB                       |
 
 These are defaults. The limits are site settings (`limits.*`), editable in
-Admin → Limits or the database; a letter limit of 0 means no limit, for a site
+Admin → AI settings (Limits) or the database; a letter limit of 0 means no limit, for a site
 that caps spending only in Requesty. Cached audio costs no letters. The cooldowns
 and the one-request-at-a-time rule live in the server process, which is fine as
 the app runs as one. Admin → Overview shows site-wide usage totals.
