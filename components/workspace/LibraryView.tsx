@@ -1,10 +1,24 @@
-import { ArrowRight, ChevronRight, Download, Plus, Search, Trash2, Upload } from "lucide-react";
+import {
+  ArrowRight,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Download,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { BookMark } from "../../lib/brand";
 import { listStats, listTitle, type List } from "../../lib/learning";
 import type { PracticeSettings } from "../../lib/practice";
 import SpeechButton from "../SpeechButton";
 import Button from "./Button";
 import PracticeSetup from "./PracticeSetup";
+
+// The library previews a list's first rows; expanding reveals words a page at a time.
+const PREVIEW_ROWS = 5;
+const PREVIEW_PAGE = 100;
 
 export default function LibraryView({
   baseLanguage,
@@ -14,6 +28,8 @@ export default function LibraryView({
   query,
   now,
   settings,
+  previewPages,
+  onPreviewPages,
   onQuery,
   onSelect,
   onEdit,
@@ -32,6 +48,8 @@ export default function LibraryView({
   query: string;
   now: number;
   settings: PracticeSettings;
+  previewPages: number;
+  onPreviewPages: (pages: number) => void;
   onQuery: (query: string) => void;
   onSelect: (id: string) => void;
   // Without a list, opens a new one.
@@ -43,6 +61,10 @@ export default function LibraryView({
   onStart: () => void;
   onHelp: () => void;
 }) {
+  // Rows follow the list's current length, so words added while expanded show up.
+  const total = list?.words.length ?? 0;
+  const expanded = previewPages > 0 && total > PREVIEW_ROWS;
+  const shown = expanded ? Math.min(total, previewPages * PREVIEW_PAGE) : PREVIEW_ROWS;
   const { direction } = settings;
   const stats = lists.map((l) => listStats(l, direction, now));
   const totalWords = lists.reduce((sum, l) => sum + l.words.length, 0);
@@ -201,30 +223,85 @@ export default function LibraryView({
                 <span>{list.to}</span>
                 <span>Practice state</span>
               </div>
-              {list.words.slice(0, 5).map((w) => (
-                <div className="word-row" key={w.id}>
-                  <span className="word-with-audio">
-                    <span>{w.front}</span>
-                    <SpeechButton wordId={w.id} part="native" text={w.front} language={list.from} />
-                  </span>
-                  <span className="word-with-audio">
-                    <span>{w.back}</span>
-                    <SpeechButton wordId={w.id} part="learning" text={w.back} language={list.to} />
-                  </span>
-                  <span className={`state ${w[direction].streak >= 3 ? "established" : ""}`}>
-                    {w[direction].streak >= 3
-                      ? "Established"
-                      : w[direction].correct + w[direction].wrong === 0
-                        ? "New word"
-                        : "Learning"}
-                  </span>
-                </div>
-              ))}
-              {list.words.length > 5 && (
-                <button className="text-button all-words" onClick={() => onEdit(list)}>
-                  View all {list.words.length} words <ChevronRight size={14} />
-                </button>
-              )}
+              <div id={`preview-words-${list.id}`}>
+                {list.words.slice(0, shown).map((w) => (
+                  <div className="word-row" key={w.id}>
+                    <span className="word-with-audio">
+                      <span>{w.front}</span>
+                      <SpeechButton
+                        wordId={w.id}
+                        part="native"
+                        text={w.front}
+                        language={list.from}
+                      />
+                    </span>
+                    <span className="word-with-audio">
+                      <span>{w.back}</span>
+                      <SpeechButton
+                        wordId={w.id}
+                        part="learning"
+                        text={w.back}
+                        language={list.to}
+                      />
+                    </span>
+                    <span className={`state ${w[direction].streak >= 3 ? "established" : ""}`}>
+                      {w[direction].streak >= 3
+                        ? "Established"
+                        : w[direction].correct + w[direction].wrong === 0
+                          ? "New word"
+                          : "Learning"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="word-preview-actions">
+                {total > PREVIEW_ROWS && (
+                  <button
+                    className="text-button"
+                    aria-expanded={expanded}
+                    aria-controls={`preview-words-${list.id}`}
+                    onClick={() => onPreviewPages(expanded ? 0 : 1)}
+                  >
+                    {expanded ? (
+                      <>
+                        Show fewer <ChevronUp size={14} />
+                      </>
+                    ) : (
+                      <>
+                        {total > PREVIEW_PAGE
+                          ? `View first ${PREVIEW_PAGE} of ${total} words`
+                          : `View all ${total} words`}
+                        <ChevronDown size={14} />
+                      </>
+                    )}
+                  </button>
+                )}
+                {expanded && total > PREVIEW_PAGE && (
+                  <button
+                    className="text-button"
+                    aria-controls={`preview-words-${list.id}`}
+                    aria-disabled={shown >= total}
+                    onClick={() => {
+                      if (shown < total) onPreviewPages(previewPages + 1);
+                    }}
+                  >
+                    {shown < total
+                      ? `Show ${Math.min(PREVIEW_PAGE, total - shown)} more words`
+                      : `All ${total} words shown`}
+                  </button>
+                )}
+                {expanded && (
+                  <button
+                    className="text-button word-preview-edit"
+                    // Same visible label as the top control, but its own accessible name, so a
+                    // screen reader (and a locator) can tell the two apart.
+                    aria-label="Edit this word list"
+                    onClick={() => onEdit(list)}
+                  >
+                    Edit list <ArrowRight size={15} />
+                  </button>
+                )}
+              </div>
             </section>
           )}
         </div>
