@@ -17,8 +17,9 @@ calling one. Any AI feature added later goes through `aiConfig()` too, so the
 switch covers it. The workspace response still says what the site offers
 (`ai`), with the switch in `data.aiEnabled`; while it is off the workspace
 hides every AI feature and the report entry, and the profile shows the switch
-only when the site offers something to turn off. A request already sent when
-the switch is turned off completes as normal.
+only when the site offers something to turn off. The switch applies to requests
+not yet sent; one already in flight isn't guaranteed either way (a language
+note that is hidden is cancelled, and the cost of one call is negligible).
 
 Keys are stored encrypted (AES-256-GCM, with `SETTINGS_ENCRYPTION_KEY` from
 `.env`) and never sent back to the browser: the admin page only shows whether a

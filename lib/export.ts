@@ -5,7 +5,8 @@ import type { WorkspaceData } from "./workspace";
 // one JSON file meant for people to keep and read. There is no import for it yet.
 // Times are ISO 8601 (UTC). Bump EXPORT_VERSION when the shape changes.
 export const EXPORT_FORMAT = "vocabulary.training export";
-export const EXPORT_VERSION = 1;
+// 2: profile.aiEnabled (#113).
+export const EXPORT_VERSION = 2;
 
 export type ExportAccount = {
   email: string;
