@@ -496,3 +496,20 @@ test("further accepted answers: add, make primary, remove, paste and practise", 
   }
   await expect(page.locator(".results-overview strong")).toHaveText("3 / 3");
 });
+
+test("Export my data downloads every list as JSON from the account dialog", async ({
+  page,
+  account,
+}) => {
+  await page.goto("/");
+  await createList(page, "Exported", [["katt", "chat"]]);
+  const dialog = await openAccount(page);
+  const download = page.waitForEvent("download");
+  await dialog.getByRole("link", { name: "Export my data" }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(/^vocabulary-training-export-\d{4}-\d{2}-\d{2}\.json$/);
+  const data = JSON.parse(await readFile((await file.path())!, "utf8"));
+  expect(data.account.email).toBe(account.email);
+  expect(data.lists.map((l: { title: string }) => l.title)).toEqual(["Exported"]);
+  expect(data.lists[0].words[0]).toMatchObject({ prompt: "katt", answers: ["chat"] });
+});
