@@ -25,6 +25,7 @@ import {
 } from "../lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
 import DeleteDialog from "./workspace/DeleteDialog";
+import { useAiActionLog } from "./AiActionLog";
 import Dialog from "./workspace/Dialog";
 import ExitDialog from "./workspace/ExitDialog";
 import HelpDialog from "./workspace/HelpDialog";
@@ -36,6 +37,7 @@ import ListEditor from "./workspace/ListEditor";
 import NewLanguageDialog from "./workspace/NewLanguageDialog";
 import PracticeSession from "./workspace/PracticeSession";
 import ProfileDialog from "./workspace/ProfileDialog";
+import ReportDialog from "./workspace/ReportDialog";
 import ResultsView from "./workspace/ResultsView";
 import SaveStatus from "./workspace/SaveStatus";
 import Sidebar from "./workspace/Sidebar";
@@ -50,6 +52,7 @@ const DIALOG_TITLES: Record<Modal, string> = {
   delete: "Delete this word list?",
   leave: "Leave with unfinished edits?",
   help: "A smarter mix, not a black box.",
+  report: "Report an AI result",
 };
 
 // The signed-in app: holds the workspace state shared between views and reports each change
@@ -96,6 +99,7 @@ export default function Workspace({
   // The list open in the editor, as it was when opened.
   const [editing, setEditing] = useState<List | null>(null);
   const [modal, setModal] = useState<Modal | null>(null);
+  const { actions: aiActions } = useAiActionLog();
   // Whether leaving the list editor would lose edits, and where leaving it was headed.
   const [editorLost, setEditorLost] = useState<string[]>([]);
   // The editor's latest draft, so every way out of it (Done, the sidebar, the logo) shows it.
@@ -391,6 +395,8 @@ ${learningLanguage}`;
               : startTest()
         }
         onHelp={() => setModal("help")}
+        reportable={aiActions.length}
+        onReport={() => setModal("report")}
       />
       <header className="mobile-bar">
         <Link
@@ -554,6 +560,9 @@ ${learningLanguage}`;
         )}
         {modal === "help" && (
           <HelpDialog speech={ai.speech.length > 0} onClose={() => setModal(null)} />
+        )}
+        {modal === "report" && (
+          <ReportDialog actions={[...aiActions].reverse()} onClose={() => setModal(null)} />
         )}
         {modal === "leave" && (
           <LeaveDialog

@@ -39,6 +39,9 @@ the full browser suite on every PR.
 - `lib/validation.ts`: Zod schemas for save requests. Update them with any change to the data shape.
 - `lib/server/workspace-store.ts`: every query on the user data tables (`lists`, `words`,
   `word_reviews`, `runs`, `run_results`). Every query filters on `user_id`.
+- `lib/server/reports-store.ts`: `issue_reports`, the AI result reports (#95). Anonymous by
+  design: never store a user id with a report; only the tier comes from the session.
+  `lib/reports.ts` holds the reasons and schema shared with the browser.
 - `lib/server/**`: server-only (`import "server-only"`). DB, sessions, Requesty clients.
 - `app/api/*/route.ts`: mutations call `requireOrigin` and then `requireUser`. Errors go through `HttpError`/`fail`.
 - `app/admin/`: the admin area, a shell (`layout.tsx`, `components/admin/AdminNav.tsx`)
@@ -70,6 +73,10 @@ the full browser suite on every PR.
   - Both take a word id, never text: the server reads the word from the account's lists, so
     only the learner's typed answer comes from the browser. Both are limited per account in
     letters per minute and per day (`limits.*` site settings, #82).
+  - **Reports** (`/api/reports`, #95) are not an AI call: a learner reports one recent result,
+    and it is never sent to a provider. The recent-results list is browser memory only; keep
+    per-user AI results (requests and model output) out of the database except a report the
+    learner sends. `ai_usage` (letters and times, for the limits) is separate and stays.
 - Grading is deterministic pattern matching, not AI: an AI call never sets or changes a
   grade. Statistics and scheduling are deterministic code too.
 - Send a provider only what its call needs: never account IDs or whole lists.

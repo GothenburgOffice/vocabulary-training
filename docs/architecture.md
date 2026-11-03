@@ -42,6 +42,14 @@ query seeks straight to one user's data for one pair. The pair copies on `words`
 keys with `ON UPDATE CASCADE`. Sessions and results keep the pair they were
 practised in.
 
+`issue_reports` holds the AI results learners report (#95), one row per result.
+It is anonymous by design: no `user_id`, dates instead of times, and a hashed
+result id, so a report can't be matched to an account through `ai_usage`, and it
+outlives the account. It is read newest first only (`issue_reports_recent_idx`).
+It has no language pair: a report names the word's own
+language. Its queries are in `lib/server/reports-store.ts`. Recent AI results
+before a report live only in the browser (see [AI features](ai-features.md)).
+
 A word is a native prompt with one or more accepted answers. Practising forward
 (native shown) accepts any of them; practising in reverse shows the primary
 answer and accepts only the native text. The UI edits the primary answer; CSV
