@@ -11,6 +11,7 @@ import {
   FeedbackLimiter,
   FeedbackNotNeeded,
   FeedbackUnavailable,
+  languageCommentRequest,
   requestLanguageComment,
 } from "../../../lib/server/requesty-client";
 import { readWordForAi } from "../../../lib/server/workspace-store";
@@ -47,7 +48,9 @@ export async function POST(request: Request) {
       siteLimits,
     );
     const comment = await requestLanguageComment(input, provider);
-    return json({ status: "ready", comment });
+    // The learner's client keeps this for reporting (#95); it is the request that was sent.
+    const activity = { model: provider.model, prompt: languageCommentRequest(input, provider) };
+    return json({ status: "ready", comment, activity });
   } catch (error) {
     if (error instanceof FeedbackNotNeeded) return json({ status: "not-needed" });
     if (error instanceof FeedbackUnavailable) {

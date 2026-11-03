@@ -43,6 +43,37 @@ A word with several accepted answers speaks its primary answer.
 - Generated voices are not reliable pronunciation teachers, especially outside
   English.
 
+## Reporting a wrong result
+
+A learner can report a wrong language note or a bad clip, so an admin knows
+what to check (#81, #95). Reporting sends nothing to a provider and never
+touches a grade.
+
+- **Browser-only log.** The page keeps the tab's last 20 AI results in memory
+  (`lib/ai-actions.ts`, `components/AiActionLog.tsx`), not in browser storage,
+  so a reload or sign-out clears it. A ready `/api/feedback` response returns
+  the chat request it sent as `activity`. Audio is binary, so `/api/speech`
+  sends the model and voice in `X-AI-Model` and `X-AI-Voice`. A clip is logged
+  only when the provider was asked (`X-Audio-Cache: miss`), not for a cached
+  replay.
+- **Report.** "Report an AI result" in the lower sidebar appears once there
+  is a result. The learner picks one and a reason that fits its kind; the
+  browser sends it to `POST /api/reports`. Only what is reported is stored
+  (`issue_reports`): the word, language, model, voice, the recorded request,
+  the reason, the tier and the dates. Reports are one-way: the learner can't
+  see a report again after sending it, and no account is stored with it.
+  Signing in is needed to send one; only the tier comes from the session.
+  Reports keep dates, not times, and the result's id is stored hashed (it
+  starts with the call time), so a report can't be matched to `ai_usage` by
+  time. Each account may send 20 reports an hour, counted in the server
+  process and never stored. The model's output (the note's text, the audio)
+  is never stored.
+- **Admin → Reports** shows administrators the reports, newest first, a page
+  at a time, and deletes reports older than 15 days on a confirmed click.
+  Nothing prunes on a schedule.
+- The snapshot is what the browser recorded; the server doesn't re-verify that
+  the call happened.
+
 ## Tiers
 
 Each account has an `ai_tier`, `basic` (default) or `plus`. Each tier has its own

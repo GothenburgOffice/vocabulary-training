@@ -12,6 +12,7 @@ import {
   FeedbackLimiter,
   FeedbackNotNeeded,
   FeedbackUnavailable,
+  languageCommentRequest,
   requestLanguageComment,
 } from "../lib/server/requesty-client.ts";
 import { feedbackSchema } from "../lib/server/feedback-input.ts";
@@ -96,6 +97,18 @@ test("shared feedback input rejects model selection, extra data, invalid languag
     { ...input, correct: "true" },
   ])
     assert.equal(feedbackSchema.safeParse(candidate).success, false);
+});
+
+test("the prompt a learner can report is the request that was actually sent", async () => {
+  let sent = "";
+  const transport = (async (_url: string, init?: RequestInit) => {
+    sent = String(init?.body);
+    return completion("A short comment.");
+  }) as typeof fetch;
+  await requestLanguageComment(input, config, transport);
+  assert.deepEqual(JSON.parse(sent), languageCommentRequest(input, config));
+  // The prompt holds no key, so the learner's client can keep it without a secret.
+  assert.equal(sent.includes(config.apiKey), false);
 });
 
 test("language comment uses the fixed feedback timeout", async (t) => {

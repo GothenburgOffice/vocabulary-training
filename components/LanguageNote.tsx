@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
+import { newAiActionId } from "../lib/ai-actions";
+import { useAiActionLog } from "./AiActionLog";
 import {
   boundedComment,
   FEEDBACK_TIMEOUT_MS,
@@ -28,7 +30,8 @@ function NoteRequest({ input, wordId, direction, skipped }: Props) {
     status: "loading",
     text: "Preparing a short language note…",
   });
-  const { answer, requireAccents, caseSensitive } = input;
+  const { record } = useAiActionLog();
+  const { answer, requireAccents, caseSensitive, source, sourceLanguage } = input;
   const needsFeedback = !skipped && shouldRequestFeedback(input);
   useEffect(() => {
     if (!needsFeedback) return;
@@ -47,6 +50,17 @@ function NoteRequest({ input, wordId, direction, skipped }: Props) {
         });
         if (!response.ok) throw new Error("Unavailable");
         const result = await response.json();
+        if (active && result.status === "ready" && result.activity)
+          record({
+            id: newAiActionId(),
+            kind: "note",
+            at: new Date().toISOString(),
+            wordId,
+            word: source,
+            language: sourceLanguage,
+            model: result.activity.model,
+            prompt: result.activity.prompt,
+          });
         if (active)
           setNote(
             result.status === "ready"
@@ -72,7 +86,17 @@ function NoteRequest({ input, wordId, direction, skipped }: Props) {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [needsFeedback, wordId, direction, answer, requireAccents, caseSensitive]);
+  }, [
+    needsFeedback,
+    wordId,
+    direction,
+    answer,
+    requireAccents,
+    caseSensitive,
+    source,
+    sourceLanguage,
+    record,
+  ]);
   if (!needsFeedback) return null;
   const text = skipped
     ? "No answer to comment on. Try the word again when you are ready."

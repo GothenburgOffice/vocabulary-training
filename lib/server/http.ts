@@ -63,8 +63,10 @@ export function cookieOptions(origin: string) {
   };
 }
 export async function body(request: Request, max = 2_000_000): Promise<unknown> {
-  const tooLarge = () =>
-    new HttpError(413, `This request is larger than ${(max / 1_000_000).toFixed(1)} MB.`);
+  // Small limits read in kB, so a 24 kB limit doesn't say "0.0 MB".
+  const limitText =
+    max < 1_000_000 ? `${Math.floor(max / 1000)} kB` : `${(max / 1_000_000).toFixed(1)} MB`;
+  const tooLarge = () => new HttpError(413, `This request is larger than ${limitText}.`);
   if (Number(request.headers.get("content-length")) > max) throw tooLarge();
   const reader = request.body?.getReader();
   if (!reader) throw new HttpError(400, "A request body is required.");

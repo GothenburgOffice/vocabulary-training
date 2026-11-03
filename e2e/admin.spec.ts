@@ -277,3 +277,77 @@ test("AI limits are edited and saved together, and reset to the defaults", async
   await expect(page.getByRole("status")).toHaveText("Saved.");
   expect(saves[1]).toEqual(defaults);
 });
+
+test("reports list newest first by page, show the request sent, and prune old ones", async ({
+  page,
+}) => {
+  const report = (id: string, word: string, on: string) => ({
+    id,
+    reported_on: on,
+    activity_on: on,
+    kind: "speech",
+    reason: "pronunciation",
+    word,
+    language: "French",
+    model: "vendor/tts",
+    voice: "Mia",
+    tier: "basic",
+    prompt: { part: "learning" },
+  });
+  const newer = report("0f8c2f8e-5d0a-4a57-9a43-2f1b0f6d2a11", "merci", "2026-11-03");
+  const older = report("1a2b3c4d-5e6f-4a57-9a43-2f1b0f6d2a11", "bonjour", "2026-10-01");
+  let reports = [newer, older];
+  const pages: (string | null)[] = [];
+  const prunes: unknown[] = [];
+  // Like the server: newest first, one report per page here so "Load more" shows the cursor.
+  await page.route(/\/api\/admin\/reports(\?.*)?$/, async (route) => {
+    const request = route.request();
+    if (request.method() === "DELETE") {
+      prunes.push(request.postDataJSON());
+      reports = [];
+      return route.fulfill({ json: { deleted: 2 } });
+    }
+    const url = new URL(request.url());
+    const beforeId = url.searchParams.get("beforeId");
+    pages.push(beforeId && `${url.searchParams.get("beforeOn")}/${beforeId}`);
+    const start = beforeId ? reports.findIndex((row) => row.id === beforeId) + 1 : 0;
+    return route.fulfill({
+      json: {
+        reports: reports.slice(start, start + 1),
+        total: reports.length,
+        prunable: reports.length,
+        retentionDays: 15,
+        pageSize: 1,
+      },
+    });
+  });
+
+  await page.goto("/admin/reports");
+  const cards = page.locator(".report-card");
+  await expect(cards).toHaveCount(1);
+  await expect(cards.first()).toContainText("Audio · merci");
+  await expect(cards.first()).toContainText(
+    "Wrong pronunciation · French · vendor/tts · Mia · basic",
+  );
+  // Dates only: reports keep no times.
+  await expect(cards.first()).toContainText("Reported 2026-11-03 · result from 2026-11-03");
+  await cards.first().getByText("Request sent, as the learner’s browser recorded it").click();
+  await expect(cards.first().locator("pre")).toContainText('"part": "learning"');
+  // No account is shown with a report (the header's email is the signed-in admin).
+  await expect(page.locator(".report-list")).not.toContainText("@");
+
+  // The next page continues after the last report shown, by date and id.
+  await page.getByRole("button", { name: "Load more reports" }).click();
+  await expect(cards).toHaveCount(2);
+  await expect(cards.nth(1)).toContainText("Audio · bonjour");
+  expect(pages).toEqual([null, `2026-11-03/${newer.id}`]);
+
+  page.once("dialog", (dialog) => {
+    expect(dialog.message()).toBe("Permanently delete 2 reports older than 15 days?");
+    void dialog.accept();
+  });
+  await page.getByRole("button", { name: "Delete reports older than 15 days (2)" }).click();
+  await expect(page.getByText("Deleted 2 reports.")).toBeVisible();
+  expect(prunes).toEqual([{ olderThanDays: 15 }]);
+  await expect(page.getByText("No reports yet.")).toBeVisible();
+});
