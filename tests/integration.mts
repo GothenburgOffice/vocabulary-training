@@ -737,3 +737,158 @@ test("real HTTP: a 4096-character password registers and signs in; longer gets a
   assert.equal(tooLong.status, 400);
   assert.equal((await tooLong.json()).error, "Use a password of at most 4096 characters.");
 });
+
+test("real HTTP: AI result reports are saved once per result, anonymously, and checked", async () => {
+  const report = {
+    activityId: `int-${randomUUID().slice(0, 8)}`,
+    kind: "note",
+    reason: "incorrect-note",
+    word: "vi ses snart",
+    language: "Swedish",
+    model: "dummy/note-model",
+    prompt: { model: "dummy/note-model", messages: [{ role: "user", content: "test" }] },
+    at: new Date().toISOString(),
+  };
+  assert.equal((await api("/api/reports", "POST", report)).status, 401);
+
+  const register = async () => {
+    const email = `integration-${randomUUID()}@example.test`;
+    const reg = await api("/api/auth", "POST", {
+      action: "register",
+      email,
+      password: "integration-test-only-password",
+    });
+    assert.equal(reg.status, 200, await reg.clone().text());
+    return reg.headers.get("set-cookie")!.split(";")[0];
+  };
+  const cookie = await register();
+
+  const first = await api("/api/reports", "POST", report, cookie);
+  assert.equal(first.status, 200, await first.clone().text());
+  assert.deepEqual(await first.json(), { status: "saved" });
+  // The same result reported twice is kept once.
+  assert.deepEqual(await (await api("/api/reports", "POST", report, cookie)).json(), {
+    status: "duplicate",
+  });
+  // Reports carry no account, so the result's random id alone makes it the same report.
+  const other = await register();
+  assert.deepEqual(await (await api("/api/reports", "POST", report, other)).json(), {
+    status: "duplicate",
+  });
+
+  // A reason for audio does not apply to a note, and unknown fields are refused.
+  const garbled = { ...report, activityId: "int-other", reason: "garbled-audio" };
+  assert.equal((await api("/api/reports", "POST", garbled, cookie)).status, 400);
+  const extra = { ...report, activityId: "int-extra", userId: randomUUID() };
+  assert.equal((await api("/api/reports", "POST", extra, cookie)).status, 400);
+  // Cross-site requests are refused before anything is read.
+  assert.equal(
+    (await api("/api/reports", "POST", report, cookie, { Origin: "https://evil.example" })).status,
+    403,
+  );
+  // An oversized request is refused by size, not stored truncated.
+  const huge = { ...report, activityId: "int-huge", prompt: { text: "x".repeat(30_000) } };
+  assert.equal((await api("/api/reports", "POST", huge, cookie)).status, 413);
+
+  // Each account may send 20 reports an hour (the first two above count, the refused ones
+  // don't); the account is counted in memory, never stored.
+  for (let i = 0; i < 18; i++) {
+    const next = { ...report, activityId: `int-limit-${randomUUID().slice(0, 8)}` };
+    assert.equal((await api("/api/reports", "POST", next, cookie)).status, 200, `report ${i}`);
+  }
+  const over = { ...report, activityId: `int-limit-${randomUUID().slice(0, 8)}` };
+  assert.equal((await api("/api/reports", "POST", over, cookie)).status, 429);
+});
+
+test("real HTTP: admins list and prune reports without seeing accounts; learners cannot", async () => {
+  const reg = await api("/api/auth", "POST", {
+    action: "register",
+    email: `integration-${randomUUID()}@example.test`,
+    password: "integration-test-only-password",
+  });
+  assert.equal(reg.status, 200, await reg.clone().text());
+  const cookie = reg.headers.get("set-cookie")!.split(";")[0];
+  const word = `integration-${randomUUID().slice(0, 8)}`;
+  const report = {
+    activityId: `int-${randomUUID().slice(0, 8)}`,
+    kind: "speech",
+    reason: "pronunciation",
+    word,
+    language: "French",
+    model: "dummy/tts-model",
+    voice: "Mia",
+    prompt: { part: "learning" },
+    at: new Date().toISOString(),
+  };
+  assert.equal((await api("/api/reports", "POST", report, cookie)).status, 200);
+  // The admin endpoints answer 404 to a learner, as the rest of the admin area does.
+  assert.equal((await api("/api/admin/reports", "GET", undefined, cookie)).status, 404);
+  assert.equal(
+    (await api("/api/admin/reports", "DELETE", { olderThanDays: 15 }, cookie)).status,
+    404,
+  );
+
+  const adminEmail = process.env.TEST_ADMIN_EMAIL;
+  const adminPassword = process.env.TEST_ADMIN_PASSWORD;
+  if (!adminEmail || !adminPassword) return;
+  const login = await api("/api/auth", "POST", {
+    action: "login",
+    email: adminEmail,
+    password: adminPassword,
+  });
+  assert.equal(login.status, 200, await login.clone().text());
+  const adminCookie = login.headers.get("set-cookie")!.split(";")[0];
+
+  const list = async () => {
+    const response = await api("/api/admin/reports", "GET", undefined, adminCookie);
+    assert.equal(response.status, 200, await response.clone().text());
+    return response.json();
+  };
+  const view = await list();
+  const found = view.reports.find((row: { word: string }) => row.word === word);
+  assert.ok(found, "the new report is listed");
+  assert.deepEqual(found.prompt, { part: "learning" });
+  assert.equal(found.tier, "basic");
+  // No account in the admin view.
+  for (const key of ["user_id", "userId", "email"]) assert.equal(key in found, false, key);
+  // Dates only, no times; and no clustering, just the newest first.
+  assert.match(found.reported_on, /^\d{4}-\d{2}-\d{2}$/);
+  assert.match(found.activity_on, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal("summary" in view, false);
+  assert.equal(view.retentionDays, 15);
+  // The next page starts strictly after the given report, so it never repeats it.
+  const after = await (
+    await api(
+      `/api/admin/reports?beforeOn=${found.reported_on}&beforeId=${found.id}`,
+      "GET",
+      undefined,
+      adminCookie,
+    )
+  ).json();
+  assert.equal(
+    after.reports.some((row: { id: string }) => row.id === found.id),
+    false,
+  );
+  assert.equal(
+    (await api("/api/admin/reports?beforeOn=2026-11-03", "GET", undefined, adminCookie)).status,
+    400,
+  );
+
+  // Only the retention period is accepted, and a prune never removes a fresh report.
+  assert.equal(
+    (await api("/api/admin/reports", "DELETE", { olderThanDays: 1 }, adminCookie)).status,
+    400,
+  );
+  assert.equal(
+    (
+      await api("/api/admin/reports", "DELETE", { olderThanDays: 15 }, adminCookie, {
+        Origin: "https://evil.example",
+      })
+    ).status,
+    403,
+  );
+  const pruned = await api("/api/admin/reports", "DELETE", { olderThanDays: 15 }, adminCookie);
+  assert.equal(pruned.status, 200, await pruned.clone().text());
+  assert.equal(typeof (await pruned.json()).deleted, "number");
+  assert.ok((await list()).reports.some((row: { word: string }) => row.word === word));
+});

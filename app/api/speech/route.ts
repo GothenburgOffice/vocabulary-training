@@ -1,3 +1,4 @@
+import { speechHeaders } from "../../../lib/ai-actions";
 import { speechText } from "../../../lib/ai-words";
 import { requireUser } from "../../../lib/server/auth";
 import { aiConfig } from "../../../lib/server/ai-config";
@@ -39,6 +40,8 @@ export async function POST(request: Request) {
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
         "X-Audio-Cache": result.cache,
+        // Which model and voice read it, for the learner's own activity log (#95).
+        ...speechHeaders(settings),
       },
     });
   } catch (error) {

@@ -2761,3 +2761,23 @@ main > .save-error {
     min-width: 0;
   }
 }
+/* Admin → Reports (#95): long requests and the cluster table scroll inside their card. */
+.report-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.report-card h2 {
+  overflow-wrap: anywhere;
+}
+.report-request pre {
+  max-height: 240px;
+  overflow: auto;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

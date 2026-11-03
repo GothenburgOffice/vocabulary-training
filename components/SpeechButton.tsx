@@ -1,8 +1,10 @@
 "use client";
 import { useContext, useEffect, useRef, useState } from "react";
 import { LoaderCircle, Square, Volume2 } from "lucide-react";
+import { newAiActionId, readSpeechMeta } from "../lib/ai-actions";
 import type { SpeechPart } from "../lib/ai-words";
 import { pronunciationText, SPEECH_TIMEOUT_MS } from "../lib/speech";
+import { useAiActionLog } from "./AiActionLog";
 import { AiFeaturesContext } from "./AiFeatures";
 
 // The clip playing now, anywhere on the page: a newly arriving clip stops it.
@@ -19,6 +21,7 @@ export default function SpeechButton(props: Props) {
 
 function SpeechControl({ wordId, part, text, language, label }: Props) {
   const ai = useContext(AiFeaturesContext);
+  const { record } = useAiActionLog();
   const [state, setState] = useState<"idle" | "loading" | "playing">("idle");
   const [error, setError] = useState("");
   const current = useRef<AbortController | undefined>(undefined);
@@ -91,6 +94,20 @@ function SpeechControl({ wordId, part, text, language, label }: Props) {
       }
       if (!response.headers.get("content-type")?.startsWith("audio/"))
         throw new Error("Audio unavailable. Try again.");
+      // Only a clip the provider was actually asked for is logged; a cached replay is not a call.
+      const meta = readSpeechMeta(response.headers);
+      if (meta && response.headers.get("X-Audio-Cache") === "miss")
+        record({
+          id: newAiActionId(),
+          kind: "speech",
+          at: new Date().toISOString(),
+          wordId,
+          word: spoken,
+          language,
+          model: meta.model,
+          voice: meta.voice,
+          prompt: { part },
+        });
       const blob = await response.blob();
       if (!blob.size || blob.size > 4_000_000) throw new Error("Audio unavailable. Try again.");
       if (controller.signal.aborted) return;

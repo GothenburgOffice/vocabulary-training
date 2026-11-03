@@ -60,6 +60,12 @@ export default async function PrivacyPage() {
             investigate misuse.
           </li>
           <li>
+            Reports of a wrong AI result, if you send one: the result (the word, its language, the
+            model and voice, and the request that was sent), the reason you chose, your account type
+            and the date. They are stored without your account, and with dates rather than times.
+            Administrators can delete reports older than 15 days.
+          </li>
+          <li>
             Sign-in sessions, stored only as hashes of their tokens. The time of your last
             successful sign-in is kept with your account so the administrator can manage accounts;
             it is deleted with your account. Sign-in attempt limits use hashed identifiers, never
@@ -80,6 +86,10 @@ export default async function PrivacyPage() {
           audio, it is only the word you clicked, or a word&apos;s accepted answers. Your email
           address and account are never sent. Audio is kept in the server&apos;s memory for up to an
           hour and never written to disk.
+        </p>
+        <p>
+          The page keeps your last 20 AI results in memory so you can report one; reloading or
+          signing out clears them. Reports are never sent to the AI provider.
         </p>
 
         <h2>The cookie and your browser</h2>
