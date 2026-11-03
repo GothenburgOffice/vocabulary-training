@@ -75,8 +75,9 @@ Saves are small and incremental:
 - `POST /api/runs` saves a completed session once; `PATCH /api/profile` saves
   the profile languages.
 - `GET /api/workspace` is the full dump, in the shape the client works with.
-- `GET /api/export` downloads the same data for people to keep (`lib/export.ts`): ISO
-  times, plus the account row and its AI usage records. There is no import for it.
+- `GET /api/export` downloads the same data for people to keep (`lib/export.ts`), from one
+  read-only snapshot: ISO times, plus the account row, the answer log (`review_events`)
+  and the AI usage records. There is no import for it.
 
 `AccountApp` sends Workspace's changes one at a time, in order. A failed change
 stays queued until an explicit retry.

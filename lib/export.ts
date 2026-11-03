@@ -1,4 +1,4 @@
-import type { History, List } from "./learning";
+import type { Direction, History, List } from "./learning";
 import type { WorkspaceData } from "./workspace";
 
 // The account's full data download (#10): everything the app stores for the account, in
@@ -13,10 +13,25 @@ export type ExportAccount = {
   accountType: string;
   lastSignInAt: Date | null;
 };
+// One checked answer from the answer log (review_events).
+export type ExportReviewEvent = {
+  wordId: string;
+  direction: Direction;
+  correct: boolean;
+  at: Date;
+};
 // One AI request that reached the provider: what kind, how many letters, when (no text).
 export type ExportAiUsage = { kind: string; letters: number; at: Date };
+// What loadExport reads, from one database snapshot.
+export type ExportSource = {
+  account: ExportAccount;
+  data: WorkspaceData;
+  reviewEvents: ExportReviewEvent[];
+  aiUsage: ExportAiUsage[];
+};
 
-const iso = (ms: number | undefined) => (ms ? new Date(ms).toISOString() : null);
+// 0 is a real time (the epoch); only a missing time is null.
+const iso = (ms: number | undefined) => (ms === undefined ? null : new Date(ms).toISOString());
 
 // Review state for one direction. A word never practised that way has nothing scheduled.
 function review(h: History) {
@@ -28,7 +43,7 @@ function review(h: History) {
   };
 }
 
-function exportList(list: List) {
+function exportList(list: List, answerLog: Map<string, ExportReviewEvent[]>) {
   return {
     id: list.id,
     title: list.title,
@@ -40,16 +55,19 @@ function exportList(list: List) {
       prompt: w.front,
       answers: [w.back, ...(w.accepted ?? [])],
       review: { forward: review(w.forward), reverse: review(w.reverse) },
+      // Every checked answer for the word, oldest first.
+      answerLog: (answerLog.get(w.id) ?? []).map((e) => ({
+        direction: e.direction,
+        correct: e.correct,
+        at: e.at.toISOString(),
+      })),
     })),
   };
 }
 
-export function exportDocument(
-  account: ExportAccount,
-  data: WorkspaceData,
-  aiUsage: ExportAiUsage[],
-  now: Date,
-) {
+export function exportDocument({ account, data, reviewEvents, aiUsage }: ExportSource, now: Date) {
+  const answerLog = new Map<string, ExportReviewEvent[]>();
+  for (const e of reviewEvents) answerLog.set(e.wordId, [...(answerLog.get(e.wordId) ?? []), e]);
   return {
     format: EXPORT_FORMAT,
     version: EXPORT_VERSION,
@@ -61,7 +79,7 @@ export function exportDocument(
       lastSignInAt: account.lastSignInAt?.toISOString() ?? null,
     },
     profile: { baseLanguage: data.baseLanguage, learningLanguage: data.learningLanguage },
-    lists: data.lists.map(exportList),
+    lists: data.lists.map((list) => exportList(list, answerLog)),
     sessions: data.runs.map((run) => ({
       id: run.id ?? null,
       listId: run.listId ?? null,
@@ -70,9 +88,10 @@ export function exportDocument(
       baseLanguage: run.from,
       learningLanguage: run.to,
       completedAt: iso(run.completedAt),
+      // A reverse answer was asked with the learning-language side and expected the native one.
       results: run.results.map((r) => ({
-        prompt: r.word.front,
-        expected: r.word.back,
+        prompt: r.direction === "reverse" ? r.word.back : r.word.front,
+        expected: r.direction === "reverse" ? r.word.front : r.word.back,
         answer: r.answer,
         correct: r.correct,
         direction: r.direction,

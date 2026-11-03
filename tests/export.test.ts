@@ -51,6 +51,14 @@ const data: WorkspaceData = {
           direction: "forward",
           answeredAt: due,
         },
+        // Asked in reverse: the learning-language side was the prompt.
+        {
+          word: { id: "word-1", front: "äpple", back: "pomme" },
+          answer: "äple",
+          correct: false,
+          direction: "reverse",
+          answeredAt: 0,
+        },
       ],
     },
     { title: "Old session", from: "Swedish", to: "French", results: [] },
@@ -59,9 +67,31 @@ const data: WorkspaceData = {
 
 test("the data export holds the account, lists with review history, sessions and AI usage", () => {
   const doc = exportDocument(
-    account,
-    data,
-    [{ kind: "speech", letters: 5, at: new Date("2026-11-02T10:00:00Z") }],
+    {
+      account,
+      data,
+      reviewEvents: [
+        {
+          wordId: "word-1",
+          direction: "forward",
+          correct: false,
+          at: new Date("2026-11-01T09:00:00Z"),
+        },
+        {
+          wordId: "word-1",
+          direction: "forward",
+          correct: true,
+          at: new Date("2026-11-02T09:00:00Z"),
+        },
+        {
+          wordId: "gone",
+          direction: "forward",
+          correct: true,
+          at: new Date("2026-11-02T09:00:00Z"),
+        },
+      ],
+      aiUsage: [{ kind: "speech", letters: 5, at: new Date("2026-11-02T10:00:00Z") }],
+    },
     now,
   );
   assert.equal(doc.format, EXPORT_FORMAT);
@@ -83,6 +113,11 @@ test("the data export holds the account, lists with review history, sessions and
       // Never practised this way: nothing is scheduled.
       reverse: { correct: 0, wrong: 0, streak: 0, due: null },
     },
+    // The answer log: every checked answer, oldest first.
+    answerLog: [
+      { direction: "forward", correct: false, at: "2026-11-01T09:00:00.000Z" },
+      { direction: "forward", correct: true, at: "2026-11-02T09:00:00.000Z" },
+    ],
   });
   assert.equal(doc.lists[0].baseLanguage, "Swedish");
   assert.equal(doc.lists[0].learningLanguage, "French");
@@ -93,6 +128,15 @@ test("the data export holds the account, lists with review history, sessions and
     correct: false,
     direction: "forward",
     answeredAt: "2026-11-04T00:00:00.000Z",
+  });
+  // A reverse answer swaps prompt and expected; the epoch is a time, not a missing one.
+  assert.deepEqual(doc.sessions[0].results[1], {
+    prompt: "pomme",
+    expected: "äpple",
+    answer: "äple",
+    correct: false,
+    direction: "reverse",
+    answeredAt: "1970-01-01T00:00:00.000Z",
   });
   // Missing fields are null, never dropped, so every session has the same keys.
   assert.deepEqual(doc.sessions[1], {

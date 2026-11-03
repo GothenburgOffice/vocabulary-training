@@ -1,6 +1,6 @@
 import { requireUser } from "../../../lib/server/auth";
-import { HttpError, fail } from "../../../lib/server/http";
-import { loadAccountRecords, loadWorkspace } from "../../../lib/server/workspace-store";
+import { fail } from "../../../lib/server/http";
+import { loadExport } from "../../../lib/server/workspace-store";
 import { exportDocument, exportFileName } from "../../../lib/export";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,15 +10,8 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const user = await requireUser();
-    const { data } = await loadWorkspace(user.id);
-    const records = await loadAccountRecords(user.id);
-    if (!records) throw new HttpError(404, "Account not found.");
     const now = new Date();
-    const body = JSON.stringify(
-      exportDocument(records.account, data, records.aiUsage, now),
-      null,
-      2,
-    );
+    const body = JSON.stringify(exportDocument(await loadExport(user.id), now), null, 2);
     return new Response(body, {
       headers: {
         "Content-Type": "application/json; charset=utf-8",

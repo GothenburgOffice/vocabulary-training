@@ -964,6 +964,11 @@ test("real HTTP: the data export downloads only this account's data, as JSON", a
   const word = doc.lists[0].words[0];
   assert.deepEqual(word.answers, ["chat", "minou"]);
   assert.equal(word.review.forward.correct, 1);
+  assert.equal(word.answerLog.length, 1);
+  assert.deepEqual(
+    { direction: word.answerLog[0].direction, correct: word.answerLog[0].correct },
+    { direction: "forward", correct: true },
+  );
   assert.ok(Date.parse(word.review.forward.due) > Date.now());
   assert.equal(word.review.reverse.due, null);
   assert.equal(doc.sessions.length, 1);

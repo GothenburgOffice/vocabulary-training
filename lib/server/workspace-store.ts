@@ -11,7 +11,7 @@ import {
 } from "../learning";
 import type { listSaveSchema, profileSchema, reviewSchema, runSaveSchema } from "../validation";
 import type { AiWord } from "../ai-words";
-import type { ExportAccount, ExportAiUsage } from "../export";
+import type { ExportSource } from "../export";
 import type { Run, WorkspaceData } from "../workspace";
 import { db } from "./db";
 import { HttpError } from "./http";
@@ -40,107 +40,111 @@ const ms = (column: string) => `(extract(epoch FROM ${column})*1000)::float8`;
 // The full user data dump, in the shape the client works with. One read-only snapshot, so
 // lists, words, reviews and runs are consistent with each other.
 export function loadWorkspace(userId: string) {
-  return transaction(async (c) => {
-    const profile = await c.query(
-      "SELECT native_language, learning_language FROM users WHERE id=$1",
-      [userId],
-    );
-    if (!profile.rowCount) throw new HttpError(404, "Account not found.");
-    const lists = await c.query(
-      `SELECT id, native_language, learning_language, title, description, revision
+  return transaction(
+    (c) => readWorkspace(c, userId),
+    "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY",
+  );
+}
+async function readWorkspace(c: pg.PoolClient, userId: string) {
+  const profile = await c.query(
+    "SELECT native_language, learning_language FROM users WHERE id=$1",
+    [userId],
+  );
+  if (!profile.rowCount) throw new HttpError(404, "Account not found.");
+  const lists = await c.query(
+    `SELECT id, native_language, learning_language, title, description, revision
        FROM lists WHERE user_id=$1 ORDER BY created_at, id`,
-      [userId],
-    );
-    const words = await c.query(
-      "SELECT id, list_id, native_text FROM words WHERE user_id=$1 ORDER BY position",
-      [userId],
-    );
-    const answers = await c.query(
-      `SELECT word_id, learning_text FROM accepted_answers WHERE user_id=$1
+    [userId],
+  );
+  const words = await c.query(
+    "SELECT id, list_id, native_text FROM words WHERE user_id=$1 ORDER BY position",
+    [userId],
+  );
+  const answers = await c.query(
+    `SELECT word_id, learning_text FROM accepted_answers WHERE user_id=$1
        ORDER BY word_id, position`,
-      [userId],
-    );
-    const reviews = await c.query(
-      `SELECT word_id, prompt, correct, wrong, streak, ${ms("due_at")} AS due
+    [userId],
+  );
+  const reviews = await c.query(
+    `SELECT word_id, prompt, correct, wrong, streak, ${ms("due_at")} AS due
        FROM word_reviews WHERE user_id=$1`,
-      [userId],
-    );
-    const runs = await c.query(
-      `SELECT id, list_id, title, mode, native_language, learning_language,
+    [userId],
+  );
+  const runs = await c.query(
+    `SELECT id, list_id, title, mode, native_language, learning_language,
          ${ms("completed_at")} AS completed_at
        FROM runs WHERE user_id=$1 ORDER BY completed_at DESC, id LIMIT $2`,
-      [userId, MAX_RUNS],
-    );
-    const results = await c.query(
-      `SELECT run_id, word_id, native_text, learning_text, answer, correct, prompt,
+    [userId, MAX_RUNS],
+  );
+  const results = await c.query(
+    `SELECT run_id, word_id, native_text, learning_text, answer, correct, prompt,
          ${ms("answered_at")} AS answered_at
        FROM run_results WHERE run_id = ANY($1::uuid[]) ORDER BY run_id, position`,
-      [runs.rows.map((r) => r.id)],
-    );
+    [runs.rows.map((r) => r.id)],
+  );
 
-    const history = new Map<string, History>();
-    for (const r of reviews.rows)
-      history.set(`${r.word_id}:${r.prompt}`, {
-        correct: r.correct,
-        wrong: r.wrong,
-        streak: r.streak,
-        due: Math.round(r.due),
-      });
-    const wordAnswers = new Map<string, string[]>();
-    for (const a of answers.rows)
-      wordAnswers.set(a.word_id, [...(wordAnswers.get(a.word_id) ?? []), a.learning_text]);
-    const listWords = new Map<string, List["words"]>();
-    for (const w of words.rows) {
-      const entry = listWords.get(w.list_id) ?? [];
-      const [back = "", ...accepted] = wordAnswers.get(w.id) ?? [];
-      entry.push({
-        id: w.id,
-        front: w.native_text,
-        back,
-        ...(accepted.length ? { accepted } : {}),
-        forward: history.get(`${w.id}:native`) ?? freshHistory(),
-        reverse: history.get(`${w.id}:learning`) ?? freshHistory(),
-      });
-      listWords.set(w.list_id, entry);
-    }
-    const runResults = new Map<string, Run["results"]>();
-    for (const r of results.rows) {
-      const entry = runResults.get(r.run_id) ?? [];
-      entry.push({
-        // A deleted word keeps its text here; its id then matches nothing.
-        word: { id: r.word_id ?? "", front: r.native_text, back: r.learning_text },
-        answer: r.answer,
-        correct: r.correct,
-        direction: directionOf(r.prompt),
-        answeredAt: Math.round(r.answered_at),
-      });
-      runResults.set(r.run_id, entry);
-    }
-    const data: WorkspaceData = {
-      baseLanguage: profile.rows[0].native_language,
-      learningLanguage: profile.rows[0].learning_language,
-      lists: lists.rows.map((l) => ({
-        id: l.id,
-        title: l.title,
-        description: l.description,
-        from: l.native_language,
-        to: l.learning_language,
-        words: listWords.get(l.id) ?? [],
-      })),
-      runs: runs.rows.map((r) => ({
-        id: r.id,
-        listId: r.list_id ?? undefined,
-        mode: r.mode,
-        completedAt: Math.round(r.completed_at),
-        title: r.title,
-        from: r.native_language,
-        to: r.learning_language,
-        results: runResults.get(r.id) ?? [],
-      })),
-    };
-    const listRevisions = Object.fromEntries(lists.rows.map((l) => [l.id, l.revision]));
-    return { data, listRevisions };
-  }, "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+  const history = new Map<string, History>();
+  for (const r of reviews.rows)
+    history.set(`${r.word_id}:${r.prompt}`, {
+      correct: r.correct,
+      wrong: r.wrong,
+      streak: r.streak,
+      due: Math.round(r.due),
+    });
+  const wordAnswers = new Map<string, string[]>();
+  for (const a of answers.rows)
+    wordAnswers.set(a.word_id, [...(wordAnswers.get(a.word_id) ?? []), a.learning_text]);
+  const listWords = new Map<string, List["words"]>();
+  for (const w of words.rows) {
+    const entry = listWords.get(w.list_id) ?? [];
+    const [back = "", ...accepted] = wordAnswers.get(w.id) ?? [];
+    entry.push({
+      id: w.id,
+      front: w.native_text,
+      back,
+      ...(accepted.length ? { accepted } : {}),
+      forward: history.get(`${w.id}:native`) ?? freshHistory(),
+      reverse: history.get(`${w.id}:learning`) ?? freshHistory(),
+    });
+    listWords.set(w.list_id, entry);
+  }
+  const runResults = new Map<string, Run["results"]>();
+  for (const r of results.rows) {
+    const entry = runResults.get(r.run_id) ?? [];
+    entry.push({
+      // A deleted word keeps its text here; its id then matches nothing.
+      word: { id: r.word_id ?? "", front: r.native_text, back: r.learning_text },
+      answer: r.answer,
+      correct: r.correct,
+      direction: directionOf(r.prompt),
+      answeredAt: Math.round(r.answered_at),
+    });
+    runResults.set(r.run_id, entry);
+  }
+  const data: WorkspaceData = {
+    baseLanguage: profile.rows[0].native_language,
+    learningLanguage: profile.rows[0].learning_language,
+    lists: lists.rows.map((l) => ({
+      id: l.id,
+      title: l.title,
+      description: l.description,
+      from: l.native_language,
+      to: l.learning_language,
+      words: listWords.get(l.id) ?? [],
+    })),
+    runs: runs.rows.map((r) => ({
+      id: r.id,
+      listId: r.list_id ?? undefined,
+      mode: r.mode,
+      completedAt: Math.round(r.completed_at),
+      title: r.title,
+      from: r.native_language,
+      to: r.learning_language,
+      results: runResults.get(r.id) ?? [],
+    })),
+  };
+  const listRevisions = Object.fromEntries(lists.rows.map((l) => [l.id, l.revision]));
+  return { data, listRevisions };
 }
 
 // Deletes a list with its words, answers and review history. Completed sessions keep their
@@ -388,28 +392,42 @@ export async function readWordForAi(userId: string, wordId: string): Promise<AiW
     : null;
 }
 
-// What the data export (#10) adds to loadWorkspace: the account row and its AI usage records
-// (kind, letters and time; never text). Null if the account is gone.
-export async function loadAccountRecords(
-  userId: string,
-): Promise<{ account: ExportAccount; aiUsage: ExportAiUsage[] } | null> {
-  const account = await db.query(
-    "SELECT email, created_at, ai_tier, last_sign_in_at FROM users WHERE id=$1",
-    [userId],
-  );
-  if (!account.rowCount) return null;
-  const usage = await db.query(
-    "SELECT kind, letters, at FROM ai_usage WHERE user_id=$1 ORDER BY at, kind",
-    [userId],
-  );
-  const row = account.rows[0];
-  return {
-    account: {
-      email: row.email,
-      createdAt: row.created_at,
-      accountType: row.ai_tier,
-      lastSignInAt: row.last_sign_in_at,
-    },
-    aiUsage: usage.rows.map((u) => ({ kind: u.kind, letters: u.letters, at: u.at })),
-  };
+// Everything the data export (#10) needs, from one read-only snapshot: the workspace, the
+// account row, its answer log (review_events) and its AI usage records (kind, letters and
+// time; never text).
+export function loadExport(userId: string) {
+  return transaction(async (c) => {
+    const { data } = await readWorkspace(c, userId);
+    const account = await c.query(
+      "SELECT email, created_at, ai_tier, last_sign_in_at FROM users WHERE id=$1",
+      [userId],
+    );
+    const events = await c.query(
+      `SELECT word_id, prompt, correct, reviewed_at FROM review_events WHERE user_id=$1
+       ORDER BY reviewed_at, id`,
+      [userId],
+    );
+    const usage = await c.query(
+      "SELECT kind, letters, at FROM ai_usage WHERE user_id=$1 ORDER BY at, kind",
+      [userId],
+    );
+    const row = account.rows[0];
+    const exported: ExportSource = {
+      data,
+      account: {
+        email: row.email,
+        createdAt: row.created_at,
+        accountType: row.ai_tier,
+        lastSignInAt: row.last_sign_in_at,
+      },
+      reviewEvents: events.rows.map((e) => ({
+        wordId: e.word_id,
+        direction: directionOf(e.prompt),
+        correct: e.correct,
+        at: e.reviewed_at,
+      })),
+      aiUsage: usage.rows.map((u) => ({ kind: u.kind, letters: u.letters, at: u.at })),
+    };
+    return exported;
+  }, "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
 }
