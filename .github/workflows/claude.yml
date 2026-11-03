@@ -15,7 +15,9 @@ on:
 permissions:
   contents: read
 # No concurrency group: GitHub keeps only one pending run per group, so a third mention would
-# cancel the second. Each run works on its own timestamped branch.
+# cancel the second. A run for an issue gets its own timestamped branch, but runs for an open
+# PR all work on the PR's branch, so wait for one to finish before mentioning @claude again
+# on the same PR.
 jobs:
   claude:
     # The repo is public: the action refuses anyone whose event it is without write access
