@@ -130,5 +130,6 @@ the app runs as one. Admin → Overview shows site-wide usage totals.
 While an AI feature is on, the sidebar credits Requesty with a referral link
 (`https://app.requesty.ai/join?ref=b1f2b1e1`), marked "Referral link"; its
 accessible name and tooltip add "signups may earn us AI credits". It opens in a new tab with
-`rel="sponsored noopener noreferrer"`. The logo (`public/requesty-logo.png`) is
+`rel="sponsored noopener noreferrer"`. The logo (inline in `components/RequestyAttribution.tsx`:
+Requesty's vector icon and the name in the system font, as on requesty.ai) is
 adapted from requesty.ai and remains Requesty's property.
