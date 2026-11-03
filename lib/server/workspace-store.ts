@@ -11,6 +11,7 @@ import {
 } from "../learning";
 import type { listSaveSchema, profileSchema, reviewSchema, runSaveSchema } from "../validation";
 import type { AiWord } from "../ai-words";
+import type { ExportAccount, ExportAiUsage } from "../export";
 import type { Run, WorkspaceData } from "../workspace";
 import { db } from "./db";
 import { HttpError } from "./http";
@@ -385,4 +386,30 @@ export async function readWordForAi(userId: string, wordId: string): Promise<AiW
         answers: row.answers,
       }
     : null;
+}
+
+// What the data export (#10) adds to loadWorkspace: the account row and its AI usage records
+// (kind, letters and time; never text). Null if the account is gone.
+export async function loadAccountRecords(
+  userId: string,
+): Promise<{ account: ExportAccount; aiUsage: ExportAiUsage[] } | null> {
+  const account = await db.query(
+    "SELECT email, created_at, ai_tier, last_sign_in_at FROM users WHERE id=$1",
+    [userId],
+  );
+  if (!account.rowCount) return null;
+  const usage = await db.query(
+    "SELECT kind, letters, at FROM ai_usage WHERE user_id=$1 ORDER BY at, kind",
+    [userId],
+  );
+  const row = account.rows[0];
+  return {
+    account: {
+      email: row.email,
+      createdAt: row.created_at,
+      accountType: row.ai_tier,
+      lastSignInAt: row.last_sign_in_at,
+    },
+    aiUsage: usage.rows.map((u) => ({ kind: u.kind, letters: u.letters, at: u.at })),
+  };
 }

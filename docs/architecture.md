@@ -75,13 +75,15 @@ Saves are small and incremental:
 - `POST /api/runs` saves a completed session once; `PATCH /api/profile` saves
   the profile languages.
 - `GET /api/workspace` is the full dump, in the shape the client works with.
+- `GET /api/export` downloads the same data for people to keep (`lib/export.ts`): ISO
+  times, plus the account row and its AI usage records. There is no import for it.
 
 `AccountApp` sends Workspace's changes one at a time, in order. A failed change
 stays queued until an explicit retry.
 
 Limits: 100 lists, 1,000 words per list, 200 sessions, 200 characters per word
-and 500 per answer. CSV export contains word pairs only. Use database backups
-for full recovery.
+and 500 per answer. CSV export contains word pairs only, and the JSON data export has no
+import. Use database backups for full recovery.
 
 The database image includes pgvector (`CREATE EXTENSION vector` in migration
 005), ready for the similarity search planned in #56.
