@@ -6,7 +6,7 @@ import { BookMark } from "../../lib/brand";
 import { adminPage } from "../../lib/server/auth";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Admin · vocabulary.training", robots: "noindex" };
+export const metadata: Metadata = { title: "Admin", robots: { index: false, follow: false } };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin = await adminPage();

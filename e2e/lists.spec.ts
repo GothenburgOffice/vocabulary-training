@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
 import {
   test,
@@ -15,6 +16,125 @@ import {
 
 // Next.js adds its own (empty) alert for route announcements.
 const errorIn = (page: Page) => page.getByRole("main").getByRole("alert");
+
+test("view all words expands the preview in place, and both edit controls open the list", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const pairs: [string, string][] = Array.from({ length: 7 }, (_, i) => [
+    `ord ${i + 1}`,
+    `mot ${i + 1}`,
+  ]);
+  await createList(page, "Complete", pairs);
+  const rows = page.locator(".word-preview .word-row");
+  // The bottom control reads "Edit list" too, but has its own accessible name.
+  const topEdit = page.getByRole("button", { name: "Edit list", exact: true });
+  const bottomEdit = page.getByRole("button", { name: "Edit this word list", exact: true });
+  await expect(rows).toHaveCount(5);
+  await expect(topEdit).toHaveCount(1);
+  await expect(bottomEdit).toHaveCount(0);
+  const disclosure = page.getByRole("button", { expanded: false, name: "View all 7 words" });
+  const controlledId = await disclosure.getAttribute("aria-controls");
+  expect(controlledId).toBeTruthy();
+  await expect(page.locator(`[id="${controlledId}"] .word-row`)).toHaveCount(5);
+  await disclosure.focus();
+  await page.keyboard.press("Enter");
+  const collapse = page.getByRole("button", { expanded: true, name: "Show fewer" });
+  await expect(collapse).toBeFocused();
+  await expect(rows).toHaveText(pairs.map(([front, back]) => new RegExp(`${front}\\s*${back}`)));
+  await expect(topEdit).toHaveCount(1);
+  await expect(bottomEdit).toHaveText("Edit list");
+  await expect(page.getByLabel("List name")).toHaveCount(0);
+  await page.keyboard.press("Space");
+  await expect(disclosure).toBeFocused();
+  await expect(rows).toHaveCount(5);
+  await expect(bottomEdit).toHaveCount(0);
+  await page.keyboard.press("Enter");
+
+  await bottomEdit.click();
+  await expect(page.getByLabel("List name")).toHaveValue("Complete");
+  await expect(page.getByLabel("First language word 7")).toHaveValue("ord 7");
+  // A word added while the preview is expanded shows up in it.
+  await page.getByRole("button", { name: "Add a word pair" }).click();
+  await page.getByLabel("First language word 8").fill("ord 8");
+  await page.getByLabel("Translation 8").fill("mot 8");
+  await done(page);
+  await saved(page);
+  await expect(rows).toHaveCount(8);
+  await expect(rows.last()).toHaveText(/ord 8\s*mot 8/);
+  await expect(collapse).toBeVisible();
+  await topEdit.click();
+  await expect(page.getByLabel("List name")).toHaveValue("Complete");
+  await done(page);
+
+  await createList(page, "Other", pairs.slice(0, 6));
+  await expect(rows).toHaveCount(5);
+  await page.getByRole("button", { name: "View all 6 words" }).click();
+  await expect(rows).toHaveCount(6);
+  await page.getByRole("button", { name: /^Complete 8 words/ }).click();
+  await expect(rows).toHaveCount(8);
+  await page.getByLabel("Session size").selectOption("5");
+  await page.getByRole("button", { name: "Start practice" }).click();
+  for (let i = 0; i < 5; i++) {
+    await page.getByRole("button", { name: "I don’t know yet", exact: true }).click();
+    await page.keyboard.press("Enter");
+  }
+  await page.getByRole("button", { name: "Back to lists" }).click();
+  await expect(rows).toHaveCount(8);
+  await expect(collapse).toBeVisible();
+
+  await createList(page, "Short", pairs.slice(0, 5));
+  await expect(rows).toHaveCount(5);
+  await expect(page.getByRole("button", { name: /View all .* words/ })).toHaveCount(0);
+  await expect(bottomEdit).toHaveCount(0);
+  await topEdit.click();
+  await expect(page.getByLabel("List name")).toHaveValue("Short");
+});
+
+test("large previews reveal words in steps and fit a 320px screen", async ({ page, baseURL }) => {
+  const words = Array.from({ length: 1000 }, (_, i) => ({
+    id: randomUUID(),
+    front: `ord ${i + 1}`,
+    back: `mot ${i + 1}`,
+  }));
+  const response = await page.request.put(`/api/lists/${randomUUID()}`, {
+    headers: { Origin: new URL(baseURL!).origin },
+    data: {
+      revision: null,
+      list: { title: "Large", description: "", from: "Swedish", to: "French", words },
+    },
+  });
+  expect(response.status(), await response.text()).toBe(200);
+  await page.setViewportSize({ width: 320, height: 812 });
+  await page.goto("/");
+  const rows = page.locator(".word-preview .word-row");
+  await expect(rows).toHaveCount(5);
+  await page.getByRole("button", { name: "View first 100 of 1000 words" }).click();
+  await expect(rows).toHaveCount(100);
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+  ).toBeLessThanOrEqual(0);
+  for (let count = 200; count <= 1000; count += 100) {
+    const more = page.getByRole("button", { name: "Show 100 more words" });
+    await more.focus();
+    await page.keyboard.press("Enter");
+    await expect(rows).toHaveCount(count);
+    await expect(
+      page.getByRole("button", {
+        name: count === 1000 ? "All 1000 words shown" : "Show 100 more words",
+      }),
+    ).toBeFocused();
+  }
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+  ).toBeLessThanOrEqual(0);
+  const bottomEdit = page.getByRole("button", { name: "Edit this word list", exact: true });
+  await expect(page.getByRole("button", { name: "Edit list", exact: true })).toHaveCount(1);
+  await expect(bottomEdit).toBeVisible();
+  await page.getByRole("button", { name: "Show fewer" }).click();
+  await expect(rows).toHaveCount(5);
+  await expect(bottomEdit).toHaveCount(0);
+});
 
 test("a new list starts with its name, then saves pairs as they're typed", async ({ page }) => {
   await page.goto("/");
