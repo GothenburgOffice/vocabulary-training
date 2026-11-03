@@ -1,0 +1,49 @@
+name: Claude
+# Mention @claude in an issue, a PR comment or a review and Claude Code answers in the thread,
+# and can push a branch for a change. It reads CLAUDE.md, so the project rules apply.
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened, assigned]
+permissions:
+  contents: read
+concurrency:
+  # One run per issue or PR at a time; a new mention waits rather than cancelling.
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  claude:
+    # The repo is public: the action refuses anyone without write access before calling Claude.
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' &&
+        (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      # The action exchanges the workflow's OIDC token for a Claude GitHub App token.
+      id-token: write
+      # Lets Claude read CI results on a PR.
+      actions: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+      - uses: anthropics/claude-code-action@v1.0.266
+        with:
+          # Set one of the two secrets: a subscription token from `claude setup-token`,
+          # or an API key.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          additional_permissions: |
+            actions: read
