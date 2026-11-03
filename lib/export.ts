@@ -78,7 +78,11 @@ export function exportDocument({ account, data, reviewEvents, aiUsage }: ExportS
       accountType: account.accountType,
       lastSignInAt: account.lastSignInAt?.toISOString() ?? null,
     },
-    profile: { baseLanguage: data.baseLanguage, learningLanguage: data.learningLanguage },
+    profile: {
+      baseLanguage: data.baseLanguage,
+      learningLanguage: data.learningLanguage,
+      theme: data.theme,
+    },
     lists: data.lists.map((list) => exportList(list, answerLog)),
     sessions: data.runs.map((run) => ({
       id: run.id ?? null,

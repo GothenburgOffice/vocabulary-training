@@ -15,6 +15,7 @@ const due = Date.parse("2026-11-04T00:00:00Z");
 const data: WorkspaceData = {
   baseLanguage: "Swedish",
   learningLanguage: "French",
+  theme: "dark",
   lists: [
     {
       id: "list-1",
@@ -103,7 +104,11 @@ test("the data export holds the account, lists with review history, sessions and
     accountType: "basic",
     lastSignInAt: null,
   });
-  assert.deepEqual(doc.profile, { baseLanguage: "Swedish", learningLanguage: "French" });
+  assert.deepEqual(doc.profile, {
+    baseLanguage: "Swedish",
+    learningLanguage: "French",
+    theme: "dark",
+  });
   assert.deepEqual(doc.lists[0].words[0], {
     id: "word-1",
     prompt: "äpple",

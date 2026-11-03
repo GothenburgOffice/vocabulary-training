@@ -3,6 +3,7 @@ import { connection } from "next/server";
 // Served from this site, not Google Fonts, so no visitor data goes to a third party.
 import "@fontsource-variable/instrument-sans";
 import "./style.css";
+import { sessionTheme } from "../lib/server/auth";
 import { BRAND_BLUE } from "../lib/brand";
 import { SITE_DESCRIPTION, SITE_NAME, openGraph, siteOrigin } from "../lib/site";
 
@@ -22,9 +23,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  // The account's Appearance setting, applied before the first paint (no flash of the wrong
+  // scheme, and nothing kept in the browser).
+  const theme = await sessionTheme();
   return (
-    <html lang="en">
+    <html lang="en" data-theme={theme}>
       <body>{children}</body>
     </html>
   );

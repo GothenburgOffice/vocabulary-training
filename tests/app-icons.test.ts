@@ -44,7 +44,7 @@ test("favicon SVG is the small mark on a brand-blue tile", () => {
 
 test("brand colour matches the --blue CSS token", () => {
   const css = read("app/style.css").toString();
-  assert.match(css, new RegExp(`--blue:\\s*${BRAND_BLUE}`, "i"));
+  assert.match(css, new RegExp(`--blue:\\s*(light-dark\\()?${BRAND_BLUE}`, "i"));
 });
 
 test("favicon.ico is a real ICO with 16, 32 and 48 px PNG frames", () => {

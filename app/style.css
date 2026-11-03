@@ -70,17 +70,42 @@
   --text-base: 1rem;
   --text-lg: 1.125rem;
   --text-xl: clamp(1.4rem, 1.2rem + 0.6vw, 1.75rem);
-  --bg: #f6f7f9;
-  --surface: #fff;
-  --soft: #f0f2f5;
-  --text: #202e40;
-  --muted: #5e6979;
-  --border: #e0e4e9;
-  --blue: #1765bf;
-  --blue-hover: #10529d;
-  --blue-light: #e9f0fa;
-  --green: #236749;
-  --red: #a03937;
+  /* Colours: light-dark(light, dark), resolved by color-scheme (set from data-theme on
+     <html>, the account's Appearance setting; "system" follows the device). Every text
+     pair passes WCAG AA in both schemes. */
+  --bg: light-dark(#f6f7f9, #11161d);
+  --surface: light-dark(#fff, #19202a);
+  --soft: light-dark(#f0f2f5, #1f2731);
+  --panel: light-dark(#eceff3, #1d252f);
+  --text: light-dark(#202e40, #e6eaf0);
+  --muted: light-dark(#5e6979, #9aa6b5);
+  --placeholder: light-dark(#637083, #8794a5);
+  --border: light-dark(#e0e4e9, #2b3542);
+  --row-border: light-dark(#eef0f3, #232c37);
+  --field-border: light-dark(#ccd3dc, #3a4655);
+  --field-border-hover: light-dark(#b3bdca, #556274);
+  --fill: light-dark(#e8ebef, #27303c);
+  --fill-hover: light-dark(#eceef2, #222a35);
+  --button: light-dark(#e9ecf0, #27303c);
+  --button-hover: light-dark(#e0e4e9, #313b48);
+  --track: light-dark(#e0e5ed, #2b3542);
+  --blue: light-dark(#1765bf, #5a9cec);
+  --blue-hover: light-dark(#10529d, #7fb3f2);
+  --blue-light: light-dark(#e9f0fa, #1a2d45);
+  --selected: light-dark(#f0f4f9, #1a2636);
+  --selected-border: light-dark(#dbe5f3, #2d4563);
+  --selection: light-dark(#cfe0f5, #2b4a70);
+  --info-bg: light-dark(#eaf0f7, #19273a);
+  --on-accent: light-dark(#fff, #0b1523);
+  --green: light-dark(#236749, #5fc395);
+  --success-bg: light-dark(#edf5ef, #15281f);
+  --red: light-dark(#a03937, #f08a84);
+  --red-hover: light-dark(#86302e, #f5aaa5);
+  --danger-bg: light-dark(#fbefef, #2d1b1c);
+  --danger-text: light-dark(#913b2b, #f4a29d);
+  --highlight-bg: light-dark(#fff8e6, #2f2712);
+  --shadow: light-dark(#14263b22, #00000080);
+  --backdrop: light-dark(#17263c55, #000000a6);
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -98,8 +123,14 @@
   margin: 0;
   padding: 0;
 }
-html {
+:root[data-theme="light"] {
   color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+html {
+  color-scheme: light dark;
   -webkit-font-smoothing: antialiased;
 }
 body {
@@ -179,7 +210,7 @@ small {
 input,
 select,
 textarea {
-  border: 1px solid #ccd3dc;
+  border: 1px solid var(--field-border);
   border-radius: var(--radius-sm);
   background: var(--surface);
   padding: 10px 12px;
@@ -198,7 +229,7 @@ select {
 }
 input::placeholder,
 textarea::placeholder {
-  color: #637083;
+  color: var(--placeholder);
 }
 .app-shell {
   display: flex;
@@ -257,7 +288,7 @@ textarea::placeholder {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #e8ebef;
+  background: var(--fill);
 }
 .brand {
   font-size: 23px;
@@ -310,14 +341,14 @@ nav button,
   border-radius: 6px;
 }
 nav button.active {
-  background: #e8ebef;
+  background: var(--fill);
   color: var(--text);
   font-weight: 500;
 }
 nav button:hover,
 .side-bottom button:hover,
 .side-bottom a:hover {
-  background: #eceef2;
+  background: var(--fill-hover);
   color: var(--text);
 }
 .nav-count {
@@ -364,18 +395,18 @@ main {
   gap: 9px;
   min-height: 44px;
   padding: 10px 16px;
-  background: #e9ecf0;
+  background: var(--button);
   border-radius: 6px;
   white-space: nowrap;
   font-size: var(--text-sm);
   font-weight: 500;
 }
 .button:hover {
-  background: #e0e4e9;
+  background: var(--button-hover);
 }
 .button.primary {
   background: var(--blue);
-  color: #fff;
+  color: var(--on-accent);
 }
 .button.primary:hover {
   background: var(--blue-hover);
@@ -385,10 +416,10 @@ main {
 }
 .button.danger {
   background: var(--red);
-  color: #fff;
+  color: var(--on-accent);
 }
 .button.danger:hover {
-  background: #86302e;
+  background: var(--red-hover);
 }
 .summary-grid {
   display: grid;
@@ -397,7 +428,7 @@ main {
   margin-bottom: 32px;
 }
 .summary-grid > div {
-  background: #eceff3;
+  background: var(--panel);
   padding: 18px 20px;
   border-radius: 8px;
 }
@@ -510,8 +541,8 @@ main {
   background: var(--bg);
 }
 .list-row.selected {
-  background: #f0f4f9;
-  border-color: #dbe5f3;
+  background: var(--selected);
+  border-color: var(--selected-border);
 }
 .list-name {
   display: flex;
@@ -539,7 +570,7 @@ main {
   color: var(--muted);
 }
 .mini-progress > div {
-  background: #e0e5ed;
+  background: var(--track);
   height: 4px;
   margin-top: 8px;
   border-radius: 2px;
@@ -569,7 +600,7 @@ main {
 .practice-panel {
   grid-column: span 4;
   padding: 22px;
-  background: #eceff3;
+  background: var(--panel);
   border-radius: 10px;
 }
 .practice-panel > .section-top {
@@ -589,7 +620,7 @@ main {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  background: #fff;
+  background: var(--surface);
   border-radius: 6px;
   padding: 4px 12px;
   font-size: var(--text-xs);
@@ -702,7 +733,7 @@ main {
   border-bottom: 1px solid var(--border);
 }
 .word-row {
-  border-bottom: 1px solid #eef0f3;
+  border-bottom: 1px solid var(--row-border);
   min-height: 48px;
   font-size: var(--text-sm);
 }
@@ -745,7 +776,7 @@ footer button {
   align-items: center;
   gap: 12px;
   color: var(--green);
-  background: #e9f2ec;
+  background: var(--success-bg);
   padding: 12px 16px;
   border-radius: 6px;
   font-size: var(--text-xs);
@@ -755,7 +786,7 @@ footer button {
 }
 .notice.warning {
   color: var(--red);
-  background: #fbefef;
+  background: var(--danger-bg);
 }
 .icon-button {
   min-width: 40px;
@@ -782,7 +813,7 @@ footer button {
   margin-bottom: 28px;
 }
 .editor-panel {
-  background: #fff;
+  background: var(--surface);
   padding: 28px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -802,7 +833,7 @@ footer button {
   color: var(--muted);
 }
 .segmented .chosen {
-  background: white;
+  background: var(--surface);
   color: var(--text);
 }
 .language-fields {
@@ -910,7 +941,7 @@ footer button {
 }
 .error {
   color: var(--red);
-  background: #fbefef;
+  background: var(--danger-bg);
   padding: 12px 16px;
   border-radius: 6px;
   margin: 16px 0;
@@ -981,11 +1012,11 @@ footer button {
   border-radius: 6px;
 }
 .feedback.correct {
-  background: #edf5ef;
+  background: var(--success-bg);
   color: var(--green);
 }
 .feedback.incorrect {
-  background: #faf0ef;
+  background: var(--danger-bg);
   color: var(--red);
 }
 .feedback p {
@@ -1000,7 +1031,7 @@ footer button {
   align-items: center;
   gap: 48px;
   padding: 32px;
-  background: #eaf0f7;
+  background: var(--info-bg);
   border-radius: 10px;
   margin-bottom: 24px;
 }
@@ -1026,7 +1057,7 @@ footer button {
   margin-top: 20px;
 }
 .results-list {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 24px;
@@ -1061,7 +1092,7 @@ footer button {
   color: var(--red);
 }
 .history-panel {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 24px;
@@ -1103,12 +1134,12 @@ dialog {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 28px;
-  background: white;
+  background: var(--surface);
   color: var(--text);
-  box-shadow: 0 20px 80px #14263b22;
+  box-shadow: 0 20px 80px var(--shadow);
 }
 dialog::backdrop {
-  background: #17263c55;
+  background: var(--backdrop);
 }
 .dialog-head {
   display: flex;
@@ -1163,7 +1194,7 @@ dialog > .button {
   position: absolute;
   top: -80px;
   left: 16px;
-  background: white;
+  background: var(--surface);
   padding: 12px;
   z-index: 10;
 }
@@ -1690,7 +1721,7 @@ dialog > .button {
 
 /* Polish pass: sidebar on one alignment grid (outer edge 28px, text edge 56px) */
 ::selection {
-  background: #cfe0f5;
+  background: var(--selection);
   color: var(--text);
 }
 input,
@@ -1716,7 +1747,7 @@ select {
 }
 select:hover:not(:disabled),
 input:hover:not(:disabled):not([type="checkbox"]) {
-  border-color: #b3bdca;
+  border-color: var(--field-border-hover);
 }
 .sidebar {
   padding: 32px 16px 20px;
@@ -1792,7 +1823,7 @@ nav button svg,
   flex: 0 0 auto;
 }
 nav button.active {
-  background: #e6eaf0;
+  background: var(--fill);
   color: var(--text);
 }
 nav button.active > svg {
@@ -1823,7 +1854,7 @@ nav button.active > svg {
   gap: 10px;
 }
 .side-bottom .account-row:hover {
-  border-color: #c6cfda;
+  border-color: var(--field-border-hover);
   background: var(--surface);
 }
 .account-row > span:nth-child(2) {
@@ -2015,8 +2046,8 @@ nav button {
 }
 .save-error {
   padding: 12px 32px;
-  background: #fff0ed;
-  color: #913b2b;
+  background: var(--danger-bg);
+  color: var(--danger-text);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2503,7 +2534,7 @@ main > .save-error {
 }
 .lang-table tr.is-changed > td,
 .lang-table tr.is-changed > .lang-name {
-  background: #fff8e6;
+  background: var(--highlight-bg);
 }
 .lang-table tr.is-failed > .lang-name {
   color: var(--red);
@@ -2569,6 +2600,20 @@ main > .save-error {
   flex: 0 1 auto;
   min-width: 0;
   height: auto;
+}
+/* The official wordmark has dark text; in dark mode it sits on a light chip rather than
+   being recoloured. */
+:root[data-theme="dark"] .requesty-link img {
+  background: #f6f7f9;
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] .requesty-link img {
+    background: #f6f7f9;
+    border-radius: 4px;
+    padding: 2px 4px;
+  }
 }
 .requesty-link:hover .requesty-text > span {
   color: var(--text);
