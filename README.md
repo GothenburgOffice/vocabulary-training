@@ -153,7 +153,9 @@ typecheck, unit tests and build, then a Docker Compose integration and restart t
 Passing `main` pushes build, re-test and publish the image to GHCR.
 A `@claude` mention in an issue, a PR comment or a review runs
 [.github/workflows/claude.yml](.github/workflows/claude.yml), which answers in the thread
-(writers only).
+(writers only). Mentions on one PR run one at a time, and a mention written before an
+earlier run pushed to that PR fails instead of running on code its author never saw:
+mention again.
 
 Before contributing, read [CONTRIBUTING.md](CONTRIBUTING.md): outside PRs are only
 reviewed for `help wanted` issues or for plans approved in an issue first.

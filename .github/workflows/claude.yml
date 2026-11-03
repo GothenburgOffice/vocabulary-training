@@ -17,7 +17,10 @@ permissions:
 concurrency:
   # One run per issue or PR at a time, because runs on an open PR all push to its head branch
   # (issue runs get their own timestamped branch). `queue: max` keeps every further mention
-  # pending instead of replacing the earlier pending one, which is the default.
+  # pending instead of replacing the earlier pending one, which is the default. A pending
+  # mention on a PR still fails if the earlier run pushes to it: the action only works on the
+  # PR version the mention was written against. Its tracking comment then stays at "working"
+  # and the run shows as failed under Actions; mention @claude again once the push has landed.
   group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
   cancel-in-progress: false
   queue: max
