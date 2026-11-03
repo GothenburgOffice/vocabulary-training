@@ -15,7 +15,7 @@ export function limitState(usage: Usage, dailyBudget: number) {
   if (dailyLimitReached(usage.day.letters, dailyBudget))
     return "Daily limit reached: further requests are refused until older usage leaves the 24 hours.";
   return dailyBudget
-    ? `Within the daily limit: ${number(Math.max(0, dailyBudget - usage.day.letters))} letters left in the last 24 hours.`
+    ? `Within the daily limit: ${number(Math.max(0, dailyBudget - usage.day.letters))} letters left in the last 24 hours. A longer request is refused.`
     : "No daily limit.";
 }
 

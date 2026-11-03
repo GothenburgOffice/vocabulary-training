@@ -38,7 +38,11 @@ const USAGE_COLUMNS = (["speech", "note"] as const).flatMap((kind) =>
   ]),
 );
 
-// What each sortable column orders by. Status: active, then locked, then in the trash.
+const ACCOUNT_COLUMNS =
+  "u.id, u.email, u.created_at, u.last_sign_in_at, u.ai_tier, u.is_admin, u.locked_at, u.deleted_at";
+
+// What each sortable column orders by, for accounts as `u` and their usage as `us`. Status:
+// active, then locked, then in the trash.
 const SORT_SQL: Record<UserSort, string> = {
   email: "u.email",
   tier: "u.ai_tier",
@@ -49,6 +53,36 @@ const SORT_SQL: Record<UserSort, string> = {
   speech: "coalesce(us.speech_letters_90, 0)",
   note: "coalesce(us.note_letters_90, 0)",
 };
+
+// One page of accounts with their usage. Usage is summed only for the accounts it's needed for:
+// those on the page, or, when sorting by usage, those matching the filter (the page can only be
+// cut once their usage is known). The sort column and direction come from fixed lists, never
+// from the request text; `where` holds only bound parameters.
+function accountPageQuery(where: string, sort: UserSort, dir: "asc" | "desc", limit: string) {
+  const order = `${SORT_SQL[sort]} ${dir === "asc" ? "ASC" : "DESC"} NULLS LAST, u.email, u.id`;
+  const usage = (accounts: string) => `usage AS (
+       SELECT user_id, ${USAGE_COLUMNS.map((c) => c.sum).join(", ")}
+       FROM ai_usage
+       WHERE at > now()-interval '90 days' AND user_id IN (${accounts})
+       GROUP BY user_id
+     )`;
+  const usageColumns = USAGE_COLUMNS.map((c) => `coalesce(us.${c.name}, 0) AS ${c.name}`).join(
+    ", ",
+  );
+  if (sort === "speech" || sort === "note")
+    return `WITH ${usage(`SELECT u.id FROM users u ${where}`)}
+       SELECT ${ACCOUNT_COLUMNS}, ${usageColumns}
+       FROM users u LEFT JOIN usage us ON us.user_id=u.id
+       ${where}
+       ORDER BY ${order}
+       ${limit}`;
+  return `WITH page AS (
+       SELECT ${ACCOUNT_COLUMNS} FROM users u ${where} ORDER BY ${order} ${limit}
+     ), ${usage("SELECT id FROM page")}
+     SELECT ${ACCOUNT_COLUMNS}, ${usageColumns}
+     FROM page u LEFT JOIN usage us ON us.user_id=u.id
+     ORDER BY ${order}`;
+}
 
 // Filters for the account list. Values are bound as parameters; the e2e pattern is a constant.
 function accountFilter(q: string, scope: "all" | "regular" | "test" | "trash") {
@@ -85,21 +119,8 @@ export async function GET(request: Request) {
     const pageParams = [...filter.params, USERS_PAGE_SIZE, offset];
 
     const [page, total, testAccounts, limits] = await Promise.all([
-      // Usage is summed before the page is cut, so the list can sort by it. The sort column
-      // and direction come from fixed lists, never from the request text.
       db.query(
-        `WITH usage AS (
-           SELECT user_id, ${USAGE_COLUMNS.map((c) => c.sum).join(", ")}
-           FROM ai_usage WHERE at > now()-interval '90 days'
-           GROUP BY user_id
-         )
-         SELECT u.id, u.email, u.created_at, u.last_sign_in_at, u.ai_tier, u.is_admin,
-           u.locked_at, u.deleted_at,
-           ${USAGE_COLUMNS.map((c) => `coalesce(us.${c.name}, 0) AS ${c.name}`).join(", ")}
-         FROM users u LEFT JOIN usage us ON us.user_id=u.id
-         ${filter.where}
-         ORDER BY ${SORT_SQL[sort]} ${dir === "asc" ? "ASC" : "DESC"} NULLS LAST, u.email, u.id
-         LIMIT $${limitParam} OFFSET $${offsetParam}`,
+        accountPageQuery(filter.where, sort, dir, `LIMIT $${limitParam} OFFSET $${offsetParam}`),
         pageParams,
       ),
       db.query(`SELECT count(*)::int AS n FROM users u ${filter.where}`, filter.params),
