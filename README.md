@@ -14,6 +14,7 @@ Built with Next.js, TypeScript and PostgreSQL, and run with Docker Compose.
   mistakes retry.
 - Session history per language pair.
 - Saves after each answer, with conflict detection across browser tabs.
+- Light and dark appearance: follows the device, or set per account.
 - Optional: a short AI language note for wrong answers and click-to-play word
   audio, both via [Requesty](https://www.requesty.ai). Grading never uses AI.
   See [AI features](docs/ai-features.md).

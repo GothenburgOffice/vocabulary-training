@@ -50,8 +50,9 @@ export default async function PrivacyPage() {
             Your email address and a hash of your password. The password itself is never stored.
           </li>
           <li>
-            Your word lists, your profile languages, your answers with their review state, and your
-            newest 200 completed practice sessions.
+            Your word lists, your profile languages and appearance (light, dark or your
+            device&apos;s setting), your answers with their review state, and your newest 200
+            completed practice sessions.
           </li>
           <li>
             AI usage: for each language note and audio request that reaches the AI provider, how

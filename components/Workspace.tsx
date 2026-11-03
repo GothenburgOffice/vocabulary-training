@@ -43,6 +43,7 @@ import SaveStatus from "./workspace/SaveStatus";
 import Sidebar from "./workspace/Sidebar";
 import { useNow } from "./workspace/useNow";
 import type { Modal, View } from "./workspace/views";
+import { applyTheme, type Theme } from "../lib/theme";
 
 const DIALOG_TITLES: Record<Modal, string> = {
   account: "Your account",
@@ -82,6 +83,13 @@ export default function Workspace({
   const [query, setQuery] = useState("");
   const [baseLanguage, setBaseLanguage] = useState(initial.baseLanguage ?? "Swedish");
   const [learningLanguage, setLearningLanguage] = useState(initial.learningLanguage ?? "French");
+  // The Appearance setting: shown at once, saved with the account.
+  const [theme, setTheme] = useState<Theme>(initial.theme ?? "system");
+  useEffect(() => applyTheme(theme), [theme]);
+  function chooseTheme(next: Theme) {
+    setTheme(next);
+    sync?.saveTheme(next);
+  }
   // Remembered in this browser only (#67); private windows or blocked storage use the defaults.
   const [settings, setSettings] = useState<PracticeSettings>(() => {
     try {
@@ -528,6 +536,8 @@ ${learningLanguage}`;
                   : ""
             }
             onSave={saveProfile}
+            theme={theme}
+            onTheme={chooseTheme}
           />
         )}
         {modal === "language" && (

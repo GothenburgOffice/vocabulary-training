@@ -5,6 +5,7 @@ import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { hashToken } from "./password";
 import { HttpError } from "./http";
+import { isTheme, type Theme } from "../theme";
 export const cookieName = "vocabulary_session";
 export async function requireUser() {
   const token = (await cookies()).get(cookieName)?.value;
@@ -16,6 +17,22 @@ export async function requireUser() {
   );
   if (!result.rowCount) throw new HttpError(401, "Your session has expired. Sign in again.");
   return result.rows[0] as { id: string; email: string; ai_tier: string; is_admin: boolean };
+}
+// The signed-in account's Appearance setting, for <html data-theme> on every page, so the
+// first paint is already in the right colours. Signed out (or if the lookup fails): system.
+export async function sessionTheme(): Promise<Theme> {
+  try {
+    const token = (await cookies()).get(cookieName)?.value;
+    if (!token || !/^[a-f0-9]{64}$/.test(token)) return "system";
+    const result = await db.query(
+      "SELECT u.theme FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now() AND u.locked_at IS NULL AND u.deleted_at IS NULL",
+      [hashToken(token)],
+    );
+    const theme = result.rows[0]?.theme;
+    return isTheme(theme) ? theme : "system";
+  } catch {
+    return "system";
+  }
 }
 // Admin pages and routes answer 404 to everyone else, so they don't reveal that they exist.
 export async function requireAdmin() {

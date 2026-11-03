@@ -892,3 +892,34 @@ test("real HTTP: admins list and prune reports without seeing accounts; learners
   assert.equal(typeof (await pruned.json()).deleted, "number");
   assert.ok((await list()).reports.some((row: { word: string }) => row.word === word));
 });
+
+test("real HTTP: the Appearance setting is saved on the account and set on every page", async () => {
+  const signedOut = await (await api("/")).text();
+  assert.match(signedOut, /<html[^>]* data-theme="system"/);
+  const reg = await api("/api/auth", "POST", {
+    action: "register",
+    email: `theme-${randomUUID()}@example.test`,
+    password: "integration-test-only-password",
+  });
+  assert.equal(reg.status, 200, await reg.clone().text());
+  const cookie = reg.headers.get("set-cookie")!.split(";")[0];
+  const workspace = async () =>
+    (await (await api("/api/workspace", "GET", undefined, cookie)).json()).data;
+  assert.equal((await workspace()).theme, "system");
+
+  const save = (data: unknown) => api("/api/profile", "PATCH", data, cookie);
+  assert.equal((await save({ theme: "sepia" })).status, 400);
+  assert.equal((await save({ theme: "dark", baseLanguage: "Swedish" })).status, 400);
+  assert.equal((await api("/api/profile", "PATCH", { theme: "dark" })).status, 401);
+  const saved = await save({ theme: "dark" });
+  assert.equal(saved.status, 200, await saved.clone().text());
+  assert.equal((await workspace()).theme, "dark");
+  // The page is rendered in the account's scheme, before any script runs.
+  for (const path of ["/", "/privacy"]) {
+    const html = await (await api(path, "GET", undefined, cookie)).text();
+    assert.match(html, /<html[^>]* data-theme="dark"/, path);
+  }
+  // Saving the languages leaves the theme alone.
+  assert.equal((await save({ baseLanguage: "Swedish", learningLanguage: "German" })).status, 200);
+  assert.equal((await workspace()).theme, "dark");
+});

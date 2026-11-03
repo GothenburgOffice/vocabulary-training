@@ -2,6 +2,7 @@ import { useState } from "react";
 import { LogOut, Settings, Shield, UserRound } from "lucide-react";
 import { pickerLanguages, type Language } from "../../lib/languages";
 import type { WorkspaceAccount } from "../../lib/workspace";
+import { THEMES, THEME_LABELS, isTheme, type Theme } from "../../lib/theme";
 
 // The account popup: who is signed in, links out, and the profile's base language.
 export default function ProfileDialog({
@@ -10,6 +11,8 @@ export default function ProfileDialog({
   languageList,
   locked,
   onSave,
+  theme = "system",
+  onTheme,
 }: {
   account?: WorkspaceAccount;
   baseLanguage: string;
@@ -18,6 +21,9 @@ export default function ProfileDialog({
   locked: string;
   // Applies a picked base language (and closes); throws an Error to show when it can't.
   onSave: (baseLanguage: string) => void;
+  // The Appearance setting, applied and saved as soon as it is picked.
+  theme?: Theme;
+  onTheme?: (theme: Theme) => void;
 }) {
   const [error, setError] = useState("");
   function pick(language: string) {
@@ -72,6 +78,22 @@ export default function ProfileDialog({
         Your dashboard shows lists and progress for this base language and the learning language you
         select. Changing your base language does not translate, relabel or delete existing lists.
       </p>
+      {onTheme && (
+        <label className="field">
+          Appearance
+          <select
+            aria-label="Appearance"
+            value={theme}
+            onChange={(e) => isTheme(e.target.value) && onTheme(e.target.value)}
+          >
+            {THEMES.map((t) => (
+              <option key={t} value={t}>
+                {THEME_LABELS[t]}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <div className="account-future">
         <UserRound size={24} />
         <div>

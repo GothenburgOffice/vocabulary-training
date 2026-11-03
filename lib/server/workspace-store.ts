@@ -12,6 +12,7 @@ import {
 import type { listSaveSchema, profileSchema, reviewSchema, runSaveSchema } from "../validation";
 import type { AiWord } from "../ai-words";
 import type { Run, WorkspaceData } from "../workspace";
+import type { Theme } from "../theme";
 import { db } from "./db";
 import { HttpError } from "./http";
 
@@ -41,7 +42,7 @@ const ms = (column: string) => `(extract(epoch FROM ${column})*1000)::float8`;
 export function loadWorkspace(userId: string) {
   return transaction(async (c) => {
     const profile = await c.query(
-      "SELECT native_language, learning_language FROM users WHERE id=$1",
+      "SELECT native_language, learning_language, theme FROM users WHERE id=$1",
       [userId],
     );
     if (!profile.rowCount) throw new HttpError(404, "Account not found.");
@@ -118,6 +119,7 @@ export function loadWorkspace(userId: string) {
     const data: WorkspaceData = {
       baseLanguage: profile.rows[0].native_language,
       learningLanguage: profile.rows[0].learning_language,
+      theme: profile.rows[0].theme,
       lists: lists.rows.map((l) => ({
         id: l.id,
         title: l.title,
@@ -363,6 +365,10 @@ export async function saveProfile(userId: string, profile: z.infer<typeof profil
     profile.baseLanguage,
     profile.learningLanguage,
   ]);
+}
+
+export async function saveTheme(userId: string, theme: Theme) {
+  await db.query("UPDATE users SET theme=$2 WHERE id=$1", [userId, theme]);
 }
 
 // One of this account's words, for an AI call (#82): its native text, languages and accepted
