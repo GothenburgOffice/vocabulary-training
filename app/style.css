@@ -2595,8 +2595,9 @@ main > .save-error {
   text-decoration: none;
 }
 /* The logo shrinks (keeping its shape) when the sidebar is narrow; the text doesn't. Its
-   wordmark takes the theme's text colour, so it needs no chip in dark mode. */
-.requesty-logo {
+   wordmark takes the theme's text colour, so it needs no chip in dark mode. Two classes, to
+   win over `.side-bottom svg`, which keeps the sidebar's icons from shrinking. */
+.requesty-link .requesty-logo {
   display: block;
   flex: 0 1 auto;
   min-width: 0;
