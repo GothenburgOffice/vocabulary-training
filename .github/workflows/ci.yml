@@ -2,7 +2,9 @@ name: Verify
 on:
   push:
     branches: [main]
+  # Draft PRs don't run the checks; marking one ready for review starts them.
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 permissions:
   contents: read
@@ -12,6 +14,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   unit:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -35,6 +38,7 @@ jobs:
       - run: npm run build
       - run: npm audit --audit-level=high
   containers:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
