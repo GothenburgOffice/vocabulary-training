@@ -10,13 +10,16 @@ ALTER TABLE word_reviews
   ADD COLUMN scheduled_days integer NOT NULL DEFAULT 0 CHECK (scheduled_days >= 0),
   ADD COLUMN last_review_at timestamptz;
 
--- Words answered before this: in day-long review, with the interval the old doubling
+-- Words whose last answer was right: in day-long review, with the interval the old doubling
 -- schedule gave them (1, 2, 4, ... at most 30 days) as their stability, a middling
--- difficulty, and their last review that interval before the due date they have.
+-- difficulty, and their last review that interval before the due date they have. Words
+-- whose last answer was wrong (streak 0) were in a 10-minute retry: they stay new to FSRS,
+-- which starts them on its short steps at the next answer. Their counts and due date stay,
+-- so they are still due.
 UPDATE word_reviews
    SET state = 'review',
        stability = LEAST(30, 2 ^ GREATEST(streak - 1, 0)),
        difficulty = 5,
        scheduled_days = LEAST(30, 2 ^ GREATEST(streak - 1, 0))::integer,
        last_review_at = due_at - make_interval(days => LEAST(30, 2 ^ GREATEST(streak - 1, 0))::integer)
- WHERE correct + wrong > 0;
+ WHERE streak > 0;

@@ -46,7 +46,9 @@ function review(h: History) {
       state: h.state,
       stability: h.stability,
       difficulty: h.difficulty,
+      steps: h.steps,
       lapses: h.lapses,
+      scheduledDays: h.scheduledDays,
       lastReview: h.lastReview === null ? null : iso(h.lastReview),
     },
   };
