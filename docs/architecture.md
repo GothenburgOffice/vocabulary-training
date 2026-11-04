@@ -42,6 +42,10 @@ query seeks straight to one user's data for one pair. The pair copies on `words`
 keys with `ON UPDATE CASCADE`. Sessions and results keep the pair they were
 practised in.
 
+`answer_timing` holds, per account and input type (keyboard or touchscreen), only the
+running averages of answer hesitation (#2); it has no language pair. `answer_timing_buckets`
+counts scored answers per score step site-wide, with no account, for Admin → Answer timing.
+
 `issue_reports` holds the AI results learners report (#95), one row per result.
 It is anonymous by design: no `user_id`, dates instead of times, and a hashed
 result id, so a report can't be matched to an account through `ai_usage`, and it
@@ -114,6 +118,19 @@ The database image includes pgvector (`CREATE EXTENSION vector` in migration
   updates the one memory state per word and direction (`word_reviews`: stability,
   difficulty, state, steps, lapses, last review), and FSRS sets `due_at`.
   `streak` only counts consecutive right answers, for the library's labels.
+- **Answer timing** (`lib/timing.ts`, #2): collected to calibrate a future Hard
+  grade; it changes no grade or review date yet. Typing speed is left out, since it
+  varies between people and devices. For a right, typed answer, the browser
+  measures, with the tab visible, the time before the first keystroke and, of each
+  pause between keystrokes (and before the check), the part longer than the input
+  type's cutoff (Admin → Answer timing; 1000 ms keyboard, 1500 ms touchscreen,
+  where touch means `(pointer: coarse)`). The server turns that into a score,
+  `log(1 + seconds)`, and keeps per account and input type only its running mean
+  and variance (the plain average for the first answers, then a moving one,
+  α = 0.05). Once an account has 20 answers on an input type, each new one is also
+  scored in standard deviations above that usual, and counted, without the
+  account, in quarter steps, so admin can see what share each Hard threshold
+  would mark. Answers over 2 minutes are left out.
 
 ## Runtime
 

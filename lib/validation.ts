@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { THEMES } from "./theme";
+import { timingSampleSchema } from "./timing";
 const text = z.string().trim().min(1).max(200);
 const language = z.string().trim().min(1).max(60);
 const id = z.string().uuid();
@@ -37,7 +38,17 @@ export const listSaveSchema = z
 export const listDeleteSchema = z.object({ revision: z.number().int().positive() }).strict();
 // POST /api/reviews: one checked answer, with an id the client makes once per answer, so a
 // retry isn't counted twice. The server applies reviewed() with its own clock.
-export const reviewSchema = z.object({ id, wordId: id, direction, correct: z.boolean() }).strict();
+// A right, typed answer may carry its timing (#2), which never changes the grade.
+export const reviewSchema = z
+  .object({
+    id,
+    wordId: id,
+    direction,
+    correct: z.boolean(),
+    timing: timingSampleSchema.optional(),
+  })
+  .strict()
+  .refine((r) => r.correct || !r.timing, "Only a right answer is timed");
 // POST /api/runs: a completed session, with the text of each word as it was practised.
 export const runSaveSchema = z
   .object({

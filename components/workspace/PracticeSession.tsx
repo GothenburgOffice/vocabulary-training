@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef } from "react";
 import { ArrowRight, X } from "lucide-react";
 import { answersFor, listTitle, type List, type Word } from "../../lib/learning";
+import { AnswerClock, type InputType, type TimingSample } from "../../lib/timing";
 import {
   isLastWord,
   MODE_LABELS,
@@ -23,6 +24,7 @@ export default function PracticeSession({
   onCheck,
   onNext,
   onEnd,
+  timingCutoffs,
 }: {
   list: List;
   // The word being asked.
@@ -31,7 +33,9 @@ export default function PracticeSession({
   settings: PracticeSettings;
   baseLanguage: string;
   onAnswer: (answer: string) => void;
-  onCheck: (skipped: boolean) => void;
+  // A typed answer comes with its timing (#2); a skipped one without.
+  onCheck: (skipped: boolean, timing?: TimingSample | null) => void;
+  timingCutoffs: Record<InputType, number>;
   onNext: () => void;
   onEnd: () => void;
 }) {
@@ -41,6 +45,20 @@ export default function PracticeSession({
   const forward = direction === "forward";
   const answerRef = useRef<HTMLInputElement>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);
+  // The clock for the word being asked (#2), with the cutoff for this device's input type.
+  const clock = useRef<{ clock: AnswerClock; input: InputType } | null>(null);
+  useEffect(() => {
+    if (feedback) return;
+    const input: InputType = matchMedia("(pointer: coarse)").matches ? "touch" : "keyboard";
+    const answerClock = new AnswerClock(timingCutoffs[input]);
+    answerClock.start(performance.now(), document.hidden);
+    clock.current = { clock: answerClock, input };
+  }, [index, feedback, timingCutoffs]);
+  useEffect(() => {
+    const changed = () => clock.current?.clock.visibility(document.hidden, performance.now());
+    document.addEventListener("visibilitychange", changed);
+    return () => document.removeEventListener("visibilitychange", changed);
+  }, []);
   // Typing goes to the answer; once checked, Enter goes to the next-word button.
   useEffect(() => {
     if (!feedback) answerRef.current?.focus();
@@ -88,7 +106,10 @@ export default function PracticeSession({
           onSubmit={(e) => {
             e.preventDefault();
             if (feedback) onNext();
-            else onCheck(false);
+            else {
+              const timed = clock.current;
+              onCheck(false, timed?.clock.finish(performance.now(), timed.input) ?? null);
+            }
           }}
         >
           <label className="field">
@@ -101,7 +122,10 @@ export default function PracticeSession({
               spellCheck={false}
               value={answer}
               disabled={!!feedback}
-              onChange={(e) => onAnswer(e.target.value)}
+              onChange={(e) => {
+                clock.current?.clock.input(performance.now());
+                onAnswer(e.target.value);
+              }}
               placeholder="Type the translation"
             />
           </label>

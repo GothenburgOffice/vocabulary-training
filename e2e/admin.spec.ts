@@ -304,6 +304,64 @@ test("AI limits are edited and saved together, and reset to the defaults", async
   expect(saves[1]).toEqual(defaults);
 });
 
+test("answer timing settings are saved, and the calibration shows each threshold's share", async ({
+  page,
+}) => {
+  // Answered here: the settings apply to every account.
+  const defaults = { cutoffMs: { keyboard: 1000, touch: 1500 }, hardThreshold: 2 };
+  let settings = structuredClone(defaults);
+  const saves: unknown[] = [];
+  const summary = {
+    keyboard: {
+      answers: 120,
+      accounts: 3,
+      buckets: [
+        [0, 90],
+        [8, 6],
+        [12, 4],
+      ],
+    },
+    touch: { answers: 5, accounts: 0, buckets: [] },
+  };
+  await page.route("/api/admin/timing", async (route) => {
+    if (route.request().method() === "PUT") {
+      settings = route.request().postDataJSON();
+      saves.push(settings);
+    }
+    await route.fulfill({ json: { settings, defaults, summary } });
+  });
+  await page.goto("/admin/timing");
+  await expect(page.getByRole("heading", { name: "Answer timing" })).toBeVisible();
+  const keyboard = page.getByRole("row", { name: /^Physical keyboard/ });
+  // Of 100 scored answers, 10 are at 2 or above and 4 at 3 or above; touch has none scored.
+  await expect(keyboard.getByRole("cell")).toHaveText([
+    "120",
+    "3",
+    "100",
+    "10.0%",
+    "10.0%",
+    "10.0%",
+    "4.0%",
+    "4.0%",
+    "0.0%",
+  ]);
+  await expect(
+    page
+      .getByRole("row", { name: /^Touchscreen/ })
+      .getByRole("cell")
+      .last(),
+  ).toHaveText("–");
+  const save = page.getByRole("button", { name: "Save timing settings" });
+  await expect(save).toBeDisabled();
+  await page.getByLabel("Touchscreen: pause cutoff (ms)").fill("2000");
+  await page.getByLabel("Hard threshold").fill("2.5");
+  await save.click();
+  await expect(page.getByRole("status")).toHaveText("Saved.");
+  expect(saves).toEqual([{ cutoffMs: { keyboard: 1000, touch: 2000 }, hardThreshold: 2.5 }]);
+  // The threshold set is marked in the table.
+  await expect(page.getByRole("columnheader", { name: "≥ 2.5 (set)" })).toBeVisible();
+});
+
 test("the write limit is saved, and reset to the defaults", async ({ page }) => {
   // Answered here: the limit applies to every account.
   const defaults = { perHour: 20000, perDay: 300000 };

@@ -45,6 +45,7 @@ import Sidebar from "./workspace/Sidebar";
 import { useNow } from "./workspace/useNow";
 import type { Modal, View } from "./workspace/views";
 import { applyTheme, type Theme } from "../lib/theme";
+import { DEFAULT_TIMING, type InputType, type TimingSample } from "../lib/timing";
 
 const DIALOG_TITLES: Record<Modal, string> = {
   account: "Your account",
@@ -64,12 +65,15 @@ export default function Workspace({
   sync,
   account,
   languageList = DEFAULT_LANGUAGES,
+  timingCutoffs = DEFAULT_TIMING.cutoffMs,
 }: {
   initial: WorkspaceData;
   // Receives each change to save. Without it (tests, previews), nothing is saved.
   sync?: WorkspaceSync;
   account?: WorkspaceAccount;
   languageList?: Language[];
+  // The pause cutoffs answer timing measures with (#2).
+  timingCutoffs?: Record<InputType, number>;
 }) {
   // For the library's due counts; handlers read the clock when they run.
   const now = useNow();
@@ -315,7 +319,7 @@ ${learningLanguage}`;
     setNotice(null);
     setNav(false);
   }
-  function check(skipped: boolean) {
+  function check(skipped: boolean, timing: TimingSample | null = null) {
     if (!list || !current || practice.feedback || (!practice.answer.trim() && !skipped)) return;
     const { direction } = settings;
     const answeredAt = Date.now();
@@ -342,6 +346,8 @@ ${learningLanguage}`;
       wordId: current.id,
       direction,
       correct: result.correct,
+      // Only a right, typed answer is timed.
+      ...(result.correct && !skipped && timing ? { timing } : {}),
     };
     const key = `${review.wordId}:${direction}`;
     latestReview.current.set(key, review.id);
@@ -502,6 +508,7 @@ ${learningLanguage}`;
             baseLanguage={baseLanguage}
             onAnswer={(answer) => dispatch({ type: "type", answer })}
             onCheck={check}
+            timingCutoffs={timingCutoffs}
             onNext={next}
             onEnd={() => setModal("exit")}
           />
