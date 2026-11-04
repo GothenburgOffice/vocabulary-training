@@ -97,10 +97,23 @@ The database image includes pgvector (`CREATE EXTENSION vector` in migration
   typographic apostrophes alike, NFC-normalizes, and optionally ignores
   case or accents. An answer is correct if it matches any accepted answer for
   the prompt (`answersFor`).
-- **Weighted order:** weighted random sampling. The weight is
-  `1 + 3 × errorRate + (due ? 2 : 0)`, with Laplace-smoothed error rate.
-- **Scheduling** (`reviewed`): correct answers double the interval, capped at
-  30 days. A wrong answer resets the streak and is due again in 10 minutes.
+- **Practice modes** (`practiceQueue` in `lib/practice.ts`) only pick and order
+  a session's words; every answer is graded and scheduled the same way.
+  - **Weighted mix** (`weightedOrder`, mode id `adaptive`): weighted random
+    sampling. The weight is `1 + 3 × errorRate + (due ? 2 : 0)`, with a
+    Laplace-smoothed error rate.
+  - **Spaced review** (`spacedOrder`, `spaced`): due words by retrievability,
+    lowest first; then new words in list order; then the rest by retrievability,
+    up to the session size.
+  - **Random order** (`randomOrder`, `random`): a uniform shuffle.
+- **Scheduling** (`reviewed`, #2): [FSRS](https://github.com/open-spaced-repetition/ts-fsrs)
+  (`ts-fsrs` 5.x; 6.x needs Node 24) with its default weights, 90% target
+  retention, learning steps of 1 and 10 minutes, a 10-minute relearning step and
+  no fuzz, so it is deterministic. A right answer is Good and a wrong or skipped
+  one Again; there are no Hard or Easy grades yet. Every answer in every mode
+  updates the one memory state per word and direction (`word_reviews`: stability,
+  difficulty, state, steps, lapses, last review), and FSRS sets `due_at`.
+  `streak` only counts consecutive right answers, for the library's labels.
 
 ## Runtime
 

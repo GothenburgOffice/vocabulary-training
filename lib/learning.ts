@@ -1,5 +1,28 @@
+import { createEmptyCard, fsrs, Rating, State, type Card } from "ts-fsrs";
+
 export type Direction = "forward" | "reverse";
-export type History = { correct: number; wrong: number; streak: number; due: number };
+// FSRS's card states (#2): a new word, its first short steps, day-long reviews, and the short
+// steps again after a lapse.
+export const FSRS_STATES = ["new", "learning", "review", "relearning"] as const;
+export type FsrsState = (typeof FSRS_STATES)[number];
+// One direction of a word: answer counts, the correct streak (for the library's labels), the
+// next review, and the FSRS memory state that sets it.
+export type History = {
+  correct: number;
+  wrong: number;
+  streak: number;
+  due: number;
+  // Days until the chance of recall falls to 90%; 1 (easy) to 10 (hard).
+  stability: number;
+  difficulty: number;
+  state: FsrsState;
+  // Which short (re)learning step the word is on.
+  steps: number;
+  // Wrong answers once the word had reached day-long reviews.
+  lapses: number;
+  scheduledDays: number;
+  lastReview: number | null;
+};
 // front is the native prompt and back the primary answer. accepted holds any further answers
 // accepted in the learning language (from CSV import for now); reverse practice shows back
 // and accepts only front.
@@ -19,7 +42,19 @@ export type List = {
   to: string;
   words: Word[];
 };
-export const freshHistory = (): History => ({ correct: 0, wrong: 0, streak: 0, due: 0 });
+export const freshHistory = (): History => ({
+  correct: 0,
+  wrong: 0,
+  streak: 0,
+  due: 0,
+  stability: 0,
+  difficulty: 0,
+  state: "new",
+  steps: 0,
+  lapses: 0,
+  scheduledDays: 0,
+  lastReview: null,
+});
 export function makeWord(front = "", back = "", id = "", accepted: string[] = []): Word {
   return {
     id: id || crypto.randomUUID(),
@@ -101,15 +136,72 @@ export function listStats(list: Pick<List, "words">, direction: Direction, now: 
     due: histories.filter((h) => h.due > 0 && h.due <= now).length,
   };
 }
+// FSRS with its default model weights and settings: 90% target retention, short steps of 1
+// and 10 minutes for new words and 10 minutes after a lapse, then day-long intervals. No
+// fuzz, so the same answers always give the same schedule.
+const scheduler = fsrs({ enable_fuzz: false });
+const STATE_OF: Record<FsrsState, State> = {
+  new: State.New,
+  learning: State.Learning,
+  review: State.Review,
+  relearning: State.Relearning,
+};
+function card(h: History, now: number): Card {
+  if (h.state === "new") return createEmptyCard(new Date(now));
+  const last = h.lastReview ?? h.due;
+  return {
+    due: new Date(h.due),
+    stability: h.stability,
+    difficulty: h.difficulty,
+    elapsed_days: Math.max(0, Math.floor((now - last) / 86400000)),
+    scheduled_days: h.scheduledDays,
+    learning_steps: h.steps,
+    reps: h.correct + h.wrong,
+    lapses: h.lapses,
+    state: STATE_OF[h.state],
+    last_review: new Date(last),
+  };
+}
+// One typed answer, graded right or wrong (#2): right is FSRS's Good and wrong its Again. The
+// answer counts in every practice mode, so the one due date stays current.
 export function reviewed(previous: History, correct: boolean, now: number): History {
-  const streak = correct ? previous.streak + 1 : 0;
-  const days = correct ? Math.min(30, 2 ** (streak - 1)) : 0;
+  const next = scheduler.next(
+    card(previous, now),
+    new Date(now),
+    correct ? Rating.Good : Rating.Again,
+  ).card;
   return {
     correct: previous.correct + Number(correct),
     wrong: previous.wrong + Number(!correct),
-    streak,
-    due: correct ? now + days * 86400000 : now + 600000,
+    streak: correct ? previous.streak + 1 : 0,
+    due: next.due.getTime(),
+    stability: next.stability,
+    difficulty: next.difficulty,
+    state: FSRS_STATES[next.state],
+    steps: next.learning_steps,
+    lapses: next.lapses,
+    scheduledDays: next.scheduled_days,
+    lastReview: now,
   };
+}
+// The chance of recalling a word now (0 to 1), or null for a word never answered that way.
+export function retrievability(h: History, now: number) {
+  if (h.state === "new") return null;
+  return scheduler.get_retrievability(card(h, now), new Date(now), false);
+}
+// Spaced review: due words first, the most forgotten first; then new words in list order;
+// then the rest, the most forgotten first, so a session is as long as the learner chose.
+export function spacedOrder(words: Word[], direction: Direction, now: number) {
+  const rank = (w: Word) => {
+    const h = w[direction];
+    const r = retrievability(h, now);
+    if (r === null) return [1, 0];
+    return [h.due <= now ? 0 : 2, r];
+  };
+  return words
+    .map((word, index) => ({ word, index, rank: rank(word) }))
+    .sort((a, b) => a.rank[0] - b.rank[0] || a.rank[1] - b.rank[1] || a.index - b.index)
+    .map((item) => item.word.id);
 }
 // In CSV files only, "|" separates the accepted answers in the learning column: the first is
 // the primary answer. Stored words keep them apart (Word.accepted). "\|" is a literal "|"

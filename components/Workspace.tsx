@@ -53,7 +53,7 @@ const DIALOG_TITLES: Record<Modal, string> = {
   exit: "Leave this practice session?",
   delete: "Delete this word list?",
   leave: "Leave with unfinished edits?",
-  help: "A smarter mix, not a black box.",
+  help: "How practice works",
   report: "Report an AI result",
 };
 

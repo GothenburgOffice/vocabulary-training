@@ -214,7 +214,24 @@ test("real HTTP: lists, reviews, sessions and the profile are saved as rows", as
   assert.equal(history.correct + history.wrong, 4);
   assert.equal(history.wrong, 1);
   assert(history.due > Date.now());
-  assert.deepEqual(dump.lists[0].words[0].reverse, { correct: 0, wrong: 0, streak: 0, due: 0 });
+  // FSRS state is saved with the counts (#2). The three answers may be applied in any order,
+  // so the state is any but new.
+  assert.ok(["learning", "review", "relearning"].includes(history.state), history.state);
+  assert.ok(history.stability > 0 && history.difficulty > 0);
+  assert.ok(Math.abs(history.lastReview - Date.now()) < 60_000);
+  assert.deepEqual(dump.lists[0].words[0].reverse, {
+    correct: 0,
+    wrong: 0,
+    streak: 0,
+    due: 0,
+    stability: 0,
+    difficulty: 0,
+    state: "new",
+    steps: 0,
+    lapses: 0,
+    scheduledDays: 0,
+    lastReview: null,
+  });
   assert.equal(dump.lists[0].words[0].back, "chat");
   assert.deepEqual(dump.lists[0].words[0].accepted, ["minou"]);
   assert.equal(dump.lists[0].words[1].accepted, undefined);
@@ -1112,7 +1129,7 @@ test("real HTTP: the data export downloads only this account's data, as JSON", a
   );
   assert.equal(res.headers.get("cache-control"), "no-store");
   const doc = await res.json();
-  assert.equal(doc.version, 2);
+  assert.equal(doc.version, 3);
   assert.match(doc.account.email, /^export-/);
   assert.deepEqual(
     doc.lists.map((l: { title: string }) => l.title),
@@ -1128,6 +1145,8 @@ test("real HTTP: the data export downloads only this account's data, as JSON", a
   );
   assert.ok(Date.parse(word.review.forward.due) > Date.now());
   assert.equal(word.review.reverse.due, null);
+  assert.equal(word.review.forward.fsrs.state, "learning");
+  assert.equal(word.review.reverse.fsrs.state, "new");
   assert.equal(doc.sessions.length, 1);
   assert.equal(doc.sessions[0].results[0].answer, "chat");
   assert.deepEqual(doc.aiUsage, []);
