@@ -41,6 +41,44 @@
         "command": "docker compose -f compose.yaml -f compose.dev.yaml exec -T app npm run lint",
         "problemMatcher": [],
       },
+      // The tasks below run inside the dev container (no Docker there): open the folder in
+      // the container first.
+      {
+        "label": "Dev container: after pulling",
+        "detail": "Apply new database migrations and say if dependencies changed",
+        "type": "shell",
+        "options": { "shell": { "executable": "bash", "args": ["-c"] } },
+        "command": "cmp -s package-lock.json node_modules/.installed-lock || echo 'package-lock.json changed: run Dev Containers: Rebuild Container to reinstall dependencies.'; npm run db:migrate",
+        "problemMatcher": [],
+      },
+      {
+        "label": "Dev container: status",
+        "detail": "Is the database reachable, does the app answer, and are migrations pending?",
+        "type": "shell",
+        "options": { "shell": { "executable": "bash", "args": ["-c"] } },
+        "command": "pg_isready -d \"$DATABASE_URL\" || exit 1; echo -n 'App health: '; curl -sS -m 10 localhost:3000/api/health; echo; pending=$(comm -23 <(ls db/migrations | sort) <(psql \"$DATABASE_URL\" -Atc 'SELECT name FROM schema_migrations' | sort)); if [ -n \"$pending\" ]; then printf 'Pending migrations:\\n%s\\nRun the task \"Dev container: after pulling\".\\n' \"$pending\"; exit 1; fi; echo 'Migrations: all applied.'",
+        "problemMatcher": [],
+      },
+      {
+        "label": "Dev container: apply database migrations",
+        "type": "shell",
+        "command": "npm run db:migrate",
+        "problemMatcher": [],
+      },
+      {
+        "label": "Dev container: check before commit",
+        "detail": "format:check, lint, typecheck and the unit tests, as CI runs them",
+        "type": "shell",
+        "command": "npm run format:check && npm run lint && npm run typecheck && npm test",
+        "group": "test",
+        "problemMatcher": [],
+      },
+      {
+        "label": "Dev container: format",
+        "type": "shell",
+        "command": "npm run format",
+        "problemMatcher": [],
+      },
     ],
   },
 }
