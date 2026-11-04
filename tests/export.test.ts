@@ -105,6 +105,7 @@ test("the data export holds the account, lists with review history, sessions and
         },
       ],
       aiUsage: [{ kind: "speech", letters: 5, at: new Date("2026-11-02T10:00:00Z") }],
+      answerTiming: [{ input: "keyboard", samples: 30, mean: 0.5, variance: 0.04 }],
     },
     now,
   );
@@ -197,6 +198,10 @@ test("the data export holds the account, lists with review history, sessions and
     results: [],
   });
   assert.deepEqual(doc.aiUsage, [{ kind: "speech", letters: 5, at: "2026-11-02T10:00:00.000Z" }]);
+  // Only the running averages: the spread is the standard deviation.
+  assert.deepEqual(doc.answerTiming, [
+    { input: "keyboard", answers: 30, usualScore: 0.5, spread: 0.2 },
+  ]);
   // Round-trips through JSON unchanged: no Dates or undefined left inside.
   assert.deepEqual(JSON.parse(JSON.stringify(doc)), doc);
 });

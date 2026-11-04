@@ -3,6 +3,7 @@ import { aiConfig } from "../../../lib/server/ai-config";
 import { loadAiSettings } from "../../../lib/server/site-settings";
 import { fail, json } from "../../../lib/server/http";
 import { loadWorkspace } from "../../../lib/server/workspace-store";
+import { readTimingSettings } from "../../../lib/server/timing-settings";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // The full user data dump. Changes are saved through the small endpoints: lists/[id],
@@ -27,6 +28,8 @@ export async function GET() {
       listRevisions,
       languages,
       ai: aiConfig(user.ai_tier, settings, user.ai_enabled).offered,
+      // The pause cutoffs answer timing measures with (#2).
+      timingCutoffs: (await readTimingSettings()).cutoffMs,
     });
   } catch (e) {
     return fail(e);

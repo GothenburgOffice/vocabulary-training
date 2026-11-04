@@ -17,6 +17,7 @@ import { AiFeaturesContext } from "./AiFeatures";
 import { AiActionLogProvider } from "./AiActionLog";
 import { PASSWORD_MAX, PASSWORD_MIN } from "../lib/validation";
 import { applyTheme, type Theme } from "../lib/theme";
+import type { InputType } from "../lib/timing";
 
 type Account = { id: string; email: string; is_admin?: boolean };
 type Loaded = {
@@ -25,6 +26,7 @@ type Loaded = {
   listRevisions: Record<string, number>;
   languages?: Language[];
   ai?: AiFeatures;
+  timingCutoffs?: Record<InputType, number>;
 };
 // One change to save, in the order Workspace made it.
 type Change =
@@ -444,6 +446,7 @@ export default function AccountApp() {
           sync={sync}
           account={account}
           languageList={loaded.languages}
+          timingCutoffs={loaded.timingCutoffs}
         />
       </AiActionLogProvider>
     </AiFeaturesContext.Provider>

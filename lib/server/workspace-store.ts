@@ -14,6 +14,7 @@ import type { AiWord } from "../ai-words";
 import type { ExportSource } from "../export";
 import type { Run, WorkspaceData } from "../workspace";
 import type { Theme } from "../theme";
+import { bucketOf, observe, usableSample, type TimingSample, type TimingStats } from "../timing";
 import { db } from "./db";
 import { HttpError } from "./http";
 
@@ -285,7 +286,7 @@ export function saveList(
 // counts; an answer whose id was already applied (a retried request) changes nothing.
 export function recordReview(
   userId: string,
-  { id, wordId, direction, correct }: z.infer<typeof reviewSchema>,
+  { id, wordId, direction, correct, timing }: z.infer<typeof reviewSchema>,
 ) {
   return transaction(async (c) => {
     const word = await c.query(
@@ -333,8 +334,36 @@ export function recordReview(
         next.lastReview,
       ],
     );
+    if (correct && timing && usableSample(timing)) await recordTiming(c, userId, timing);
     return next;
   });
+}
+
+// Adds one answer's hesitation to the account's running averages for its input type, and
+// its score (once the account has a usual to compare with) to the site-wide counts (#2).
+async function recordTiming(c: pg.PoolClient, userId: string, sample: TimingSample) {
+  await c.query(
+    "INSERT INTO answer_timing (user_id, input) VALUES ($1,$2) ON CONFLICT DO NOTHING",
+    [userId, sample.input],
+  );
+  const row = (
+    await c.query(
+      "SELECT samples, mean, variance FROM answer_timing WHERE user_id=$1 AND input=$2 FOR UPDATE",
+      [userId, sample.input],
+    )
+  ).rows[0] as TimingStats;
+  const { stats, z } = observe(row, sample);
+  await c.query(
+    `UPDATE answer_timing SET samples=$3, mean=$4, variance=$5, updated_at=now()
+     WHERE user_id=$1 AND input=$2`,
+    [userId, sample.input, stats.samples, stats.mean, stats.variance],
+  );
+  if (z !== null)
+    await c.query(
+      `INSERT INTO answer_timing_buckets (input, bucket, answers) VALUES ($1,$2,1)
+       ON CONFLICT (input, bucket) DO UPDATE SET answers = answer_timing_buckets.answers + 1`,
+      [sample.input, bucketOf(z)],
+    );
 }
 
 // Saves a completed session once (a retried request changes nothing) and keeps the newest
@@ -442,6 +471,10 @@ export function loadExport(userId: string) {
       "SELECT kind, letters, at FROM ai_usage WHERE user_id=$1 ORDER BY at, kind",
       [userId],
     );
+    const timing = await c.query(
+      "SELECT input, samples, mean, variance FROM answer_timing WHERE user_id=$1 ORDER BY input",
+      [userId],
+    );
     const row = account.rows[0];
     const exported: ExportSource = {
       data,
@@ -458,6 +491,12 @@ export function loadExport(userId: string) {
         at: e.reviewed_at,
       })),
       aiUsage: usage.rows.map((u) => ({ kind: u.kind, letters: u.letters, at: u.at })),
+      answerTiming: timing.rows.map((t) => ({
+        input: t.input,
+        samples: t.samples,
+        mean: t.mean,
+        variance: t.variance,
+      })),
     };
     return exported;
   }, "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
