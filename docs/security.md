@@ -23,6 +23,13 @@ Intended for controlled self-hosting. This is not a security audit.
 - SQL values use parameterized queries. Zod validates all saved workspace data.
 - Session expiry is checked on every request. Sign-out revokes the stored token.
 - Authentication throttles are shared across processes through PostgreSQL.
+- A write limit per account (`lib/write-limits.ts`, Admin → Limits) counts every save:
+  answers, sessions, list edits and deletes, profile changes, reports and AI requests.
+  Over 20,000 an hour or 300,000 a day (defaults; 0 is no limit) the request gets 429 and
+  the account's `write_limited_at` is set, shown in Admin → Users. A person answering once
+  a second for 24 hours makes 86,400, so only a script reaches it. It stops a signed-in
+  script from filling the database (the answer log and reports otherwise grow without
+  bound). The counts are kept in the server process, so a restart starts them again.
 - List revision checks prevent silent overwrites across tabs, and every user data query
   filters on `user_id`, so one account can't read, change or take over another's rows.
 - The application container runs as a non-root user; PostgreSQL is not published

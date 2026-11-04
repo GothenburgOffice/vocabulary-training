@@ -62,6 +62,15 @@ export default function UserCard({
           <dd>{date(account.created_at)}</dd>
           <dt>Last sign-in</dt>
           <dd>{account.last_sign_in_at ? date(account.last_sign_in_at) : "Not recorded yet"}</dd>
+          {account.write_limited_at && (
+            <>
+              <dt>Write limit</dt>
+              <dd>
+                Last went over it {date(account.write_limited_at)}
+                <small>Faster than a person can save: likely a script (Admin → Limits).</small>
+              </dd>
+            </>
+          )}
           <dt>
             <label htmlFor="user-card-tier">Account type</label>
           </dt>

@@ -9,6 +9,7 @@ import { FeedbackUnavailable } from "../../../lib/server/requesty-client";
 import { SpeechService } from "../../../lib/server/speech-client";
 import { speechRequestSchema } from "../../../lib/server/speech-input";
 import { readWordForAi } from "../../../lib/server/workspace-store";
+import { limitWrites } from "../../../lib/server/write-limits";
 
 export const runtime = "nodejs";
 const speech = new SpeechService();
@@ -19,6 +20,7 @@ export async function POST(request: Request) {
   try {
     requireOrigin(request);
     const user = await requireUser();
+    await limitWrites(user.id);
     const parsed = speechRequestSchema.safeParse(await body(request, 2_000));
     if (!parsed.success) return json({ status: "invalid" }, 400);
     const word = await readWordForAi(user.id, parsed.data.wordId);

@@ -39,7 +39,7 @@ const USAGE_COLUMNS = (["speech", "note"] as const).flatMap((kind) =>
 );
 
 const ACCOUNT_COLUMNS =
-  "u.id, u.email, u.created_at, u.last_sign_in_at, u.ai_tier, u.is_admin, u.locked_at, u.deleted_at";
+  "u.id, u.email, u.created_at, u.last_sign_in_at, u.ai_tier, u.is_admin, u.locked_at, u.deleted_at, u.write_limited_at";
 
 // What each sortable column orders by, for accounts as `u` and their usage as `us`. Status:
 // active, then locked, then in the trash.
