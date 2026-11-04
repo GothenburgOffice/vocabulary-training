@@ -12,7 +12,7 @@ test("practise: correct, wrong and skip, then results, mistakes and history", as
   await createList(page, "Basics", words);
   await page.getByLabel("Session size").selectOption("1000");
   await page.getByRole("button", { name: "Start practice" }).click();
-  await expect(page.getByText("Swedish → French · Smart mix")).toBeVisible();
+  await expect(page.getByText("Swedish → French · Weighted mix")).toBeVisible();
 
   for (let i = 1; i <= 3; i++) {
     await expect(page.getByText(`Word ${i} of 3`)).toBeVisible();
@@ -20,7 +20,7 @@ test("practise: correct, wrong and skip, then results, mistakes and history", as
     if (word === "hej") {
       await answer(page, "  Bonjour ");
       await expect(page.getByText("That's right.")).toBeVisible();
-      await expect(page.getByText("Next review: 1 day(s).")).toBeVisible();
+      await expect(page.getByText("Next review in 10 minutes.")).toBeVisible();
     } else if (word === "tack") {
       await answer(page, "mercy");
       await expect(page.getByText("Not quite. Let's keep this one in practice.")).toBeVisible();
@@ -104,6 +104,23 @@ test("leaving a session asks first and keeps it out of history", async ({ page }
   await openMenu(page);
   await page.getByRole("button", { name: "Session history" }).click();
   await expect(page.getByRole("heading", { name: "A fresh start." })).toBeVisible();
+});
+
+test("spaced review asks new words in list order and fills the session", async ({ page }) => {
+  await page.goto("/");
+  await createList(page, "Spaced", words);
+  await page.getByLabel("Practice mode").selectOption("spaced");
+  await expect(page.getByText("Due words first, the ones you are likeliest")).toBeVisible();
+  await page.getByLabel("Session size").selectOption("1000");
+  await page.getByRole("button", { name: "Start practice" }).click();
+  await expect(page.getByText("Swedish → French · Spaced review")).toBeVisible();
+  for (const [i, [front, back]] of words.entries()) {
+    await expect(page.getByText(`Word ${i + 1} of 3`)).toBeVisible();
+    expect(await prompt(page)).toBe(front);
+    await answer(page, back);
+    await page.getByRole("button", { name: /Next word|See results/ }).click();
+  }
+  await expect(page.locator(".results-overview strong")).toHaveText("3 / 3");
 });
 
 test("practice settings are remembered in this browser", async ({ page }) => {

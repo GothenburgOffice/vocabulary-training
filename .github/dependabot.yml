@@ -16,6 +16,9 @@ updates:
       # Stay on Node 22 for broad hosting compatibility.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # ts-fsrs 6 needs Node 24.
+      - dependency-name: "ts-fsrs"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: docker
     directory: /

@@ -37,6 +37,24 @@ async function transaction<T>(work: (client: pg.PoolClient) => Promise<T>, begin
 }
 // Timestamps travel as milliseconds, like Date.now().
 const ms = (column: string) => `(extract(epoch FROM ${column})*1000)::float8`;
+// A word_reviews row as History (lib/learning.ts), FSRS state included (#2).
+const HISTORY_COLUMNS = `correct, wrong, streak, ${ms("due_at")} AS due, stability, difficulty,
+  state, learning_steps, lapses, scheduled_days, ${ms("last_review_at")} AS last_review`;
+function historyOf(r: Record<string, unknown>): History {
+  return {
+    correct: r.correct as number,
+    wrong: r.wrong as number,
+    streak: r.streak as number,
+    due: Math.round(r.due as number),
+    stability: r.stability as number,
+    difficulty: r.difficulty as number,
+    state: r.state as History["state"],
+    steps: r.learning_steps as number,
+    lapses: r.lapses as number,
+    scheduledDays: r.scheduled_days as number,
+    lastReview: r.last_review === null ? null : Math.round(r.last_review as number),
+  };
+}
 
 // The full user data dump, in the shape the client works with. One read-only snapshot, so
 // lists, words, reviews and runs are consistent with each other.
@@ -67,8 +85,7 @@ async function readWorkspace(c: pg.PoolClient, userId: string) {
     [userId],
   );
   const reviews = await c.query(
-    `SELECT word_id, prompt, correct, wrong, streak, ${ms("due_at")} AS due
-       FROM word_reviews WHERE user_id=$1`,
+    `SELECT word_id, prompt, ${HISTORY_COLUMNS} FROM word_reviews WHERE user_id=$1`,
     [userId],
   );
   const runs = await c.query(
@@ -85,13 +102,7 @@ async function readWorkspace(c: pg.PoolClient, userId: string) {
   );
 
   const history = new Map<string, History>();
-  for (const r of reviews.rows)
-    history.set(`${r.word_id}:${r.prompt}`, {
-      correct: r.correct,
-      wrong: r.wrong,
-      streak: r.streak,
-      due: Math.round(r.due),
-    });
+  for (const r of reviews.rows) history.set(`${r.word_id}:${r.prompt}`, historyOf(r));
   const wordAnswers = new Map<string, string[]>();
   for (const a of answers.rows)
     wordAnswers.set(a.word_id, [...(wordAnswers.get(a.word_id) ?? []), a.learning_text]);
@@ -290,17 +301,10 @@ export function recordReview(
       [wordId, prompt, userId, native_language, learning_language],
     );
     const current = await c.query(
-      `SELECT correct, wrong, streak, ${ms("due_at")} AS due FROM word_reviews
-       WHERE word_id=$1 AND prompt=$2 FOR UPDATE`,
+      `SELECT ${HISTORY_COLUMNS} FROM word_reviews WHERE word_id=$1 AND prompt=$2 FOR UPDATE`,
       [wordId, prompt],
     );
-    const row = current.rows[0];
-    const history = {
-      correct: row.correct,
-      wrong: row.wrong,
-      streak: row.streak,
-      due: Math.round(row.due),
-    };
+    const history = historyOf(current.rows[0]);
     const event = await c.query(
       `INSERT INTO review_events (id, user_id, word_id, prompt, correct) VALUES ($1,$2,$3,$4,$5)
        ON CONFLICT (id) DO NOTHING`,
@@ -309,9 +313,25 @@ export function recordReview(
     if (!event.rowCount) return history;
     const next = reviewed(history, correct, Date.now());
     await c.query(
-      `UPDATE word_reviews SET correct=$3, wrong=$4, streak=$5, due_at=to_timestamp($6/1000.0)
+      `UPDATE word_reviews SET correct=$3, wrong=$4, streak=$5, due_at=to_timestamp($6/1000.0),
+         stability=$7, difficulty=$8, state=$9, learning_steps=$10, lapses=$11,
+         scheduled_days=$12, last_review_at=to_timestamp($13/1000.0)
        WHERE word_id=$1 AND prompt=$2`,
-      [wordId, prompt, next.correct, next.wrong, next.streak, next.due],
+      [
+        wordId,
+        prompt,
+        next.correct,
+        next.wrong,
+        next.streak,
+        next.due,
+        next.stability,
+        next.difficulty,
+        next.state,
+        next.steps,
+        next.lapses,
+        next.scheduledDays,
+        next.lastReview,
+      ],
     );
     return next;
   });

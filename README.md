@@ -9,7 +9,8 @@ Built with Next.js, TypeScript and PostgreSQL, and run with Docker Compose.
 - Email/password accounts with server-side sessions.
 - Word-pair lists per language pair, with paired and bulk editing and CSV import/export.
 - Practice in either direction with independent review statistics per direction.
-- Weighted (spaced review) or random sampling, configurable round size,
+- Three practice modes (Weighted mix, Spaced review with FSRS scheduling, Random order),
+  configurable round size,
   case/accent options, several accepted answers per word (through CSV import for now) and
   mistakes retry.
 - Session history per language pair.

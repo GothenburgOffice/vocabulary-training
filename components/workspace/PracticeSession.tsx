@@ -1,7 +1,13 @@
 import { useContext, useEffect, useRef } from "react";
 import { ArrowRight, X } from "lucide-react";
 import { answersFor, listTitle, type List, type Word } from "../../lib/learning";
-import { isLastWord, type Practice, type PracticeSettings } from "../../lib/practice";
+import {
+  isLastWord,
+  MODE_LABELS,
+  nextReviewText,
+  type Practice,
+  type PracticeSettings,
+} from "../../lib/practice";
 import { AiFeaturesContext } from "../AiFeatures";
 import LanguageNote from "../LanguageNote";
 import SpeechButton from "../SpeechButton";
@@ -47,7 +53,7 @@ export default function PracticeSession({
           <h1>{listTitle(list)}</h1>
           <p>
             {forward ? `${list.from} → ${list.to}` : `${list.to} → ${list.from}`} ·{" "}
-            {mode === "adaptive" ? "Smart mix" : "Random order"}
+            {MODE_LABELS[mode]}
           </p>
         </div>
         <Button onClick={onEnd}>
@@ -123,9 +129,12 @@ export default function PracticeSession({
                   label="Play answer word"
                 />
               </p>
-              {feedback.correct && (
-                <p>Next review: {Math.min(30, 2 ** (word[direction].streak - 1))} day(s).</p>
-              )}
+              <p>
+                {nextReviewText(
+                  word[direction].due,
+                  word[direction].lastReview ?? feedback.answeredAt ?? 0,
+                )}
+              </p>
               <Button primary type="submit">
                 {isLastWord(practice) ? "See results" : "Next word"} <ArrowRight size={16} />
               </Button>

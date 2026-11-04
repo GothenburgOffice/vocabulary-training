@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { BookMark } from "../../lib/brand";
 import { listTitle, type List } from "../../lib/learning";
-import type { Mode, PracticeSettings } from "../../lib/practice";
+import { isMode, MODE_LABELS, MODES, type PracticeSettings } from "../../lib/practice";
 import Button from "./Button";
 
 // The library's side panel: how to practise the selected list.
@@ -62,8 +62,8 @@ export default function PracticeSetup({
               <button
                 type="button"
                 className="field-help-button"
-                aria-label="How Smart mix and Random order work"
-                title="How Smart mix and Random order work"
+                aria-label="How each mode works"
+                title="How each mode works"
                 onClick={onHelp}
               >
                 <CircleHelp size={14} />
@@ -73,16 +73,21 @@ export default function PracticeSetup({
               id="practice-mode"
               aria-label="Practice mode"
               value={mode}
-              onChange={(e) => onSettings({ mode: e.target.value as Mode })}
+              onChange={(e) => isMode(e.target.value) && onSettings({ mode: e.target.value })}
             >
-              <option value="adaptive">Smart mix</option>
-              <option value="random">Random order</option>
+              {MODES.map((m) => (
+                <option key={m} value={m}>
+                  {MODE_LABELS[m]}
+                </option>
+              ))}
             </select>
           </div>
           <p className="field-help">
             {mode === "adaptive"
               ? "A weighted sample: weaker and due words are more likely to appear."
-              : "Every word gets the same chance to appear."}
+              : mode === "spaced"
+                ? "Due words first, the ones you are likeliest to have forgotten first, then new words."
+                : "Every word gets the same chance to appear."}
           </p>
           <label className="field">
             Session size

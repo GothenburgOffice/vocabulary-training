@@ -10,6 +10,7 @@ import {
   practiceReducer,
   readSettings,
   type Practice,
+  nextReviewText,
 } from "../lib/practice.ts";
 
 const hej = makeWord("hej", "bonjour", "w1");
@@ -83,7 +84,7 @@ test("grading uses the direction, the accepted answers and the answer settings",
 });
 
 test("a session samples the list without repeats, or retries only the mistakes", () => {
-  for (const mode of ["adaptive", "random"] as const) {
+  for (const mode of ["adaptive", "spaced", "random"] as const) {
     const two = practiceQueue(words, { ...DEFAULT_SETTINGS, mode, length: 2 }, now);
     assert.equal(two.length, 2);
     assert.equal(new Set(two).size, 2);
@@ -109,6 +110,8 @@ test("remembered practice settings are checked, with defaults for anything else"
     accents: false,
   };
   assert.deepEqual(readSettings(JSON.stringify(saved)), saved);
+  assert.equal(readSettings(JSON.stringify({ mode: "spaced" })).mode, "spaced");
+  assert.equal(readSettings(JSON.stringify({ mode: "smart" })).mode, "adaptive");
   assert.deepEqual(readSettings(null), DEFAULT_SETTINGS);
   assert.deepEqual(readSettings("not json"), DEFAULT_SETTINGS);
   assert.deepEqual(readSettings("null"), DEFAULT_SETTINGS);
@@ -116,4 +119,13 @@ test("remembered practice settings are checked, with defaults for anything else"
     readSettings(JSON.stringify({ direction: "sideways", length: 3, accents: "yes" })),
     DEFAULT_SETTINGS,
   );
+});
+
+test("the next review is said in minutes, hours or days", () => {
+  const m = 60000;
+  assert.equal(nextReviewText(10 * m, 0), "Next review in 10 minutes.");
+  assert.equal(nextReviewText(20_000, 0), "Next review in 1 minute.");
+  assert.equal(nextReviewText(90 * m, 0), "Next review in 2 hours.");
+  assert.equal(nextReviewText(36 * 60 * m, 0), "Next review in 2 days.");
+  assert.equal(nextReviewText(24 * 60 * m, 0), "Next review in 1 day.");
 });
