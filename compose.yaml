@@ -2,7 +2,7 @@ name: vocabulary-training
 services:
   db:
     # PostgreSQL 18.6 with the pgvector extension (vector search, issue #56).
-    image: pgvector/pgvector:0.8.6-pg18-trixie
+    image: pgvector/pgvector:0.8.7-pg18-trixie
     restart: unless-stopped
     environment:
       POSTGRES_DB: vocabulary
