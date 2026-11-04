@@ -56,7 +56,7 @@
         "detail": "Is the database reachable, does the app answer, and are migrations pending?",
         "type": "shell",
         "options": { "shell": { "executable": "bash", "args": ["-c"] } },
-        "command": "pg_isready -d \"$DATABASE_URL\" || exit 1; echo -n 'App health: '; curl -sS -m 10 localhost:3000/api/health; echo; pending=$(comm -23 <(ls db/migrations | sort) <(psql \"$DATABASE_URL\" -Atc 'SELECT name FROM schema_migrations' | sort)); if [ -n \"$pending\" ]; then printf 'Pending migrations:\\n%s\\nRun the task \"Dev container: after pulling\".\\n' \"$pending\"; exit 1; fi; echo 'Migrations: all applied.'",
+        "command": "pg_isready -d \"$DATABASE_URL\" || exit 1; echo -n 'App health: '; curl -fsS -m 10 localhost:3000/api/health || { echo ' the app is not healthy.'; exit 1; }; echo; pending=$(comm -23 <(ls db/migrations | sort) <(psql \"$DATABASE_URL\" -Atc 'SELECT name FROM schema_migrations' | sort)); if [ -n \"$pending\" ]; then printf 'Pending migrations:\\n%s\\nRun the task \"Dev container: after pulling\".\\n' \"$pending\"; exit 1; fi; echo 'Migrations: all applied.'",
         "problemMatcher": [],
       },
       {
