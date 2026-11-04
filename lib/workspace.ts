@@ -1,5 +1,6 @@
 import type { Direction, History, List, Word } from "./learning";
 import type { Theme } from "./theme";
+import type { TimingSample } from "./timing";
 
 // A result keeps only the word's text, not its review history (issue #7).
 export type ResultWord = Pick<Word, "id" | "front" | "back">;
@@ -31,7 +32,14 @@ export type WorkspaceData = {
   runs: Run[];
 };
 // One checked answer. The id is made once per answer, so a retried save counts it once.
-export type Review = { id: string; wordId: string; direction: Direction; correct: boolean };
+// A right, typed answer carries its timing (#2), which never changes the grade.
+export type Review = {
+  id: string;
+  wordId: string;
+  direction: Direction;
+  correct: boolean;
+  timing?: TimingSample;
+};
 // How Workspace reports each change to save; AccountApp sends them to the API in order.
 export type WorkspaceSync = {
   saveList: (list: List) => void;

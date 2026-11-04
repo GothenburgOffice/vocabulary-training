@@ -5,8 +5,8 @@ import type { WorkspaceData } from "./workspace";
 // one JSON file meant for people to keep and read. There is no import for it yet.
 // Times are ISO 8601 (UTC). Bump EXPORT_VERSION when the shape changes.
 export const EXPORT_FORMAT = "vocabulary.training export";
-// 2: profile.aiEnabled (#113). 3: review.*.fsrs (#2).
-export const EXPORT_VERSION = 3;
+// 2: profile.aiEnabled (#113). 3: review.*.fsrs (#2). 4: answerTiming (#2).
+export const EXPORT_VERSION = 4;
 
 export type ExportAccount = {
   email: string;
@@ -23,12 +23,15 @@ export type ExportReviewEvent = {
 };
 // One AI request that reached the provider: what kind, how many letters, when (no text).
 export type ExportAiUsage = { kind: string; letters: number; at: Date };
+// The running averages of answer hesitation per input type (#2); no single answer's times.
+export type ExportAnswerTiming = { input: string; samples: number; mean: number; variance: number };
 // What loadExport reads, from one database snapshot.
 export type ExportSource = {
   account: ExportAccount;
   data: WorkspaceData;
   reviewEvents: ExportReviewEvent[];
   aiUsage: ExportAiUsage[];
+  answerTiming: ExportAnswerTiming[];
 };
 
 // 0 is a real time (the epoch); only a missing time is null.
@@ -76,7 +79,10 @@ function exportList(list: List, answerLog: Map<string, ExportReviewEvent[]>) {
   };
 }
 
-export function exportDocument({ account, data, reviewEvents, aiUsage }: ExportSource, now: Date) {
+export function exportDocument(
+  { account, data, reviewEvents, aiUsage, answerTiming }: ExportSource,
+  now: Date,
+) {
   const answerLog = new Map<string, ExportReviewEvent[]>();
   for (const e of reviewEvents) answerLog.set(e.wordId, [...(answerLog.get(e.wordId) ?? []), e]);
   return {
@@ -115,6 +121,14 @@ export function exportDocument({ account, data, reviewEvents, aiUsage }: ExportS
       })),
     })),
     aiUsage: aiUsage.map((u) => ({ kind: u.kind, letters: u.letters, at: u.at.toISOString() })),
+    // How long you usually hesitate on a right answer, per input type: the mean and spread of
+    // log(1 + seconds) over your recent answers. It doesn't change grades yet.
+    answerTiming: answerTiming.map((t) => ({
+      input: t.input,
+      answers: t.samples,
+      usualScore: t.mean,
+      spread: Math.sqrt(t.variance),
+    })),
   };
 }
 

@@ -25,6 +25,11 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     description: "AI results learners reported, newest first, and pruning old reports.",
   },
   {
+    href: "/admin/timing",
+    title: "Answer timing",
+    description: "Hesitation cutoffs and the Hard threshold, with what each would mark Hard.",
+  },
+  {
     href: "/admin/registration",
     title: "Registration",
     description: "Open or close sign-up, and the privacy details it needs first.",

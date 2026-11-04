@@ -123,6 +123,34 @@ test("spaced review asks new words in list order and fills the session", async (
   await expect(page.locator(".results-overview strong")).toHaveText("3 / 3");
 });
 
+test("a right, typed answer sends its timing; a wrong or skipped one doesn't", async ({ page }) => {
+  const reviews: { correct: boolean; timing?: Record<string, unknown> }[] = [];
+  page.on("request", (r) => {
+    if (r.url().endsWith("/api/reviews") && r.method() === "POST") reviews.push(r.postDataJSON());
+  });
+  await page.goto("/");
+  await createList(page, "Timed", words);
+  await page.getByLabel("Session size").selectOption("1000");
+  await page.getByRole("button", { name: "Start practice" }).click();
+  for (let i = 1; i <= 3; i++) {
+    await expect(page.getByText(`Word ${i} of 3`)).toBeVisible();
+    const word = await prompt(page);
+    if (word === "hej") await answer(page, "bonjour");
+    else if (word === "tack") await answer(page, "mercy");
+    else await page.getByRole("button", { name: "I don’t know yet" }).click();
+    await page.getByRole("button", { name: /Next word|See results/ }).click();
+  }
+  await expect.poll(() => reviews.length).toBe(3);
+  const timed = reviews.filter((r) => r.timing);
+  expect(timed).toHaveLength(1);
+  expect(timed[0].correct).toBe(true);
+  const { input, activeMs, beforeMs, pauseMs } = timed[0].timing as Record<string, number | string>;
+  // A phone has a touchscreen; a desktop browser a keyboard.
+  expect(input).toBe(test.info().project.name === "phone" ? "touch" : "keyboard");
+  expect(activeMs).toBeGreaterThan(0);
+  expect(Number(beforeMs) + Number(pauseMs)).toBeLessThanOrEqual(Number(activeMs));
+});
+
 test("practice settings are remembered in this browser", async ({ page }) => {
   await page.goto("/");
   await createList(page, "Settings", [["hej", "bonjour"]]);
