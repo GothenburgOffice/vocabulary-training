@@ -12,7 +12,8 @@ standards: [stack](https://github.com/hkarn/WebDev-Studio/blob/main/standards/ne
 [dependencies](https://github.com/hkarn/WebDev-Studio/blob/main/standards/dependencies.md),
 [security](https://github.com/hkarn/WebDev-Studio/blob/main/standards/security.md) and
 [agent instructions](https://github.com/hkarn/WebDev-Studio/blob/main/standards/agent-instructions.md).
-Model, API and service choices come from
+Which services, models and providers to use, how to configure and price them, and the business
+decisions behind them come from
 [tech-research FINDINGS.md](https://github.com/hkarn/tech-research/blob/main/FINDINGS.md), which
 is private: the owner's agent sessions read it with `gh`. This repo's own files stay the authority
 for what is implemented here.
