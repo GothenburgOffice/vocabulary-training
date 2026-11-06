@@ -32,10 +32,10 @@ export default async function LimitsPage() {
           Saves
         </h2>
         <p className="field-help">
-          Every change an account saves counts: answers, sessions, list edits, profile changes,
-          reports and AI requests. The limit is there to stop a script filling the database, so keep
-          it far above what a person can reach. An account over it gets an error and can retry
-          later; Users shows when it last happened. 0 means no limit.
+          Every request to save counts, refused ones too: answers, sessions, list edits, profile
+          changes, reports and AI requests. The limit is there to stop a script filling the
+          database, so keep it far above what a person can reach. An account over it gets an error
+          and can retry later; Users shows when it last happened. 0 means no limit.
         </p>
         <WriteLimitsSettings />
       </section>
