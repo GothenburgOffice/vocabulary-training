@@ -15,6 +15,7 @@ import {
   requestLanguageComment,
 } from "../../../lib/server/requesty-client";
 import { readWordForAi } from "../../../lib/server/workspace-store";
+import { limitWrites } from "../../../lib/server/write-limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
   try {
     requireOrigin(request);
     const user = await requireUser();
+    await limitWrites(user.id);
     const parsed = feedbackRequestSchema.safeParse(await body(request, 4_000));
     if (!parsed.success) throw new HttpError(400, "This language-note request is invalid.");
     const word = await readWordForAi(user.id, parsed.data.wordId);

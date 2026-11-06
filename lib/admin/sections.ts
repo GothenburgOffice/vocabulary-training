@@ -12,7 +12,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   {
     href: "/admin/ai",
     title: "AI settings",
-    description: "Requesty keys, language-note models, and how much each account may use AI.",
+    description: "Requesty keys and the language-note model per account type.",
+  },
+  {
+    href: "/admin/limits",
+    title: "Limits",
+    description: "AI usage and saves per account, so one account or script can't run away.",
   },
   {
     href: "/admin/languages",

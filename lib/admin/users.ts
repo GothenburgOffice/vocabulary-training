@@ -76,6 +76,8 @@ export type AdminAccount = {
   email: string;
   created_at: string;
   last_sign_in_at: string | null;
+  // When it last went over the write limit: a sign of a script.
+  write_limited_at: string | null;
   ai_tier: "basic" | "plus";
   is_admin: boolean;
   locked_at: string | null;

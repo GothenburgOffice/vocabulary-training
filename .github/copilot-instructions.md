@@ -43,7 +43,8 @@ the full browser suite on every PR.
   design: never store a user id with a report; only the tier comes from the session.
   `lib/reports.ts` holds the reasons and schema shared with the browser.
 - `lib/server/**`: server-only (`import "server-only"`). DB, sessions, Requesty clients.
-- `app/api/*/route.ts`: mutations call `requireOrigin` and then `requireUser`. Errors go through `HttpError`/`fail`.
+- `app/api/*/route.ts`: mutations call `requireOrigin` and then `requireUser`; a route that writes the
+  account's data then calls `limitWrites(user.id)` (`lib/server/write-limits.ts`). Errors go through `HttpError`/`fail`.
 - `app/admin/`: the admin area, a shell (`layout.tsx`, `components/admin/AdminNav.tsx`)
   with one module per section. To add a section: `app/admin/<slug>/page.tsx` (calls
   `adminPage()`), components in `components/admin/`, API in `app/api/admin/<slug>/`

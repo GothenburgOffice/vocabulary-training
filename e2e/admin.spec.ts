@@ -276,9 +276,9 @@ test("AI limits are edited and saved together, and reset to the defaults", async
     }
     await route.fulfill({ json: { limits, defaults } });
   });
-  // Limits are a section of AI settings, with the keys and models above them.
-  await page.goto("/admin/ai");
-  const section = page.getByRole("region", { name: "Limits" });
+  // AI usage is a section of Limits, above the write limit.
+  await page.goto("/admin/limits");
+  const section = page.getByRole("region", { name: "AI usage" });
   const save = section.getByRole("button", { name: "Save limits" });
   await expect(save).toBeDisabled();
   await page.getByLabel("Speech: Letters per minute").fill("300");
@@ -362,6 +362,49 @@ test("answer timing settings are saved, and the calibration shows each threshold
   await expect(page.getByRole("columnheader", { name: "≥ 2.5 (set)" })).toBeVisible();
 });
 
+test("the write limit is saved, and reset to the defaults", async ({ page }) => {
+  // Answered here: the limit applies to every account.
+  const defaults = { perHour: 20000, perDay: 300000 };
+  let limits = structuredClone(defaults);
+  const saves: unknown[] = [];
+  await page.route("/api/admin/limits/writes", async (route) => {
+    if (route.request().method() === "PUT") {
+      limits = route.request().postDataJSON();
+      saves.push(limits);
+    }
+    await route.fulfill({ json: { limits, defaults } });
+  });
+  await page.route("/api/admin/limits", (route) =>
+    route.fulfill({
+      json: {
+        limits: {
+          speech: { lettersPerMinute: 1, lettersPerDay: { basic: 1, plus: 1 }, cooldownMs: 0 },
+          note: { lettersPerMinute: 1, lettersPerDay: { basic: 1, plus: 1 }, cooldownMs: 0 },
+          speechBlockMs: 10000,
+        },
+        defaults: {
+          speech: { lettersPerMinute: 1, lettersPerDay: { basic: 1, plus: 1 }, cooldownMs: 0 },
+          note: { lettersPerMinute: 1, lettersPerDay: { basic: 1, plus: 1 }, cooldownMs: 0 },
+          speechBlockMs: 10000,
+        },
+      },
+    }),
+  );
+  await page.goto("/admin/limits");
+  const section = page.getByRole("region", { name: "Saves" });
+  const save = section.getByRole("button", { name: "Save write limits" });
+  await expect(save).toBeDisabled();
+  await section.getByLabel("Saves per hour").fill("50000");
+  await save.click();
+  await expect(section.getByRole("status")).toHaveText("Saved.");
+  expect(saves).toEqual([{ perHour: 50000, perDay: 300000 }]);
+  await section.getByRole("button", { name: "Reset to defaults" }).click();
+  await expect(section.getByLabel("Saves per hour")).toHaveValue("20000");
+  await save.click();
+  await expect(section.getByRole("status")).toHaveText("Saved.");
+  expect(saves[1]).toEqual(defaults);
+});
+
 test("users can be filtered, re-typed, locked, trashed and restored, with E2E cleanup", async ({
   page,
 }) => {
@@ -373,6 +416,7 @@ test("users can be filtered, re-typed, locked, trashed and restored, with E2E cl
     email,
     created_at: "2026-10-01T10:00:00.000Z",
     last_sign_in_at: null,
+    write_limited_at: null,
     ai_tier: "basic" as const,
     is_admin: false,
     locked_at: null as string | null,
