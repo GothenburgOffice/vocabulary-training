@@ -3,6 +3,20 @@
 The shared reference for coding agents and contributors. Copilot reads it directly;
 `CLAUDE.md` imports it and adds the Claude Code specifics.
 
+## Shared standards
+
+This repo follows the owner's [WebDev Studio](https://github.com/hkarn/WebDev-Studio)
+standards: [stack](https://github.com/hkarn/WebDev-Studio/blob/main/standards/nextjs-postgres.md),
+[dev environment](https://github.com/hkarn/WebDev-Studio/blob/main/standards/dev-environment.md),
+[CI](https://github.com/hkarn/WebDev-Studio/blob/main/standards/ci.md),
+[dependencies](https://github.com/hkarn/WebDev-Studio/blob/main/standards/dependencies.md),
+[security](https://github.com/hkarn/WebDev-Studio/blob/main/standards/security.md) and
+[agent instructions](https://github.com/hkarn/WebDev-Studio/blob/main/standards/agent-instructions.md).
+Model, API and service choices come from
+[tech-research FINDINGS.md](https://github.com/hkarn/tech-research/blob/main/FINDINGS.md). Both
+repositories are private: the owner's agent sessions read them with `gh`; outside contributors can
+ignore this section. This repo's own files stay the authority for what is implemented here.
+
 ## Project
 
 vocabulary.training: personal word lists and typed-recall practice. Next.js 16
