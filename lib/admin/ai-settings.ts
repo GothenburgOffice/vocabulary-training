@@ -10,19 +10,56 @@ export const tierSchema = z.enum(["basic", "plus"]);
 export type Tier = z.infer<typeof tierSchema>;
 
 // apiKey: omitted keeps the stored key, null clears it, a string replaces it.
+const apiKey = z.string().trim().min(1).max(500).refine(noControl).nullable().optional();
 export const tierUpdateSchema = z
+  .object({ tier: tierSchema, model: model.optional(), apiKey })
+  .strict();
+
+// The read-only Requesty management key (#121), and the key label value that marks this
+// app's keys in a Requesty organisation that may hold other apps' keys too.
+export const DEFAULT_APP_LABEL = "vocabulary-training";
+export const monitorUpdateSchema = z
   .object({
-    tier: tierSchema,
-    model: model.optional(),
-    apiKey: z.string().trim().min(1).max(500).refine(noControl).nullable().optional(),
+    apiKey,
+    appLabel: z
+      .string()
+      .trim()
+      .min(1, "Enter the label value, for example vocabulary-training.")
+      .max(100)
+      .regex(/^[A-Za-z0-9._:-]+$/, "Use letters, digits and . _ : - in the label.")
+      .optional(),
   })
   .strict();
 
+// Creating the monitor key in Requesty: a full-rights admin key, used once and never stored,
+// and the new key's name.
+export const DEFAULT_MONITOR_NAME = "Vocabulary admin monitor";
+export const monitorCreateSchema = z
+  .object({
+    adminKey: z.string().trim().min(1, "Enter a Requesty admin key.").max(500).refine(noControl),
+    name: z
+      .string()
+      .trim()
+      .min(1, "Name the new key.")
+      .max(100)
+      .refine(noControl, "Remove control characters."),
+    // Also label the saved tier keys app=<app label>, tier=basic|plus with the admin key.
+    labelTiers: z.boolean().optional(),
+  })
+  .strict();
+export type MonitorCreated = {
+  apiKey: string;
+  labelled: { tier: Tier; name: string }[];
+  problems: string[];
+};
+
 export type KeyStatus = { state: "unset" | "set" | "unreadable"; hint?: string };
 export type TierView = { model: string; key: KeyStatus };
+export type MonitorView = { key: KeyStatus; appLabel: string };
 export type AiSettingsView = {
   encryptionReady: boolean;
   tiers: Record<Tier, TierView>;
+  monitor: MonitorView;
 };
 
 // Speech calls go straight to a model: SpeechService refuses policies, so they're refused here

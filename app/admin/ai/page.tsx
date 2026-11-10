@@ -11,8 +11,8 @@ export default async function AiSettingsPage() {
         <div>
           <h1>AI settings</h1>
           <p>
-            Requesty keys and the language-note model per tier. Speech is set per language, and
-            usage limits under Limits. Changes apply to the next AI call.
+            Requesty keys and the language-note model per tier, and Requesty usage. Speech is set
+            per language, and usage limits under Limits. Changes apply to the next AI call.
           </p>
         </div>
       </header>

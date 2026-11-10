@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import type { AiSettingsView, Tier } from "../../lib/admin/ai-settings";
 import { adminRequest } from "./request";
+import { MonitorCard, UsagePanel } from "./RequestyUsage";
 import { useModels } from "./useModels";
 
 const TIER_TEXT: Record<Tier, { title: string; help: string }> = {
@@ -35,7 +36,11 @@ export default function AiSettings() {
         {(["basic", "plus"] as const).map((tier) => (
           <TierCard key={tier} tier={tier} view={view} onSaved={setView} />
         ))}
+        <MonitorCard view={view} onSaved={setView} />
       </div>
+      {view.monitor.key.state === "set" && (
+        <UsagePanel key={`${view.monitor.key.hint}:${view.monitor.appLabel}`} />
+      )}
     </>
   );
 }

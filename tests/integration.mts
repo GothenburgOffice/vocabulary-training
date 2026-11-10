@@ -588,6 +588,49 @@ test("real HTTP: admin AI settings and languages, with dummy keys and no provide
       ).status,
       403,
     );
+    // The Requesty monitor key (#121). Saving a key asks Requesty for its permissions, so only
+    // the paths that never reach Requesty are tested here (the check is unit-tested).
+    assert.deepEqual(before.monitor, { key: { state: "unset" }, appLabel: "vocabulary-training" });
+    assert.equal((await api("/api/admin/ai/usage")).status, 404);
+    const usage = await api("/api/admin/ai/usage", "GET", undefined, admin);
+    assert.deepEqual(await usage.json(), { configured: false });
+    assert.equal(
+      (
+        await api("/api/admin/ai/monitor", "PUT", { appLabel: "x" }, admin, {
+          Origin: "https://attacker.invalid",
+        })
+      ).status,
+      403,
+    );
+    assert.equal((await api("/api/admin/ai/monitor", "PUT", { appLabel: "x" })).status, 404);
+    assert.equal(
+      (await api("/api/admin/ai/monitor", "PUT", { appLabel: "two words" }, admin)).status,
+      400,
+    );
+    // Creating the key needs an admin; an incomplete request is refused before Requesty.
+    const create = { adminKey: "rqsty-sk-integration-admin-dummy", name: "Monitor" };
+    assert.equal((await api("/api/admin/ai/monitor/create", "POST", create)).status, 404);
+    assert.equal(
+      (
+        await api("/api/admin/ai/monitor/create", "POST", create, admin, {
+          Origin: "https://attacker.invalid",
+        })
+      ).status,
+      403,
+    );
+    assert.equal(
+      (await api("/api/admin/ai/monitor/create", "POST", { ...create, name: "" }, admin)).status,
+      400,
+    );
+    const labelled = await api("/api/admin/ai/monitor", "PUT", { appLabel: "vt-test" }, admin);
+    assert.equal(labelled.status, 200, await labelled.clone().text());
+    assert.equal((await labelled.json()).monitor.appLabel, "vt-test");
+    const unset = await api("/api/admin/ai/monitor", "PUT", { apiKey: null }, admin);
+    assert.deepEqual((await unset.json()).monitor, {
+      key: { state: "unset" },
+      appLabel: "vt-test",
+    });
+
     const saved = await api(
       "/api/admin/ai",
       "PUT",
@@ -725,6 +768,12 @@ test("real HTTP: admin AI settings and languages, with dummy keys and no provide
     // Back to no key, no models, and English and registration as they were, even after a
     // failed assertion.
     await api("/api/admin/ai", "PUT", { tier: "basic", apiKey: null, model: "" }, admin);
+    await api(
+      "/api/admin/ai/monitor",
+      "PUT",
+      { apiKey: null, appLabel: "vocabulary-training" },
+      admin,
+    );
     const { open, controllerName, contactEmail } = registration;
     await api("/api/admin/registration", "PUT", { open, controllerName, contactEmail }, admin);
     const current = (await readLanguages()).find((l) => l.name === "English")!;

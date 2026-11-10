@@ -19,7 +19,14 @@ Intended for controlled self-hosting. This is not a security audit.
   `APP_ORIGIN` or one of `APP_ORIGIN_ALIASES`.
 - Requesty keys are stored encrypted with AES-256-GCM (`SETTINGS_ENCRYPTION_KEY`)
   and never returned to the browser. Keep the encryption key out of backups that
-  hold the database.
+  hold the database. Besides the basic and plus keys there's an optional
+  read-only monitor key for Admin → AI settings (`docs/ai-features.md`). It's
+  stored only after Requesty reports it as `manage: read`, `completions: none`,
+  so it can't spend money or change anything in Requesty if it leaks. Admin → AI
+  settings can create it with an admin key the admin types in: that key is used for
+  that setup only (creating the key and labelling the tier keys) and never stored or
+  logged, and the new key is shown to the admin once, before it's saved. The tier keys
+  only ask Requesty for their own id there; they never get management rights.
 - SQL values use parameterized queries. Zod validates all saved workspace data.
 - Session expiry is checked on every request. Sign-out revokes the stored token.
 - Authentication throttles are shared across processes through PostgreSQL.
