@@ -3011,3 +3011,28 @@ dialog:has(.detail-card) .dialog-head h2 {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+/* Admin → AI settings: the Requesty usage tables (#121) sit under the key cards, so the page
+   keeps its normal width instead of shrinking to the tables like a list page. */
+.admin-main:has(.requesty-usage) {
+  width: auto;
+}
+.requesty-usage {
+  margin-top: 24px;
+}
+.requesty-usage h3 {
+  margin: 20px 0 8px;
+}
+.admin-card h3 {
+  margin: 16px 0 4px;
+  font-size: var(--text-sm);
+}
+/* The newly created monitor key, shown once until it's saved (#121). */
+.monitor-created {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: var(--blue-light);
+  border-radius: var(--radius-sm);
+}
+.monitor-created input {
+  font-family: ui-monospace, monospace;
+}

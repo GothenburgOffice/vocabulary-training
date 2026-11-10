@@ -119,6 +119,58 @@ use a `policy/<name>` model for fallback routing, an
 models the key may use, and a budget on the key. When a key runs out or is
 refused, the feature shows its quiet "unavailable" state and practice continues.
 
+## Requesty usage in the admin area
+
+Admin → AI settings can show the Requesty organisation's balance, each of this
+app's keys with its spend this month and monthly limit, and this app's usage
+(requests, tokens, spend) for this month and last month, by tier. It reads them
+through Requesty's
+[Management API](https://docs.requesty.ai/api-reference/management-apis.md) with
+a third, **read-only** key. This isn't an AI call: nothing about learners, words
+or answers is sent, and nothing is stored in the app. The figures are read at
+most once a minute, and Requesty keeps the history.
+
+The monitor key must have `manage: read` and `completions: none`: it can read
+key names, spend and the balance, but can't change anything or spend money.
+Saving it asks Requesty for its permissions and refuses any other key. Never
+give the app a key with `manage: write`.
+
+The Requesty dashboard can't create such a key (keys made there get full rights,
+and permissions can't be changed later), so it's created through the API with a
+temporary admin key, in the same organisation as the tier keys:
+
+1. In the Requesty dashboard, create a temporary key. It has full rights.
+2. Save the basic and plus keys first, and the **App label** if you don't use
+   `vocabulary-training`. Then, under **Create a read-only key**, enter the
+   admin key and a name for the new key, leave **Also label the saved basic and
+   plus keys** ticked, and click **Create read-only key**. The server:
+   - asks Requesty for a key with `manage: read` and `completions: none`;
+   - labels each saved tier key `app=<app label>` and `tier=basic` or `plus`,
+     so the app can tell its usage from other apps' in the same organisation.
+     Each tier key tells Requesty its own id, and the admin key sets the labels,
+     keeping the key's other labels. A plus tier without its own key is skipped.
+
+   The admin key is used for those requests only and never stored. A labelling
+   problem is shown next to the new key and doesn't lose it.
+
+3. The new key is shown once. Copy it into a password manager, then click
+   **Save this key**: the app checks its permissions with Requesty and stores
+   it encrypted. If you leave the page first, it's gone (Requesty won't show
+   it again), so delete it in Requesty and create another.
+4. Delete the temporary admin key in the dashboard, and check that the key list
+   holds only the intended keys. Keys it created keep working.
+
+To label keys by hand instead (a new tier key later, for example), use the admin
+key with `POST /v1/manage/apikey/{id}/label` and
+`{"labels":{"app":"vocabulary-training","tier":"basic"}}`. Setting labels replaces
+all of a key's labels.
+
+A monitor key made another way (for example with `curl`) can be pasted under
+**Monitor key** instead; the same permission check applies.
+
+Usage made before the keys were labelled counts as "Unknown" in Requesty and
+isn't shown, so the app's figures start on the day the keys were labelled.
+
 ## Per-account limits
 
 Both features take a word id, never text: the server reads the word from the

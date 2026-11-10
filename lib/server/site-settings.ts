@@ -1,5 +1,12 @@
 import "server-only";
-import type { AiSettingsView, LanguageView, Speech, Tier } from "../admin/ai-settings";
+import {
+  DEFAULT_APP_LABEL,
+  type AiSettingsView,
+  type KeyStatus,
+  type LanguageView,
+  type Speech,
+  type Tier,
+} from "../admin/ai-settings";
 import { registrationBlockers, type Privacy, type RegistrationView } from "../admin/registration";
 import type { AiSettings, LanguageSettings } from "./ai-config";
 import { db } from "./db";
@@ -7,6 +14,9 @@ import { decryptSecret, encryptionReady, encryptSecret } from "./secrets";
 
 const keyName = (tier: Tier) => `requesty.${tier}.api_key`;
 const modelName = (tier: Tier) => `requesty.${tier}.model`;
+// The read-only management key (#121) and the key label value that marks this app's keys.
+const MONITOR_KEY = "requesty.monitor.api_key";
+const MONITOR_LABEL = "requesty.monitor.app_label";
 // Also seeded by scripts/settings-bootstrap.mjs.
 const PRIVACY_NAME = "privacy.controller_name";
 const PRIVACY_EMAIL = "privacy.contact_email";
@@ -79,24 +89,46 @@ async function readAiSettings(): Promise<AiSettings> {
 }
 
 // For the admin page: never the key itself, only whether it's set and its last characters.
+function keyStatus(stored: string | undefined): KeyStatus {
+  const key = stored ? decryptSecret(stored) : null;
+  return !stored
+    ? { state: "unset" }
+    : key
+      ? { state: "set", hint: key.slice(-4) }
+      : { state: "unreadable" };
+}
 export async function readAiSettingsView(): Promise<AiSettingsView> {
   const settings = await readSettingsMap();
-  const view = (t: Tier) => {
-    const stored = settings.get(keyName(t));
-    const key = stored ? decryptSecret(stored) : null;
-    return {
-      model: settings.get(modelName(t)) ?? "",
-      key: !stored
-        ? { state: "unset" as const }
-        : key
-          ? { state: "set" as const, hint: key.slice(-4) }
-          : { state: "unreadable" as const },
-    };
-  };
+  const view = (t: Tier) => ({
+    model: settings.get(modelName(t)) ?? "",
+    key: keyStatus(settings.get(keyName(t))),
+  });
   return {
     encryptionReady: encryptionReady(),
     tiers: { basic: view("basic"), plus: view("plus") },
+    monitor: {
+      key: keyStatus(settings.get(MONITOR_KEY)),
+      appLabel: settings.get(MONITOR_LABEL) || DEFAULT_APP_LABEL,
+    },
   };
+}
+
+// The monitor key for the usage route; apiKey is empty when it's unset or unreadable.
+export async function readMonitor() {
+  const settings = await readSettingsMap();
+  const stored = settings.get(MONITOR_KEY);
+  return {
+    apiKey: (stored && decryptSecret(stored)) || "",
+    appLabel: settings.get(MONITOR_LABEL) || DEFAULT_APP_LABEL,
+  };
+}
+// apiKey as for a tier: omitted keeps it, null clears it. The caller checks a new key's
+// permissions with Requesty first (checkMonitorKey).
+export async function saveMonitor(update: { apiKey?: string | null; appLabel?: string }) {
+  if (update.apiKey) await setSetting(MONITOR_KEY, encryptSecret(update.apiKey));
+  else if (update.apiKey === null) await setSetting(MONITOR_KEY, "");
+  if (update.appLabel !== undefined)
+    await setSetting(MONITOR_LABEL, update.appLabel === DEFAULT_APP_LABEL ? "" : update.appLabel);
 }
 
 // The key a tier's AI requests use, for loading its model list: plus falls back to the basic
@@ -108,6 +140,17 @@ export async function storedApiKey(tier: Tier) {
     return (stored && decryptSecret(stored)) || "";
   };
   return (tier === "plus" && key("plus")) || key("basic");
+}
+
+// Each tier's own saved key, without plus falling back to basic: for labelling them in
+// Requesty (#121). Empty when unset or unreadable.
+export async function storedTierKeys(): Promise<Record<Tier, string>> {
+  const settings = await readSettingsMap();
+  const key = (t: Tier) => {
+    const stored = settings.get(keyName(t));
+    return (stored && decryptSecret(stored)) || "";
+  };
+  return { basic: key("basic"), plus: key("plus") };
 }
 
 async function setSetting(key: string, value: string) {
