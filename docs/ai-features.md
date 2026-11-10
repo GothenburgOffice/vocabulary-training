@@ -148,7 +148,9 @@ temporary admin key, in the same organisation as the tier keys:
    - labels each saved tier key `app=<app label>` and `tier=basic` or `plus`,
      so the app can tell its usage from other apps' in the same organisation.
      Each tier key tells Requesty its own id, and the admin key sets the labels,
-     keeping the key's other labels. A plus tier without its own key is skipped.
+     keeping the key's other labels when Requesty lists them (if it doesn't, the
+     page says so, since setting labels replaces them all). A plus tier without
+     its own key is skipped.
 
    The admin key is used for those requests only and never stored. A labelling
    problem is shown next to the new key and doesn't lose it.

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { monitorCreateSchema, monitorUpdateSchema } from "../lib/admin/ai-settings.ts";
 import {
+  describePermissions,
   isReadOnlyMonitorKey,
   parseAppKeys,
   parseAppUsage,
@@ -47,6 +48,17 @@ test("only a manage: read, completions: none key counts as a monitor key", () =>
     assert.equal(isReadOnlyMonitorKey({ permissions: { manage, completions } }), false);
   for (const junk of [null, {}, { permissions: null }, "read"])
     assert.equal(isReadOnlyMonitorKey(junk), false);
+  // Reported at the top level of /apikey/self too, not only under permissions.
+  assert.equal(isReadOnlyMonitorKey({ manage: "read", completions: "none" }), true);
+  assert.equal(isReadOnlyMonitorKey({ manage: "write", completions: "none" }), false);
+  assert.equal(
+    describePermissions({ manage: "write", completions: "write" }),
+    "manage: write, completions: write",
+  );
+  assert.equal(
+    describePermissions({ permissions: { manage: "read", completions: "none" } }),
+    "manage: read, completions: none",
+  );
 });
 
 test("saving a monitor key checks its permissions with Requesty first", async () => {
@@ -260,7 +272,11 @@ test("creating a monitor key needs an admin key and a name", () => {
 });
 
 // Fake Requesty for labelling: /apikey/self answers with the id of the key that asks.
-function fakeOrg(ids: Record<string, string>, refuse: string[] = []) {
+function fakeOrg(
+  ids: Record<string, string>,
+  refuse: string[] = [],
+  plusLabels: Record<string, string> | null = {},
+) {
   const labels: Record<string, unknown>[] = [];
   const calls: { url: string; auth: string; method: string }[] = [];
   const transport = (async (url: string | URL | Request, init?: RequestInit) => {
@@ -273,7 +289,7 @@ function fakeOrg(ids: Record<string, string>, refuse: string[] = []) {
       return Response.json({
         keys: [
           { id: "id-basic", name: "Vocab basic", labels: { team: "lang" } },
-          { id: "id-plus", name: "Vocab plus" },
+          { id: "id-plus", name: "Vocab plus", ...(plusLabels ? { labels: plusLabels } : {}) },
         ],
       });
     const label = path.match(/^\/apikey\/([^/]+)\/label$/);
@@ -343,6 +359,20 @@ test("labelling skips an unset plus key and reports problems per tier", async ()
   );
   assert.deepEqual(partly.labelled, [{ tier: "plus", name: "Vocab plus" }]);
   assert.match(partly.problems[0], /^The basic key wasn't labelled/);
+
+  // A listing without the key's labels: still labelled, but the admin is told.
+  const unlisted = fakeOrg(ids, [], null);
+  const warned = await labelTierKeys(
+    "rqsty-sk-admin",
+    { basic: "rqsty-sk-basic", plus: "rqsty-sk-plus" },
+    "vt",
+    unlisted.transport,
+  );
+  assert.equal(warned.labelled.length, 2);
+  assert.deepEqual(warned.problems, [
+    "Requesty didn't list the plus key's labels, so any other labels it had were replaced. Check it in Requesty.",
+  ]);
+  assert.deepEqual(unlisted.labels[1], { id: "id-plus", labels: { app: "vt", tier: "plus" } });
 
   const none = await labelTierKeys(
     "rqsty-sk-admin",

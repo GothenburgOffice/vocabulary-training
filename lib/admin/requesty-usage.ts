@@ -3,15 +3,20 @@
 // about the operator's own Requesty organisation; nothing about learners.
 
 // manage and completions are each "none", "read" or "write". The app only holds a key that
-// can read and can't spend: manage "read", completions "none".
+// can read and can't spend: manage "read", completions "none". Requesty's docs nest them under
+// permissions; they have also been reported at the top level of /apikey/self, so both count.
+type Permissions = { manage?: unknown; completions?: unknown };
+function permissionsOf(data: unknown): Permissions | undefined {
+  if (!data || typeof data !== "object") return undefined;
+  const nested = (data as { permissions?: unknown }).permissions;
+  return nested && typeof nested === "object" ? (nested as Permissions) : (data as Permissions);
+}
 export function isReadOnlyMonitorKey(data: unknown) {
-  const p = (data as { permissions?: { manage?: unknown; completions?: unknown } } | null)
-    ?.permissions;
+  const p = permissionsOf(data);
   return p?.manage === "read" && p?.completions === "none";
 }
 export function describePermissions(data: unknown) {
-  const p = (data as { permissions?: { manage?: unknown; completions?: unknown } } | null)
-    ?.permissions;
+  const p = permissionsOf(data);
   const text = (v: unknown) => (typeof v === "string" ? v : "unknown");
   return `manage: ${text(p?.manage)}, completions: ${text(p?.completions)}`;
 }

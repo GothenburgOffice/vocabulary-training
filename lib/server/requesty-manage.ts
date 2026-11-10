@@ -154,10 +154,11 @@ export async function labelTierKeys(
         continue;
       }
       const entry = list.find((k) => k.id === id);
-      const existing =
-        entry?.labels && typeof entry.labels === "object"
-          ? (entry.labels as Record<string, string>)
-          : {};
+      // Requesty's docs list labels with each key but don't require them, and a listing without
+      // them has been seen. Setting labels replaces them all, so when they're missing the key
+      // is still labelled, and the admin is told any other labels may be gone.
+      const listed = !!entry?.labels && typeof entry.labels === "object";
+      const existing = listed ? (entry!.labels as Record<string, string>) : {};
       await get(
         adminKey,
         `/apikey/${id}/label`,
@@ -167,6 +168,11 @@ export async function labelTierKeys(
       );
       done.set(id, tier);
       result.labelled.push({ tier, name: typeof entry?.name === "string" ? entry.name : "" });
+      if (!listed)
+        result.problems.push(
+          `Requesty didn't list the ${tier} key's labels, so any other labels it had were ` +
+            "replaced. Check it in Requesty.",
+        );
     } catch (e) {
       const reason =
         e instanceof ManageError && e.refused
