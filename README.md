@@ -163,12 +163,13 @@ Code conventions are in [.github/copilot-instructions.md](.github/copilot-instru
 open decisions are tracked in
 [GitHub issues](https://github.com/GothenburgOffice/vocabulary-training/issues).
 
-## Before deploying to the internet
+## Before exposing it to the internet
 
-This is an early self-hosted version. Put HTTPS in front, set `APP_ORIGIN` to the
-public origin, keep registration closed unless needed, and test backup and
-restore. There is no email verification, password recovery or MFA yet.
-See [security and operations](docs/security.md) and [architecture](docs/architecture.md).
+This is an early version. The app needs to be served over HTTPS with `APP_ORIGIN` set to the
+exact public origin, and registration should stay closed unless it is needed. There is no
+email verification, password recovery or MFA yet. Hosting is up to the operator: the reverse
+proxy, backups and server hardening are outside this repository, which covers the app and its
+container. See [security](docs/security.md) and [architecture](docs/architecture.md).
 
 ## License
 
