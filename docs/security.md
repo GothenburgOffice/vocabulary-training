@@ -1,4 +1,4 @@
-# Security and operations
+# Security
 
 Intended for controlled self-hosting. This is not a security audit.
 
@@ -47,12 +47,12 @@ Intended for controlled self-hosting. This is not a security audit.
 
 ## Operator responsibilities
 
-Put HTTPS in front of the app and set `APP_ORIGIN` to the exact public origin.
+The app has to be served over HTTPS, with `APP_ORIGIN` set to the exact public origin.
 List any other domains that serve it in `APP_ORIGIN_ALIASES`, using HTTPS too:
 an HTTP alias gets session cookies without the Secure flag.
-Compose binds the app to loopback by default; a reverse proxy on the host can route
-to it. Containerized proxies should use an internal Docker network rather than
-publishing the database.
+Compose binds the app to loopback by default and publishes no database port, so something
+in front of it has to reach it; keep it that way rather than publishing either port.
+Running that proxy, the server and the backups is the operator's job and not covered here.
 
 Registration is a site setting, switched in Admin → Registration. A real site starts
 closed with no privacy details; only the dev and test stacks (`compose.dev.yaml`,
@@ -76,7 +76,7 @@ email verification, invite mechanism or automated password recovery. A user can
 register an unverified email address; do not treat that as identity proof.
 No raw form passwords, cookies, email lists or production dumps belong in GitHub.
 
-Review dependencies and base-image patches regularly. Password reset, MFA, account
+Dependencies and base images are updated through Dependabot. Password reset, MFA, account
 deletion, verified email, operational monitoring and a broader security review are
 future work (see GitHub issues). Existing sessions remain valid until sign-out or expiry; there is no
 UI to revoke all sessions.
@@ -85,21 +85,13 @@ The database-backed global authentication bucket intentionally limits costly
 password hashing. It can deny legitimate sign-ins under a deliberate flood.
 Add trusted-proxy-aware edge rate limiting before running an open public service.
 
-## Database backups
+## Data and backups
 
-Create PostgreSQL-format backups outside the repository. Do not commit backups
-or credentials. For example, redirect `pg_dump` to an operator-managed backup file
-using an appropriate shell or use your PostgreSQL backup tooling:
+All data is in PostgreSQL, in the `postgres_data` volume. The app doesn't back it up: the
+operator takes backups and tests restores. Keep backups and credentials out of GitHub.
+The key in `SETTINGS_ENCRYPTION_KEY` is not in the database: without it the saved Requesty
+keys can't be read, so keep a copy of it apart from the backups.
 
-```sh
-docker compose exec -T db pg_dump -U vocabulary -d vocabulary -Fc > vocabulary.backup
-```
-
-That redirection example is for shells with binary-safe stdout redirection.
-Windows PowerShell 5.1 redirection is not binary-safe; instead use `pg_dump -f`
-inside the container and `docker compose cp` to copy the file out.
-
-Verify restores against a separate database before relying on a backup.
 `docker compose down` retains data; `docker compose down -v` destroys the volume.
 Never use the latter on real data without an explicit, verified recovery plan.
 
