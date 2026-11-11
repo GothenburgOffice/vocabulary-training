@@ -50,8 +50,9 @@ Intended for controlled self-hosting. This is not a security audit.
 The app has to be served over HTTPS, with `APP_ORIGIN` set to the exact public origin.
 List any other domains that serve it in `APP_ORIGIN_ALIASES`, using HTTPS too:
 an HTTP alias gets session cookies without the Secure flag.
-Compose binds the app to loopback by default and publishes no database port, so something
-in front of it has to reach it; keep it that way rather than publishing either port.
+Compose publishes the app only on loopback (`127.0.0.1`), so a reverse proxy on the same
+host can reach it, and publishes no database port. Keep the app's loopback mapping for that
+proxy, don't expose it on other interfaces, and keep the database unpublished.
 Running that proxy, the server and the backups is the operator's job and not covered here.
 
 Registration is a site setting, switched in Admin → Registration. A real site starts
