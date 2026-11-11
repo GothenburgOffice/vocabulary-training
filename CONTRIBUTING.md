@@ -31,6 +31,10 @@ That includes unsolicited fixes, refactors, dependency bumps and typo-only chang
   deterministic, API keys stay server-side, migrations are append-only, and the app stays Node 22 compatible.
 - **Disclose AI assistance** in the PR description, and say what you ran yourself.
 
+## Conduct
+
+Be respectful: see the [code of conduct](CODE_OF_CONDUCT.md).
+
 ## Security issues
 
 Don't open public issues for vulnerabilities. Use
