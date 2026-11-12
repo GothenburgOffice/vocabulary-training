@@ -32,4 +32,4 @@ it. If you host your own instance for others, use your own name and logo.
 ## Not covered by this either
 
 The wordmarks are outlined Instrument Sans, which is under the SIL Open Font License. The
-Requesty logo in `public/` belongs to its owner.
+Requesty logo, drawn inline in `components/RequestyAttribution.tsx`, belongs to its owner.

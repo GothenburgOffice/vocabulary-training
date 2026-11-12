@@ -175,5 +175,6 @@ container. See [security](docs/security.md) and [architecture](docs/architecture
 
 MIT. See [LICENSE](LICENSE). The artwork made for the hosted service (the logo set in `brand/`
 and the icons and share image made from it) is not covered by it: it is
-[CC BY-NC 4.0](brand/LICENSE.md). The Requesty logo in `public/` belongs to its owner and
-is not covered by the MIT license either.
+[CC BY-NC 4.0](brand/LICENSE.md). The Requesty logo (drawn inline in
+`components/RequestyAttribution.tsx`) belongs to its owner and is not covered by the MIT license
+either.
