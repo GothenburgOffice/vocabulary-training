@@ -43,4 +43,5 @@ Don't open public issues for vulnerabilities. Use
 ## License
 
 By contributing you agree that your contribution is licensed under the
-[MIT License](LICENSE).
+[MIT License](LICENSE). The logo set and the icons made from it are the exception (see
+[brand/LICENSE.md](brand/LICENSE.md)).

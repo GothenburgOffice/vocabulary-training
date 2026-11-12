@@ -33,3 +33,7 @@ variants, `app/icon.svg` and `app/favicon.ico` (the small mark on a blue tile),
 In the dev container, run it under Xvfb with `HEADED=1`, because headless Chromium never
 paints there. The in-app mark is `BookMark` in `lib/brand.tsx`; `tests/app-icons.test.ts`
 checks that its paths match these files.
+
+## License
+
+The artwork is not under the repository's MIT license: see [LICENSE.md](LICENSE.md).
