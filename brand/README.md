@@ -36,4 +36,4 @@ checks that its paths match these files.
 
 ## License
 
-The artwork is not under the repository's MIT license: see [LICENSE.md](LICENSE.md).
+The artwork is not under the repository's MIT license: it is CC BY-NC 4.0, see [LICENSE.md](LICENSE.md).
