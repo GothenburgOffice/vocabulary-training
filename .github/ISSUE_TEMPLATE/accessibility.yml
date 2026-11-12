@@ -1,0 +1,19 @@
+name: Accessibility barrier
+description: Something is hard or impossible to use
+labels: [accessibility]
+body:
+  - type: textarea
+    id: barrier
+    attributes:
+      label: What were you trying to do, and what got in the way?
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Page or screen
+  - type: input
+    id: env
+    attributes:
+      label: Browser and assistive technology
+      description: For example Firefox with NVDA, keyboard only, or 200% zoom.

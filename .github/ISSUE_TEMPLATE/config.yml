@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/GothenburgOffice/vocabulary-training/security/advisories/new
+    about: Don't open a public issue for vulnerabilities; use private vulnerability reporting.

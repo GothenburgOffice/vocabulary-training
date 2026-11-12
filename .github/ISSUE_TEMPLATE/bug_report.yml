@@ -1,0 +1,26 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please read [CONTRIBUTING](https://github.com/GothenburgOffice/vocabulary-training/blob/main/CONTRIBUTING.md) first.
+        Don't include passwords, API keys or other people's data.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Version and browser
+      description: The image tag or commit if self-hosting, and your browser.
