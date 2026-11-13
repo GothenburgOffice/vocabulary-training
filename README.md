@@ -112,12 +112,15 @@ server, not the dev server you work in:
 2. Build, then start it on a free port with the same variables:
    `npx next build --webpack` and `npx next start -p 3101`, with `APP_ORIGIN=http://localhost:3101`.
 3. Run the suites with `TEST_BASE_URL` and `TEST_ORIGIN` set to that origin, and
-   `TEST_ADMIN_EMAIL`/`TEST_ADMIN_PASSWORD` for the admin tests.
+   `TEST_ADMIN_EMAIL`/`TEST_ADMIN_PASSWORD` for the admin tests. Set them on every
+   command: the dev container presets both to the dev server
+   (`.devcontainer/compose.yaml`), so a plain `npm run test:e2e` writes to the dev database.
 
 In the dev container, headless Chromium never fires `requestAnimationFrame`, so every
 click times out. Start a virtual display and run headed:
 `Xvfb :99 -screen 0 1440x1000x24 -nolisten tcp &`, then
-`DISPLAY=:99 npm run test:e2e -- --headed`. Repeated runs can hit the sign-in limit
+`TEST_BASE_URL=http://localhost:3101 TEST_ORIGIN=http://localhost:3101 DISPLAY=:99 npm run test:e2e -- --headed`.
+Repeated runs can hit the sign-in limit
 (15 per email per 15 minutes); in the test database, `DELETE FROM auth_limits` resets it.
 
 Registration is enabled inside the dev container so you can create accounts to try
