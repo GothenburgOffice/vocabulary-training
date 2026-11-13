@@ -2,14 +2,11 @@ import Link from "next/link";
 import { ADMIN_SECTIONS } from "../../lib/admin/sections";
 import { usageTotals } from "../../lib/server/ai-limits";
 import { adminPage } from "../../lib/server/auth";
-import { db } from "../../lib/server/db";
+import { accountCounts } from "../../lib/server/accounts";
 
 export default async function AdminOverview() {
   await adminPage();
-  const { rows } = await db.query(
-    "SELECT count(*)::int AS accounts, count(*) FILTER (WHERE is_admin)::int AS admins FROM users",
-  );
-  const usage = await usageTotals();
+  const [counts, usage] = await Promise.all([accountCounts(), usageTotals()]);
   const sections = ADMIN_SECTIONS.filter((section) => section.href !== "/admin");
   return (
     <>
@@ -22,11 +19,11 @@ export default async function AdminOverview() {
       <div className="admin-stats">
         <div>
           <span>Accounts</span>
-          <strong>{rows[0].accounts}</strong>
+          <strong>{counts.accounts}</strong>
         </div>
         <div>
           <span>Admins</span>
-          <strong>{rows[0].admins}</strong>
+          <strong>{counts.admins}</strong>
         </div>
       </div>
       <h2 className="admin-subheading">AI usage, all accounts</h2>

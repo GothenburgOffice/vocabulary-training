@@ -16,7 +16,8 @@
 | `app/api/*/route.ts`                              | `auth`, `workspace`, `lists/[id]`, `reviews`, `runs`, `profile`, `feedback`, `speech`, …   |
 | `db/migrations/`                                  | Append-only SQL migrations, applied by `scripts/migrate.mjs`                               |
 
-Only `lib/server/` and the migration script touch PostgreSQL or secrets.
+Only `lib/server/` and the migration scripts touch PostgreSQL or secrets: routes and pages
+call its functions (`workspace-store.ts`, `accounts.ts`, `auth.ts`, …) and never run SQL.
 
 ## Data model
 
@@ -31,7 +32,7 @@ controller and contact) and `languages`, and the user data in normalized tables:
 | `words`            | word in a list: its native prompt        | `native_key`; `is_public` (#55)                                                  |
 | `accepted_answers` | answer accepted in the learning language | position 0 is the primary answer; `learning_key` for matching across lists (#56) |
 | `word_reviews`     | word and prompt (which side was shown)   | the current review state; no row means never answered that way                   |
-| `review_events`    | checked answer                           | the answer log: makes retries harmless, and is ready for #2                      |
+| `review_events`    | checked answer                           | the answer log: makes retries harmless, and is ready for #128                    |
 | `runs`             | completed practice session               | the newest 200 are kept until #54 decides retention                              |
 | `run_results`      | answer in a session                      | keeps the word's text, so history survives edits and deletions                   |
 
@@ -119,7 +120,7 @@ The database image includes pgvector (`CREATE EXTENSION vector` in migration
   difficulty, state, steps, lapses, last review), and FSRS sets `due_at`.
   `streak` only counts consecutive right answers, for the library's labels.
 - **Answer timing** (`lib/timing.ts`, #2): collected to calibrate a future Hard
-  grade; it changes no grade or review date yet. Typing speed is left out, since it
+  grade (#128); it changes no grade or review date yet. Typing speed is left out, since it
   varies between people and devices. For a right, typed answer, the browser
   measures, with the tab visible, the time before the first keystroke and, of each
   pause between keystrokes (and before the check), the part longer than the input

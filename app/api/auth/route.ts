@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 import { randomUUID } from "node:crypto";
-import { db } from "../../../lib/server/db";
 import {
   body,
   clientIp,
@@ -10,9 +9,20 @@ import {
   json,
   requireOrigin,
 } from "../../../lib/server/http";
-import { purgeTrashedAccounts } from "../../../lib/server/accounts";
-import { cookieName, createSession, limitAuth, requireUser } from "../../../lib/server/auth";
-import { hashPassword, hashToken, verifyPassword } from "../../../lib/server/password";
+import {
+  createAccount,
+  findAccountForSignIn,
+  purgeTrashedAccounts,
+  recordSignIn,
+} from "../../../lib/server/accounts";
+import {
+  cookieName,
+  createSession,
+  endSession,
+  limitAuth,
+  requireUser,
+} from "../../../lib/server/auth";
+import { hashPassword, verifyPassword } from "../../../lib/server/password";
 import { credentialsSchema } from "../../../lib/validation";
 import { readRegistration } from "../../../lib/server/site-settings";
 export const runtime = "nodejs";
@@ -44,26 +54,10 @@ export async function POST(request: Request) {
           403,
           "Registration opens once the site owner has published a privacy contact and finished setup.",
         );
-      const passwordHash = await hashPassword(password);
       userId = randomUUID();
-      // The profile languages default in the users table; lists start empty.
-      await db
-        .query("INSERT INTO users(id,email,password_hash) VALUES($1,$2,$3)", [
-          userId,
-          email,
-          passwordHash,
-        ])
-        .catch((e) => {
-          if ((e as { code?: string }).code === "23505")
-            throw new HttpError(409, "An account could not be created. Try signing in instead.");
-          throw e;
-        });
+      await createAccount(userId, email, await hashPassword(password));
     } else {
-      const result = await db.query(
-        "SELECT id,password_hash,is_admin,locked_at,deleted_at FROM users WHERE email=$1",
-        [email],
-      );
-      const user = result.rows[0];
+      const user = await findAccountForSignIn(email);
       // Comparable hash work even for an unknown email.
       const hash = user?.password_hash ?? `scrypt:${"0".repeat(32)}:${"0".repeat(128)}`;
       const valid = await verifyPassword(password, hash);
@@ -78,7 +72,7 @@ export async function POST(request: Request) {
           console.error("Trash purge failed:", e instanceof Error ? e.name : "unknown"),
         );
     }
-    await db.query("UPDATE users SET last_sign_in_at=now() WHERE id=$1", [userId!]);
+    await recordSignIn(userId!);
     const token = await createSession(userId!);
     const response = json({ user: { id: userId!, email } });
     response.cookies.set(cookieName, token, cookieOptions(origin));
@@ -91,7 +85,7 @@ export async function DELETE(request: Request) {
   try {
     const origin = requireOrigin(request);
     const token = (await cookies()).get(cookieName)?.value;
-    if (token) await db.query("DELETE FROM sessions WHERE token_hash=$1", [hashToken(token)]);
+    if (token) await endSession(token);
     const response = json({ ok: true });
     response.cookies.set(cookieName, "", { ...cookieOptions(origin), maxAge: 0 });
     return response;

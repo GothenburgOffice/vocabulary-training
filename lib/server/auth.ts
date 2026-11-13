@@ -68,6 +68,10 @@ export async function createSession(userId: string) {
   await db.query("DELETE FROM sessions WHERE expires_at<now()");
   return token;
 }
+// Signs out the session with this cookie token, if it exists.
+export async function endSession(token: string) {
+  await db.query("DELETE FROM sessions WHERE token_hash=$1", [hashToken(token)]);
+}
 export async function limitAuth(email: string, ip = "") {
   // Database-backed so limits also work across app workers. No raw email or IP stored. Without
   // a trusted client IP (clientIp), every visitor shares the conservative global bucket.

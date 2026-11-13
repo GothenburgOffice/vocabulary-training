@@ -55,10 +55,12 @@ COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/scripts/migrate.mjs /app/scripts/admin-bootstrap.mjs /app/scripts/settings-bootstrap.mjs ./scripts/
 COPY --from=builder --chown=node:node /app/db ./db
 COPY --from=builder --chown=node:node /app/LICENSE ./LICENSE
+# The icons in public/ and the app icons are artwork under CC BY-NC 4.0, not MIT.
+COPY --from=builder --chown=node:node /app/brand/LICENSE.md ./brand/LICENSE.md
 LABEL org.opencontainers.image.source="https://github.com/GothenburgOffice/vocabulary-training" \
       org.opencontainers.image.title="vocabulary.training" \
       org.opencontainers.image.description="Personal vocabulary lists and statistical practice" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.licenses="MIT AND CC-BY-NC-4.0"
 USER node
 EXPOSE 3000
 CMD ["node", "server.js"]

@@ -10,3 +10,7 @@ export const db =
     connectionTimeoutMillis: 5000,
   });
 if (process.env.NODE_ENV !== "production") globalDb.vocabularyPool = db;
+// For the health check: the database answers and has been migrated. Throws otherwise.
+export async function checkDatabase() {
+  await db.query("SELECT 1 FROM schema_migrations LIMIT 1");
+}
