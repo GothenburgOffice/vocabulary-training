@@ -60,12 +60,14 @@ the full browser suite on every PR.
   design: never store a user id with a report; only the tier comes from the session.
   `lib/reports.ts` holds the reasons and schema shared with the browser.
 - `lib/server/**`: server-only (`import "server-only"`). DB, sessions, Requesty clients.
-- `app/api/*/route.ts`: mutations call `requireOrigin` and then `requireUser`; a route that writes the
-  account's data then calls `limitWrites(user.id)` (`lib/server/write-limits.ts`). Errors go through `HttpError`/`fail`.
+- `app/api/*/route.ts`: built with `lib/server/route.ts`, which runs the guards in order:
+  `userRead` (`requireUser`), `userWrite` (`requireOrigin`, `requireUser`, `limitWrites`, then the
+  body and its schema), `adminRead` and `adminWrite` (the same with `requireAdmin`, no write limit).
+  Only sign-in and sign-out run `requireOrigin` themselves. Errors go through `HttpError`/`fail`.
 - `app/admin/`: the admin area, a shell (`layout.tsx`, `components/admin/AdminNav.tsx`)
   with one module per section. To add a section: `app/admin/<slug>/page.tsx` (calls
   `adminPage()`), components in `components/admin/`, API in `app/api/admin/<slug>/`
-  (`requireOrigin`, then `requireAdmin`), and an entry in `lib/admin/sections.ts`.
+  (`adminRead`/`adminWrite`), and an entry in `lib/admin/sections.ts`.
   A list of records (accounts, languages) is a compact `.admin-table`, one row per record
   with everything visible, like Languages and Users: no cards, no collapsed details.
 - `components/Workspace.tsx`: the signed-in UI, a client component. It holds the shared

@@ -15,19 +15,16 @@ import {
   purgeTrashedAccounts,
   recordSignIn,
 } from "@/lib/server/accounts";
-import { cookieName, createSession, endSession, limitAuth, requireUser } from "@/lib/server/auth";
+import { cookieName, createSession, endSession, limitAuth } from "@/lib/server/auth";
+import { userRead } from "@/lib/server/route";
 import { hashPassword, verifyPassword } from "@/lib/server/password";
 import { credentialsSchema } from "@/lib/validation";
 import { readRegistration } from "@/lib/server/site-settings";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export async function GET() {
-  try {
-    return json({ user: await requireUser() });
-  } catch (e) {
-    return fail(e);
-  }
-}
+export const GET = userRead(async ({ user }) => json({ user }));
+// Sign-in and sign-out work without a session, so they run requireOrigin themselves instead of
+// using a builder from lib/server/route.ts.
 export async function POST(request: Request) {
   try {
     const origin = requireOrigin(request);

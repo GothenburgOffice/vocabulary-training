@@ -1,21 +1,14 @@
-import { requireUser } from "@/lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
+import { json } from "@/lib/server/http";
+import { userWrite } from "@/lib/server/route";
 import { runSaveSchema } from "@/lib/validation";
 import { addRun } from "@/lib/server/workspace-store";
-import { limitWrites } from "@/lib/server/write-limits";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // A completed practice session.
-export async function POST(request: Request) {
-  try {
-    requireOrigin(request);
-    const user = await requireUser();
-    await limitWrites(user.id);
-    const parsed = runSaveSchema.safeParse(await body(request, 4_000_000));
-    if (!parsed.success) throw new HttpError(400, "This session contains invalid data.");
-    await addRun(user.id, parsed.data);
+export const POST = userWrite(
+  { maxBytes: 4_000_000, schema: runSaveSchema, invalid: "This session contains invalid data." },
+  async ({ user, data }) => {
+    await addRun(user.id, data);
     return json({ saved: true });
-  } catch (e) {
-    return fail(e);
-  }
-}
+  },
+);
