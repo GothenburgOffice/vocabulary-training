@@ -2,8 +2,8 @@
 import Link from "next/link";
 import { useContext, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { Check, ChevronDown, CircleAlert, X } from "lucide-react";
-import { BookMark } from "../lib/brand";
-import { encodeCSV, listTitle, reviewed, type List } from "../lib/learning";
+import { BookMark } from "@/lib/brand";
+import { encodeCSV, listTitle, reviewed, type List } from "@/lib/learning";
 import {
   DEFAULT_SETTINGS,
   NO_PRACTICE,
@@ -14,8 +14,8 @@ import {
   readSettings,
   SETTINGS_KEY,
   type PracticeSettings,
-} from "../lib/practice";
-import type { WorkspaceAccount, WorkspaceData, Run, WorkspaceSync } from "../lib/workspace";
+} from "@/lib/practice";
+import type { WorkspaceAccount, WorkspaceData, Run, WorkspaceSync } from "@/lib/workspace";
 import {
   DEFAULT_LANGUAGES,
   NO_AI,
@@ -23,7 +23,7 @@ import {
   pickerLanguages,
   sortLanguageNames,
   type Language,
-} from "../lib/languages";
+} from "@/lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
 import DeleteDialog from "./workspace/DeleteDialog";
 import { useAiActionLog } from "./AiActionLog";
@@ -44,8 +44,8 @@ import SaveStatus from "./workspace/SaveStatus";
 import Sidebar from "./workspace/Sidebar";
 import { useNow } from "./workspace/useNow";
 import type { Modal, View } from "./workspace/views";
-import { applyTheme, type Theme } from "../lib/theme";
-import { DEFAULT_TIMING, type InputType, type TimingSample } from "../lib/timing";
+import { applyTheme, type Theme } from "@/lib/theme";
+import { DEFAULT_TIMING, type InputType, type TimingSample } from "@/lib/timing";
 
 const DIALOG_TITLES: Record<Modal, string> = {
   account: "Your account",

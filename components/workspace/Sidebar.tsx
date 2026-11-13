@@ -10,10 +10,10 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { BookMark } from "../../lib/brand";
-import type { SaveState } from "../../lib/workspace";
-import { AiFeaturesContext } from "../AiFeatures";
-import RequestyAttribution from "../RequestyAttribution";
+import { BookMark } from "@/lib/brand";
+import type { SaveState } from "@/lib/workspace";
+import { AiFeaturesContext } from "@/components/AiFeatures";
+import RequestyAttribution from "@/components/RequestyAttribution";
 import SaveStatus from "./SaveStatus";
 import type { View } from "./views";
 

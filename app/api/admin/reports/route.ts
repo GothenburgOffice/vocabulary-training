@@ -3,10 +3,10 @@ import {
   REPORTS_PAGE_SIZE,
   reportListQuerySchema,
   reportPruneSchema,
-} from "../../../../lib/admin/reports";
-import { requireAdmin } from "../../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../../lib/server/http";
-import { countReports, listReports, pruneReports } from "../../../../lib/server/reports-store";
+} from "@/lib/admin/reports";
+import { requireAdmin } from "@/lib/server/auth";
+import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
+import { countReports, listReports, pruneReports } from "@/lib/server/reports-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

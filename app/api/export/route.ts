@@ -1,7 +1,7 @@
-import { requireUser } from "../../../lib/server/auth";
-import { fail } from "../../../lib/server/http";
-import { loadExport } from "../../../lib/server/workspace-store";
-import { exportDocument, exportFileName } from "../../../lib/export";
+import { requireUser } from "@/lib/server/auth";
+import { fail } from "@/lib/server/http";
+import { loadExport } from "@/lib/server/workspace-store";
+import { exportDocument, exportFileName } from "@/lib/export";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 

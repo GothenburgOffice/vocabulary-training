@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import { appendAiAction, isAiAction, type AiAction } from "../lib/ai-actions";
+import { appendAiAction, isAiAction, type AiAction } from "@/lib/ai-actions";
 
 type AiActionLog = { actions: AiAction[]; record: (action: AiAction) => void };
 // Outside the provider nothing is recorded, so components render the same in tests.

@@ -6,8 +6,12 @@ import {
   type LanguageView,
   type Speech,
   type Tier,
-} from "../admin/ai-settings";
-import { registrationBlockers, type Privacy, type RegistrationView } from "../admin/registration";
+} from "@/lib/admin/ai-settings";
+import {
+  registrationBlockers,
+  type Privacy,
+  type RegistrationView,
+} from "@/lib/admin/registration";
 import type { AiSettings, LanguageSettings } from "./ai-config";
 import { db } from "./db";
 import { decryptSecret, encryptionReady, encryptSecret } from "./secrets";

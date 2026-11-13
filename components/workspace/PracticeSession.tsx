@@ -1,17 +1,17 @@
 import { useContext, useEffect, useRef } from "react";
 import { ArrowRight, X } from "lucide-react";
-import { answersFor, listTitle, type List, type Word } from "../../lib/learning";
-import { AnswerClock, type InputType, type TimingSample } from "../../lib/timing";
+import { answersFor, listTitle, type List, type Word } from "@/lib/learning";
+import { AnswerClock, type InputType, type TimingSample } from "@/lib/timing";
 import {
   isLastWord,
   MODE_LABELS,
   nextReviewText,
   type Practice,
   type PracticeSettings,
-} from "../../lib/practice";
-import { AiFeaturesContext } from "../AiFeatures";
-import LanguageNote from "../LanguageNote";
-import SpeechButton from "../SpeechButton";
+} from "@/lib/practice";
+import { AiFeaturesContext } from "@/components/AiFeatures";
+import LanguageNote from "@/components/LanguageNote";
+import SpeechButton from "@/components/SpeechButton";
 import Button from "./Button";
 
 export default function PracticeSession({

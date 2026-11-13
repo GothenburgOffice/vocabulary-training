@@ -1,5 +1,5 @@
-import LanguageSettings from "../../../components/admin/LanguageSettings";
-import { adminPage } from "../../../lib/server/auth";
+import LanguageSettings from "@/components/admin/LanguageSettings";
+import { adminPage } from "@/lib/server/auth";
 
 export default async function LanguagesPage() {
   await adminPage();

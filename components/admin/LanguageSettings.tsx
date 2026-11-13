@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useEffectEvent, useState, type FormEvent } from "react";
 import { CircleAlert } from "lucide-react";
-import type { LanguageView, Speech, Tier } from "../../lib/admin/ai-settings";
+import type { LanguageView, Speech, Tier } from "@/lib/admin/ai-settings";
 import {
   BULK_FIELDS,
   changedLanguages,
@@ -11,9 +11,9 @@ import {
   withField,
   type BulkField,
   type LanguageSort,
-} from "../../lib/admin/language-table";
-import type { Sort } from "../../lib/admin/sort";
-import { voicesFor } from "../../lib/admin/voices";
+} from "@/lib/admin/language-table";
+import type { Sort } from "@/lib/admin/sort";
+import { voicesFor } from "@/lib/admin/voices";
 import { adminRequest } from "./request";
 import SortHeader from "./SortHeader";
 import { useModels } from "./useModels";

@@ -1,5 +1,5 @@
-import Users from "../../../components/admin/Users";
-import { adminPage } from "../../../lib/server/auth";
+import Users from "@/components/admin/Users";
+import { adminPage } from "@/lib/server/auth";
 
 export default async function UsersPage() {
   await adminPage();

@@ -8,23 +8,17 @@ import {
   HttpError,
   json,
   requireOrigin,
-} from "../../../lib/server/http";
+} from "@/lib/server/http";
 import {
   createAccount,
   findAccountForSignIn,
   purgeTrashedAccounts,
   recordSignIn,
-} from "../../../lib/server/accounts";
-import {
-  cookieName,
-  createSession,
-  endSession,
-  limitAuth,
-  requireUser,
-} from "../../../lib/server/auth";
-import { hashPassword, verifyPassword } from "../../../lib/server/password";
-import { credentialsSchema } from "../../../lib/validation";
-import { readRegistration } from "../../../lib/server/site-settings";
+} from "@/lib/server/accounts";
+import { cookieName, createSession, endSession, limitAuth, requireUser } from "@/lib/server/auth";
+import { hashPassword, verifyPassword } from "@/lib/server/password";
+import { credentialsSchema } from "@/lib/validation";
+import { readRegistration } from "@/lib/server/site-settings";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function GET() {

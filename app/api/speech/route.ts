@@ -1,15 +1,15 @@
-import { speechHeaders } from "../../../lib/ai-actions";
-import { speechText } from "../../../lib/ai-words";
-import { requireUser } from "../../../lib/server/auth";
-import { aiConfig } from "../../../lib/server/ai-config";
-import { chargeLetters, readLimits } from "../../../lib/server/ai-limits";
-import { loadAiSettings } from "../../../lib/server/site-settings";
-import { body, fail, json, requireOrigin } from "../../../lib/server/http";
-import { FeedbackUnavailable } from "../../../lib/server/requesty-client";
-import { SpeechService } from "../../../lib/server/speech-client";
-import { speechRequestSchema } from "../../../lib/server/speech-input";
-import { readWordForAi } from "../../../lib/server/workspace-store";
-import { limitWrites } from "../../../lib/server/write-limits";
+import { speechHeaders } from "@/lib/ai-actions";
+import { speechText } from "@/lib/ai-words";
+import { requireUser } from "@/lib/server/auth";
+import { aiConfig } from "@/lib/server/ai-config";
+import { chargeLetters, readLimits } from "@/lib/server/ai-limits";
+import { loadAiSettings } from "@/lib/server/site-settings";
+import { body, fail, json, requireOrigin } from "@/lib/server/http";
+import { FeedbackUnavailable } from "@/lib/server/requesty-client";
+import { SpeechService } from "@/lib/server/speech-client";
+import { speechRequestSchema } from "@/lib/server/speech-input";
+import { readWordForAi } from "@/lib/server/workspace-store";
+import { limitWrites } from "@/lib/server/write-limits";
 
 export const runtime = "nodejs";
 const speech = new SpeechService();

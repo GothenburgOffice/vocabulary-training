@@ -3,7 +3,7 @@
 // call Requesty. The stored monitor key is read-only, checked when it's saved
 // (checkMonitorKey). The one write is createMonitorKey: it makes that read-only key with an
 // admin key the admin types in, which is used for that one request and never stored.
-import type { Tier } from "../admin/ai-settings";
+import type { Tier } from "@/lib/admin/ai-settings";
 import {
   describePermissions,
   isReadOnlyMonitorKey,
@@ -13,7 +13,7 @@ import {
   rfc3339,
   usageStart,
   type UsageView,
-} from "../admin/requesty-usage";
+} from "@/lib/admin/requesty-usage";
 import { HttpError } from "./http";
 import { readRequestyJSON } from "./requesty-client";
 

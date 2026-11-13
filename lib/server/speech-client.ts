@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { SPEECH_TIMEOUT_MS, type SpeechInput } from "../speech";
+import { SPEECH_TIMEOUT_MS, type SpeechInput } from "@/lib/speech";
 import { speechSchema } from "./speech-input";
 import { FeedbackUnavailable } from "./requesty-client";
 

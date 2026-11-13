@@ -1,7 +1,7 @@
-import { DEFAULT_WRITE_LIMITS, writeLimitsSchema } from "../../../../../lib/write-limits";
-import { requireAdmin } from "../../../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../../../lib/server/http";
-import { readWriteLimits, saveWriteLimits } from "../../../../../lib/server/write-limits";
+import { DEFAULT_WRITE_LIMITS, writeLimitsSchema } from "@/lib/write-limits";
+import { requireAdmin } from "@/lib/server/auth";
+import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
+import { readWriteLimits, saveWriteLimits } from "@/lib/server/write-limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

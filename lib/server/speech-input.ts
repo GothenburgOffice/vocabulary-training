@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { MAX_SPEECH_TEXT, SPEECH_PARTS } from "../ai-words";
-import type { SpeechInput } from "../speech";
+import { MAX_SPEECH_TEXT, SPEECH_PARTS } from "@/lib/ai-words";
+import type { SpeechInput } from "@/lib/speech";
 
 // POST /api/speech: which stored word to read, and which of its texts (#82). Never the text.
 export const speechRequestSchema = z

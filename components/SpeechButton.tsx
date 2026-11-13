@@ -1,9 +1,9 @@
 "use client";
 import { useContext, useEffect, useRef, useState } from "react";
 import { LoaderCircle, Square, Volume2 } from "lucide-react";
-import { newAiActionId, readSpeechMeta } from "../lib/ai-actions";
-import type { SpeechPart } from "../lib/ai-words";
-import { pronunciationText, SPEECH_TIMEOUT_MS } from "../lib/speech";
+import { newAiActionId, readSpeechMeta } from "@/lib/ai-actions";
+import type { SpeechPart } from "@/lib/ai-words";
+import { pronunciationText, SPEECH_TIMEOUT_MS } from "@/lib/speech";
 import { useAiActionLog } from "./AiActionLog";
 import { AiFeaturesContext } from "./AiFeatures";
 

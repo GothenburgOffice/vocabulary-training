@@ -1,8 +1,8 @@
-import { requireUser } from "../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../lib/server/http";
-import { reviewSchema } from "../../../lib/validation";
-import { recordReview } from "../../../lib/server/workspace-store";
-import { limitWrites } from "../../../lib/server/write-limits";
+import { requireUser } from "@/lib/server/auth";
+import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
+import { reviewSchema } from "@/lib/validation";
+import { recordReview } from "@/lib/server/workspace-store";
+import { limitWrites } from "@/lib/server/write-limits";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // One checked answer. Grading happens in the client; scheduling happens here, in

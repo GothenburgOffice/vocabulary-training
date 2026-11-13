@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { hashToken } from "./password";
 import { HttpError } from "./http";
-import { isTheme, type Theme } from "../theme";
+import { isTheme, type Theme } from "@/lib/theme";
 export const cookieName = "vocabulary_session";
 export async function requireUser() {
   const token = (await cookies()).get(cookieName)?.value;

@@ -1,7 +1,7 @@
-import { registrationBlockers, registrationUpdateSchema } from "../../../../lib/admin/registration";
-import { requireAdmin } from "../../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../../lib/server/http";
-import { readRegistration, saveRegistration } from "../../../../lib/server/site-settings";
+import { registrationBlockers, registrationUpdateSchema } from "@/lib/admin/registration";
+import { requireAdmin } from "@/lib/server/auth";
+import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
+import { readRegistration, saveRegistration } from "@/lib/server/site-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import type { ModelList, Tier } from "../../lib/admin/ai-settings";
+import type { ModelList, Tier } from "@/lib/admin/ai-settings";
 import { adminRequest } from "./request";
 
 // Loads Requesty's model list with a tier's stored key, or with a key typed but not saved.

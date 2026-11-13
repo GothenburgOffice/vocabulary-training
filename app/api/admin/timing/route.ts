@@ -1,11 +1,11 @@
-import { DEFAULT_TIMING, timingSettingsSchema } from "../../../../lib/timing";
-import { requireAdmin } from "../../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../../lib/server/http";
+import { DEFAULT_TIMING, timingSettingsSchema } from "@/lib/timing";
+import { requireAdmin } from "@/lib/server/auth";
+import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
 import {
   readTimingSettings,
   readTimingSummary,
   saveTimingSettings,
-} from "../../../../lib/server/timing-settings";
+} from "@/lib/server/timing-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

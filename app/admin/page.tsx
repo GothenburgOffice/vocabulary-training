@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ADMIN_SECTIONS } from "../../lib/admin/sections";
-import { usageTotals } from "../../lib/server/ai-limits";
-import { adminPage } from "../../lib/server/auth";
-import { accountCounts } from "../../lib/server/accounts";
+import { ADMIN_SECTIONS } from "@/lib/admin/sections";
+import { usageTotals } from "@/lib/server/ai-limits";
+import { adminPage } from "@/lib/server/auth";
+import { accountCounts } from "@/lib/server/accounts";
 
 export default async function AdminOverview() {
   await adminPage();

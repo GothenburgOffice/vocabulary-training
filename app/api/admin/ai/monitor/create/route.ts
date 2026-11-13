@@ -1,13 +1,9 @@
-import { monitorCreateSchema } from "../../../../../../lib/admin/ai-settings";
-import { requireAdmin } from "../../../../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../../../../lib/server/http";
-import type { MonitorCreated } from "../../../../../../lib/admin/ai-settings";
-import {
-  createMonitorKey,
-  invalidateUsage,
-  labelTierKeys,
-} from "../../../../../../lib/server/requesty-manage";
-import { readMonitor, storedTierKeys } from "../../../../../../lib/server/site-settings";
+import { monitorCreateSchema } from "@/lib/admin/ai-settings";
+import { requireAdmin } from "@/lib/server/auth";
+import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
+import type { MonitorCreated } from "@/lib/admin/ai-settings";
+import { createMonitorKey, invalidateUsage, labelTierKeys } from "@/lib/server/requesty-manage";
+import { readMonitor, storedTierKeys } from "@/lib/server/site-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -1,5 +1,5 @@
 import { Trash2 } from "lucide-react";
-import { listTitle, type List } from "../../lib/learning";
+import { listTitle, type List } from "@/lib/learning";
 import Button from "./Button";
 
 export default function DeleteDialog({

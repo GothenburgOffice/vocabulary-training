@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
-import type { WriteLimits } from "../../lib/write-limits";
+import type { WriteLimits } from "@/lib/write-limits";
 import { adminRequest } from "./request";
 
 type View = { limits: WriteLimits; defaults: WriteLimits };

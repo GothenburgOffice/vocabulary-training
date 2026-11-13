@@ -1,7 +1,7 @@
-import { requireAdmin } from "../../../../../lib/server/auth";
-import { fail, json } from "../../../../../lib/server/http";
-import { cachedUsage } from "../../../../../lib/server/requesty-manage";
-import { readMonitor } from "../../../../../lib/server/site-settings";
+import { requireAdmin } from "@/lib/server/auth";
+import { fail, json } from "@/lib/server/http";
+import { cachedUsage } from "@/lib/server/requesty-manage";
+import { readMonitor } from "@/lib/server/site-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

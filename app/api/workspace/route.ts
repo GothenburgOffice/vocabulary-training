@@ -1,9 +1,9 @@
-import { requireUser } from "../../../lib/server/auth";
-import { aiConfig } from "../../../lib/server/ai-config";
-import { loadAiSettings } from "../../../lib/server/site-settings";
-import { fail, json } from "../../../lib/server/http";
-import { loadWorkspace } from "../../../lib/server/workspace-store";
-import { readTimingSettings } from "../../../lib/server/timing-settings";
+import { requireUser } from "@/lib/server/auth";
+import { aiConfig } from "@/lib/server/ai-config";
+import { loadAiSettings } from "@/lib/server/site-settings";
+import { fail, json } from "@/lib/server/http";
+import { loadWorkspace } from "@/lib/server/workspace-store";
+import { readTimingSettings } from "@/lib/server/timing-settings";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // The full user data dump. Changes are saved through the small endpoints: lists/[id],

@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { tierSchema } from "../../../../lib/admin/ai-settings";
-import { requireAdmin } from "../../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../../lib/server/http";
-import { FeedbackUnavailable, listModels } from "../../../../lib/server/requesty-client";
-import { storedApiKey } from "../../../../lib/server/site-settings";
+import { tierSchema } from "@/lib/admin/ai-settings";
+import { requireAdmin } from "@/lib/server/auth";
+import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
+import { FeedbackUnavailable, listModels } from "@/lib/server/requesty-client";
+import { storedApiKey } from "@/lib/server/site-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

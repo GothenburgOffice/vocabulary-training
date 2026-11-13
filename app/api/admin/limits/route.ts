@@ -1,7 +1,7 @@
-import { DEFAULT_LIMITS, limitsSchema } from "../../../../lib/ai-limits";
-import { readLimits, saveLimits } from "../../../../lib/server/ai-limits";
-import { requireAdmin } from "../../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../../lib/server/http";
+import { DEFAULT_LIMITS, limitsSchema } from "@/lib/ai-limits";
+import { readLimits, saveLimits } from "@/lib/server/ai-limits";
+import { requireAdmin } from "@/lib/server/auth";
+import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

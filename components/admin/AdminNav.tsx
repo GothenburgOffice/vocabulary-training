@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ADMIN_SECTIONS } from "../../lib/admin/sections";
+import { ADMIN_SECTIONS } from "@/lib/admin/sections";
 
 export default function AdminNav() {
   const path = usePathname();

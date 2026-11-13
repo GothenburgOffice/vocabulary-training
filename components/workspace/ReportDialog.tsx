@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from "react";
-import type { AiAction } from "../../lib/ai-actions";
+import type { AiAction } from "@/lib/ai-actions";
 import {
   REASONS_FOR_KIND,
   REPORT_REASON_LABELS,
   reportFromAction,
   type ReportReason,
-} from "../../lib/reports";
+} from "@/lib/reports";
 import Button from "./Button";
 
 const KIND_LABEL = { speech: "Audio", note: "Language note" } as const;

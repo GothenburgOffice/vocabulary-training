@@ -1,12 +1,8 @@
 import type { z } from "zod";
-import { languageCreateSchema, languageUpdateSchema } from "../../../../lib/admin/ai-settings";
-import { requireAdmin } from "../../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../../lib/server/http";
-import {
-  addLanguage,
-  readLanguagesView,
-  updateLanguage,
-} from "../../../../lib/server/site-settings";
+import { languageCreateSchema, languageUpdateSchema } from "@/lib/admin/ai-settings";
+import { requireAdmin } from "@/lib/server/auth";
+import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
+import { addLanguage, readLanguagesView, updateLanguage } from "@/lib/server/site-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

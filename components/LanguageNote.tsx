@@ -1,14 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
-import { newAiActionId } from "../lib/ai-actions";
+import { newAiActionId } from "@/lib/ai-actions";
 import { useAiActionLog } from "./AiActionLog";
 import {
   boundedComment,
   FEEDBACK_TIMEOUT_MS,
   shouldRequestFeedback,
   type FeedbackInput,
-} from "../lib/feedback";
-import type { Direction } from "../lib/learning";
+} from "@/lib/feedback";
+import type { Direction } from "@/lib/learning";
 
 type Note = { status: "loading" | "ready" | "unavailable"; text: string };
 // `input` decides here whether a note is needed at all; the request itself names the stored

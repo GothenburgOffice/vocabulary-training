@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
-import type { AiKind, AiLimits, KindLimits } from "../../lib/ai-limits";
+import type { AiKind, AiLimits, KindLimits } from "@/lib/ai-limits";
 import { adminRequest } from "./request";
 
 type View = { limits: AiLimits; defaults: AiLimits };

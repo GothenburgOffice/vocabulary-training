@@ -1,11 +1,11 @@
-import { letterCount, noteInput } from "../../../lib/ai-words";
-import { shouldRequestFeedback } from "../../../lib/feedback";
-import { requireUser } from "../../../lib/server/auth";
-import { aiConfig } from "../../../lib/server/ai-config";
-import { chargeLetters, readLimits } from "../../../lib/server/ai-limits";
-import { feedbackRequestSchema } from "../../../lib/server/feedback-input";
-import { body, fail, HttpError, json, requireOrigin } from "../../../lib/server/http";
-import { loadAiSettings } from "../../../lib/server/site-settings";
+import { letterCount, noteInput } from "@/lib/ai-words";
+import { shouldRequestFeedback } from "@/lib/feedback";
+import { requireUser } from "@/lib/server/auth";
+import { aiConfig } from "@/lib/server/ai-config";
+import { chargeLetters, readLimits } from "@/lib/server/ai-limits";
+import { feedbackRequestSchema } from "@/lib/server/feedback-input";
+import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
+import { loadAiSettings } from "@/lib/server/site-settings";
 import {
   checkFeedbackConfig,
   FeedbackLimiter,
@@ -13,9 +13,9 @@ import {
   FeedbackUnavailable,
   languageCommentRequest,
   requestLanguageComment,
-} from "../../../lib/server/requesty-client";
-import { readWordForAi } from "../../../lib/server/workspace-store";
-import { limitWrites } from "../../../lib/server/write-limits";
+} from "@/lib/server/requesty-client";
+import { readWordForAi } from "@/lib/server/workspace-store";
+import { limitWrites } from "@/lib/server/write-limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -5,7 +5,7 @@ import {
   parseLimits,
   type AiKind,
   type AiLimits,
-} from "../ai-limits";
+} from "@/lib/ai-limits";
 import { db } from "./db";
 import { FeedbackUnavailable } from "./requesty-client";
 

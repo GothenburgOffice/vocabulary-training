@@ -1,7 +1,7 @@
 "use client";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import type { ReactNode } from "react";
-import { nextSort, type Sort, type SortDir } from "../../lib/admin/sort";
+import { nextSort, type Sort, type SortDir } from "@/lib/admin/sort";
 
 // A column heading that sorts its table: click to sort, click again to reverse. The arrow shows
 // the current order; the other headings show a faint two-way arrow.

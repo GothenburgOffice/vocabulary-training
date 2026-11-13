@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { requireUser } from "../../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../../lib/server/http";
-import { listDeleteSchema, listSaveSchema } from "../../../../lib/validation";
-import { deleteList, saveList } from "../../../../lib/server/workspace-store";
-import { limitWrites } from "../../../../lib/server/write-limits";
+import { requireUser } from "@/lib/server/auth";
+import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
+import { listDeleteSchema, listSaveSchema } from "@/lib/validation";
+import { deleteList, saveList } from "@/lib/server/workspace-store";
+import { limitWrites } from "@/lib/server/write-limits";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string }> };

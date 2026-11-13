@@ -1,7 +1,7 @@
 "use client";
 import { Ban, CircleCheck } from "lucide-react";
 import { useId, useRef, useState, type CSSProperties } from "react";
-import { dailyLimitReached, type Usage } from "../../lib/admin/users";
+import { dailyLimitReached, type Usage } from "@/lib/admin/users";
 
 const PERIODS = [
   { name: "day", label: "24 hours", days: 1 },

@@ -1,8 +1,8 @@
-import { requireUser } from "../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../lib/server/http";
-import { aiEnabledSaveSchema, profileSchema, themeSaveSchema } from "../../../lib/validation";
-import { saveAiEnabled, saveProfile, saveTheme } from "../../../lib/server/workspace-store";
-import { limitWrites } from "../../../lib/server/write-limits";
+import { requireUser } from "@/lib/server/auth";
+import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
+import { aiEnabledSaveSchema, profileSchema, themeSaveSchema } from "@/lib/validation";
+import { saveAiEnabled, saveProfile, saveTheme } from "@/lib/server/workspace-store";
+import { limitWrites } from "@/lib/server/write-limits";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // The native (base) and learning language the dashboard shows (never changes lists), or the

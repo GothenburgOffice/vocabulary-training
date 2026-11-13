@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowRight } from "lucide-react";
-import { BookMark } from "../lib/brand";
+import { BookMark } from "@/lib/brand";
 import Workspace from "./Workspace";
 import type {
   Review,
@@ -10,14 +10,14 @@ import type {
   WorkspaceAccount,
   WorkspaceData,
   WorkspaceSync,
-} from "../lib/workspace";
-import type { History, List } from "../lib/learning";
-import { NO_AI, type AiFeatures, type Language } from "../lib/languages";
+} from "@/lib/workspace";
+import type { History, List } from "@/lib/learning";
+import { NO_AI, type AiFeatures, type Language } from "@/lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
 import { AiActionLogProvider } from "./AiActionLog";
-import { PASSWORD_MAX, PASSWORD_MIN } from "../lib/validation";
-import { applyTheme, type Theme } from "../lib/theme";
-import type { InputType } from "../lib/timing";
+import { PASSWORD_MAX, PASSWORD_MIN } from "@/lib/validation";
+import { applyTheme, type Theme } from "@/lib/theme";
+import type { InputType } from "@/lib/timing";
 
 type Account = { id: string; email: string; is_admin?: boolean };
 type Loaded = {

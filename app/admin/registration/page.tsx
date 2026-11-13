@@ -1,5 +1,5 @@
-import RegistrationSettings from "../../../components/admin/RegistrationSettings";
-import { adminPage } from "../../../lib/server/auth";
+import RegistrationSettings from "@/components/admin/RegistrationSettings";
+import { adminPage } from "@/lib/server/auth";
 
 export default async function RegistrationSettingsPage() {
   await adminPage();

@@ -8,13 +8,13 @@ import {
   reviewed,
   type History,
   type List,
-} from "../learning";
-import type { listSaveSchema, profileSchema, reviewSchema, runSaveSchema } from "../validation";
-import type { AiWord } from "../ai-words";
-import type { ExportSource } from "../export";
-import type { Run, WorkspaceData } from "../workspace";
-import type { Theme } from "../theme";
-import { bucketOf, observe, usableSample, type TimingSample, type TimingStats } from "../timing";
+} from "@/lib/learning";
+import type { listSaveSchema, profileSchema, reviewSchema, runSaveSchema } from "@/lib/validation";
+import type { AiWord } from "@/lib/ai-words";
+import type { ExportSource } from "@/lib/export";
+import type { Run, WorkspaceData } from "@/lib/workspace";
+import type { Theme } from "@/lib/theme";
+import { bucketOf, observe, usableSample, type TimingSample, type TimingStats } from "@/lib/timing";
 import { db } from "./db";
 import { HttpError } from "./http";
 

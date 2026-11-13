@@ -1,13 +1,9 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ReportSort } from "../../lib/admin/reports";
-import type { Sort } from "../../lib/admin/sort";
-import {
-  REPORT_KIND_LABELS as KIND,
-  REPORT_REASON_LABELS,
-  type ReportReason,
-} from "../../lib/reports";
-import Dialog from "../workspace/Dialog";
+import type { ReportSort } from "@/lib/admin/reports";
+import type { Sort } from "@/lib/admin/sort";
+import { REPORT_KIND_LABELS as KIND, REPORT_REASON_LABELS, type ReportReason } from "@/lib/reports";
+import Dialog from "@/components/workspace/Dialog";
 import { adminRequest } from "./request";
 import SortHeader from "./SortHeader";
 

@@ -1,7 +1,7 @@
-import { tierUpdateSchema } from "../../../../lib/admin/ai-settings";
-import { requireAdmin } from "../../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../../lib/server/http";
-import { readAiSettingsView, saveTier } from "../../../../lib/server/site-settings";
+import { tierUpdateSchema } from "@/lib/admin/ai-settings";
+import { requireAdmin } from "@/lib/server/auth";
+import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
+import { readAiSettingsView, saveTier } from "@/lib/server/site-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

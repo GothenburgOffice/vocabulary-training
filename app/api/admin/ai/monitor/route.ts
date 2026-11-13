@@ -1,8 +1,8 @@
-import { monitorUpdateSchema } from "../../../../../lib/admin/ai-settings";
-import { requireAdmin } from "../../../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../../../lib/server/http";
-import { checkMonitorKey, invalidateUsage } from "../../../../../lib/server/requesty-manage";
-import { readAiSettingsView, saveMonitor } from "../../../../../lib/server/site-settings";
+import { monitorUpdateSchema } from "@/lib/admin/ai-settings";
+import { requireAdmin } from "@/lib/server/auth";
+import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
+import { checkMonitorKey, invalidateUsage } from "@/lib/server/requesty-manage";
+import { readAiSettingsView, saveMonitor } from "@/lib/server/site-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

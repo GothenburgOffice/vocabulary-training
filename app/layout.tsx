@@ -3,9 +3,9 @@ import { connection } from "next/server";
 // Served from this site, not Google Fonts, so no visitor data goes to a third party.
 import "@fontsource-variable/instrument-sans";
 import "./style.css";
-import { sessionTheme } from "../lib/server/auth";
-import { BRAND_BLUE } from "../lib/brand";
-import { SITE_DESCRIPTION, SITE_NAME, openGraph, siteOrigin } from "../lib/site";
+import { sessionTheme } from "@/lib/server/auth";
+import { BRAND_BLUE } from "@/lib/brand";
+import { SITE_DESCRIPTION, SITE_NAME, openGraph, siteOrigin } from "@/lib/site";
 
 export const viewport: Viewport = { themeColor: BRAND_BLUE };
 

@@ -4,16 +4,16 @@ import {
   TRASH_DAYS,
   USERS_PAGE_SIZE,
   userListQuerySchema,
-} from "../../../../lib/admin/users";
+} from "@/lib/admin/users";
 import {
   changeAccount,
   deleteTestAccounts,
   listAccounts,
   purgeTrashedAccounts,
-} from "../../../../lib/server/accounts";
-import { readLimits } from "../../../../lib/server/ai-limits";
-import { requireAdmin } from "../../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../../lib/server/http";
+} from "@/lib/server/accounts";
+import { readLimits } from "@/lib/server/ai-limits";
+import { requireAdmin } from "@/lib/server/auth";
+import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

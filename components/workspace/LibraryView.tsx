@@ -9,10 +9,10 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { BookMark } from "../../lib/brand";
-import { listStats, listTitle, type List } from "../../lib/learning";
-import type { PracticeSettings } from "../../lib/practice";
-import SpeechButton from "../SpeechButton";
+import { BookMark } from "@/lib/brand";
+import { listStats, listTitle, type List } from "@/lib/learning";
+import type { PracticeSettings } from "@/lib/practice";
+import SpeechButton from "@/components/SpeechButton";
 import Button from "./Button";
 import PracticeSetup from "./PracticeSetup";
 

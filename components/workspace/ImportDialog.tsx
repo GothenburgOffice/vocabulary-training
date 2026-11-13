@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FilePlus2 } from "lucide-react";
-import { parseCSV, wordFromCSV, type List } from "../../lib/learning";
+import { parseCSV, wordFromCSV, type List } from "@/lib/learning";
 import Button from "./Button";
 
 export default function ImportDialog({

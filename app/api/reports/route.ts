@@ -1,8 +1,8 @@
-import { ReportLimiter, reportSchema } from "../../../lib/reports";
-import { requireUser } from "../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../lib/server/http";
-import { saveReport } from "../../../lib/server/reports-store";
-import { limitWrites } from "../../../lib/server/write-limits";
+import { ReportLimiter, reportSchema } from "@/lib/reports";
+import { requireUser } from "@/lib/server/auth";
+import { body, fail, HttpError, json, requireOrigin } from "@/lib/server/http";
+import { saveReport } from "@/lib/server/reports-store";
+import { limitWrites } from "@/lib/server/write-limits";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

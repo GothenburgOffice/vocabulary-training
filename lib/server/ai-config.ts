@@ -2,7 +2,7 @@
 // its own key, so budgets and fallback routing are set on that key in Requesty. Plus
 // settings left blank use the basic value. A feature without a key and a model is off, and
 // so is every feature for an account that turned AI features off (users.ai_enabled, #113).
-import { NO_AI, type AiFeatures, type Language } from "../languages";
+import { NO_AI, type AiFeatures, type Language } from "@/lib/languages";
 
 export const AI_TIERS = ["basic", "plus"] as const;
 export type AiTier = (typeof AI_TIERS)[number];
