@@ -7,6 +7,7 @@ import {
   type ReportReason,
 } from "@/lib/reports";
 import Button from "./Button";
+import { apiRequest } from "@/lib/client/api";
 
 const KIND_LABEL = { speech: "Audio", note: "Language note" } as const;
 
@@ -36,14 +37,11 @@ export default function ReportDialog({
     setState("sending");
     setError("");
     try {
-      const response = await fetch("/api/reports", {
+      await apiRequest("/api/reports", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        cache: "no-store",
-        body: JSON.stringify(reportFromAction(action, selectedReason)),
+        data: reportFromAction(action, selectedReason),
+        fallback: "The report could not be sent. Try again.",
       });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || "The report could not be sent. Try again.");
       setState("sent");
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "The report could not be sent.");
