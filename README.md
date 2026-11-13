@@ -92,18 +92,36 @@ npm run lint
 npm run format:check      # npm run format to fix
 npm run typecheck
 npm test                  # unit tests
-npm run test:integration  # HTTP + PostgreSQL against the running dev server
-npm run test:e2e          # browser tests (Playwright) against the running dev server
+npm run test:integration  # HTTP + PostgreSQL against TEST_BASE_URL
+npm run test:e2e          # browser tests (Playwright) against TEST_BASE_URL
 ```
 
-The browser tests click through the main flows in headless Chromium, at desktop
-and phone (375 px) widths, with a fresh account per test. They mock the AI
-routes, so they never call Requesty. `npx playwright test --ui` is handy for
-watching one run. After a Playwright update, rebuild the container to get the
-matching Chromium.
+The browser tests click through the main flows in Chromium, at desktop and phone
+(375 px) widths, with a fresh account per test. They mock the AI routes, so they
+never call Requesty. `npx playwright test --ui` is handy for watching one run. After
+a Playwright update, rebuild the container to get the matching Chromium.
 
-Registration is enabled inside the dev container so the integration test can
-create throwaway accounts: the dev database starts with registration open and a
+Both suites create throwaway accounts, so run them against their own database and
+server, not the dev server you work in:
+
+1. Create a database for the run on `db` (the `vocabulary` role may `CREATE DATABASE`)
+   and migrate it with `node scripts/migrate.mjs`, with `DATABASE_URL` pointing at it and
+   the test settings from `compose.test.yaml` and `ci.yml`: `ALLOW_REGISTRATION=true`,
+   the fake `PRIVACY_*` values, `ADMIN_EMAIL`/`ADMIN_PASSWORD` and a random
+   `SETTINGS_ENCRYPTION_KEY`.
+2. Build, then start it on a free port with the same variables:
+   `npx next build --webpack` and `npx next start -p 3101`, with `APP_ORIGIN=http://localhost:3101`.
+3. Run the suites with `TEST_BASE_URL` and `TEST_ORIGIN` set to that origin, and
+   `TEST_ADMIN_EMAIL`/`TEST_ADMIN_PASSWORD` for the admin tests.
+
+In the dev container, headless Chromium never fires `requestAnimationFrame`, so every
+click times out. Start a virtual display and run headed:
+`Xvfb :99 -screen 0 1440x1000x24 -nolisten tcp &`, then
+`DISPLAY=:99 npm run test:e2e -- --headed`. Repeated runs can hit the sign-in limit
+(15 per email per 15 minutes); in the test database, `DELETE FROM auth_limits` resets it.
+
+Registration is enabled inside the dev container so you can create accounts to try
+things with: the dev database starts with registration open and a
 clearly fake privacy contact (`compose.dev.yaml`; CI uses `compose.test.yaml`). AI keys and models are set in the admin area, also in
 dev. Automated tests use dummy keys and never call Requesty: with AI configured, the
 integration test skips its "AI disabled" checks instead of making paid calls.
@@ -150,7 +168,8 @@ The VS Code workspace file has tasks for these. If dependencies change, rebuild
 and recreate the `node_modules` volume. Never remove the database volume to do it.
 
 **CI** ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs format, lint,
-typecheck, unit tests and build, then a Docker Compose integration and restart test.
+typecheck, unit tests, build and `npm audit`, then starts the Docker Compose stack and runs
+the integration test, a restart test and the browser tests against it. Draft PRs skip it.
 Passing `main` pushes build, re-test and publish the image to GHCR.
 A `@claude` mention in an issue runs
 [.github/workflows/claude.yml](.github/workflows/claude.yml), which reviews the issue against

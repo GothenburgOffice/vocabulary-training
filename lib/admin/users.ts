@@ -40,6 +40,7 @@ export const userListQuerySchema = z.object({
   sort: z.enum(USER_SORTS).default("created"),
   dir: z.enum(["asc", "desc"]).default("desc"),
 });
+export type UserListQuery = z.infer<typeof userListQuerySchema>;
 
 // Locking or trashing an admin needs another admin who can still sign in, so the site never
 // loses its last one.

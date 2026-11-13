@@ -16,8 +16,6 @@ export function fail(error: unknown) {
   console.error("Request failed:", error instanceof Error ? error.name : "unknown");
   return json({ error: "The server could not complete the request. Please retry." }, 500);
 }
-// APP_ORIGIN is the public origin; APP_ORIGIN_ALIASES optionally adds more, comma-separated.
-// Each entry must be written exactly as browsers send it, e.g. https://example.com.
 // The client's IP address, read only from the one header the operator names in
 // AUTH_TRUSTED_IP_HEADER, which their reverse proxy must overwrite. Unset means nothing a
 // client sends is trusted, and "" is returned. A list (as in X-Forwarded-For) isn't accepted.
@@ -26,6 +24,8 @@ export function clientIp(request: Request, env: Record<string, string | undefine
   const value = header ? (request.headers.get(header) ?? "").trim() : "";
   return isIP(value) ? value : "";
 }
+// APP_ORIGIN is the public origin; APP_ORIGIN_ALIASES optionally adds more, comma-separated.
+// Each entry must be written exactly as browsers send it, e.g. https://example.com.
 export function allowedOrigins(env: Record<string, string | undefined> = process.env) {
   if (!env.APP_ORIGIN?.trim()) throw new HttpError(503, "The server origin is not configured.");
   const origins = [env.APP_ORIGIN, ...(env.APP_ORIGIN_ALIASES ?? "").split(",")]
