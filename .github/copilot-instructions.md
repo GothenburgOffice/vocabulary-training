@@ -52,6 +52,8 @@ the full browser suite on every PR.
 - `lib/learning.ts`: pure matching, sampling, scheduling and CSV. Unit-test any change here.
   `normalize()` (grading) and the database's `vocabulary_key()` (migration 005) must stay in step.
 - `lib/validation.ts`: Zod schemas for save requests. Update them with any change to the data shape.
+- No SQL in `app/`: routes and pages call `lib/server/` functions. `lib/server/accounts.ts`
+  holds the queries on `users` as accounts (sign-up, sign-in, Admin → Users and Overview).
 - `lib/server/workspace-store.ts`: every query on the user data tables (`lists`, `words`,
   `word_reviews`, `runs`, `run_results`). Every query filters on `user_id`.
 - `lib/server/reports-store.ts`: `issue_reports`, the AI result reports (#95). Anonymous by
