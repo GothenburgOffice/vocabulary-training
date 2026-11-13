@@ -21,9 +21,10 @@ The shared project reference for coding agents (also read by Copilot):
   changed (or why nothing did). Never resolve a conversation; the owner does.
 - Never merge, approve or enable auto-merge on a pull request; the owner's merge is the
   approval.
-- Sign everything you post on GitHub (pull request descriptions, issues, comments and
+- Claude Code signs everything it posts on GitHub (pull request descriptions, issues, comments and
   review replies) with a last line
   `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
+  This line is Claude Code's alone: Copilot and other reviewers or agents reading this file don't add it.
 - On GitHub, a `@claude` mention in an issue runs `.github/workflows/claude.yml`, which is
   read-only. Only when running in that workflow (the prompt says you are helping with a
   GitHub issue, and Bash/Edit/Write are denied): review the issue against the code on
