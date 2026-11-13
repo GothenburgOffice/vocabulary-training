@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 FROM node:22.23.4-trixie-slim AS dependencies
 WORKDIR /app
-RUN npm install --global npm@12.2.1
 COPY package.json package-lock.json ./
-RUN npm ci
+# The npm version is package.json's packageManager, the one place it is pinned.
+RUN npm install --global "$(node -p 'require("./package.json").packageManager')" && npm ci
 
 FROM dependencies AS development
 COPY . .

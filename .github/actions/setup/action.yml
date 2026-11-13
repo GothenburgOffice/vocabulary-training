@@ -1,0 +1,32 @@
+name: Set up Node and dependencies
+description: >-
+  The Node version from the Dockerfile's FROM line (Dependabot keeps it current), the npm version
+  from package.json's packageManager, and node_modules from cache or npm ci. One place for the
+  toolchain, so CI and the image can't drift apart.
+runs:
+  using: composite
+  steps:
+    - name: Read toolchain versions
+      id: versions
+      shell: bash
+      run: |
+        node=$(sed -n 's/^FROM node:\([0-9][0-9.]*\)-.*/\1/p' Dockerfile | head -1)
+        npm=$(node -p 'require("./package.json").packageManager')
+        [[ "$node" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::No node:<version> FROM line in the Dockerfile"; exit 1; }
+        [[ "$npm" =~ ^npm@[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::package.json packageManager must be npm@x.y.z"; exit 1; }
+        echo "node=$node" >> "$GITHUB_OUTPUT"
+        echo "npm=$npm" >> "$GITHUB_OUTPUT"
+    - uses: actions/setup-node@v7.1.0
+      with:
+        node-version: ${{ steps.versions.outputs.node }}
+    - shell: bash
+      run: npm install --global "${{ steps.versions.outputs.npm }}"
+    - name: Restore node_modules
+      id: node-modules
+      uses: actions/cache@v6.1.0
+      with:
+        path: node_modules
+        key: node-modules-${{ runner.os }}-node${{ steps.versions.outputs.node }}-${{ steps.versions.outputs.npm }}-${{ hashFiles('package-lock.json') }}
+    - if: steps.node-modules.outputs.cache-hit != 'true'
+      shell: bash
+      run: npm ci
