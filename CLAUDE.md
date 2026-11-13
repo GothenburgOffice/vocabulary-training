@@ -16,6 +16,11 @@ The shared project reference for coding agents (also read by Copilot):
 - Assign every pull request you open to `hkarn`, so it shows up in the owner's GitHub
   views: `gh pr create --assignee hkarn`, or `gh pr edit <N> --add-assignee hkarn` for one
   opened another way (a GitHub MCP tool, or a draft the environment opened).
+- Review comments, from Copilot or a person: check each claim against the code first, fix
+  what is real in a new commit, and reply on the thread with what you found and what
+  changed (or why nothing did). Never resolve a conversation; the owner does.
+- Never merge, approve or enable auto-merge on a pull request; the owner's merge is the
+  approval.
 - On GitHub, a `@claude` mention in an issue runs `.github/workflows/claude.yml`, which is
   read-only. Only when running in that workflow (the prompt says you are helping with a
   GitHub issue, and Bash/Edit/Write are denied): review the issue against the code on
