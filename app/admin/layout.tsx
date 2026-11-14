@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import AdminNav from "@/components/admin/AdminNav";
+import "./admin.css";
 import { BookMark } from "@/lib/brand";
 import { adminPage } from "@/lib/server/auth";
 

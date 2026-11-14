@@ -67,7 +67,8 @@ the full browser suite on every PR.
 - `app/admin/`: the admin area, a shell (`layout.tsx`, `components/admin/AdminNav.tsx`)
   with one module per section. To add a section: `app/admin/<slug>/page.tsx` (calls
   `adminPage()`), components in `components/admin/`, API in `app/api/admin/<slug>/`
-  (`adminRead`/`adminWrite`), and an entry in `lib/admin/sections.ts`.
+  (`adminRead`/`adminWrite`), and an entry in `lib/admin/sections.ts`. Admin-only styles go in
+  `app/admin/admin.css` (loaded by the admin layout only), not `app/style.css`.
   A list of records (accounts, languages) is a compact `.admin-table`, one row per record
   with everything visible, like Languages and Users: no cards, no collapsed details.
 - `components/Workspace.tsx`: the signed-in UI, a client component. It holds the shared
