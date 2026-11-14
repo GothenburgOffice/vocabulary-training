@@ -8,7 +8,9 @@ const dockerfile = readFileSync(new URL("../Dockerfile", import.meta.url), "utf8
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
 it("uses one Node version in every Dockerfile stage, on Node 22", () => {
-  const versions = [...dockerfile.matchAll(/^FROM node:(\S+?)-/gm)].map((m) => m[1]);
+  const versions = [...dockerfile.matchAll(/^FROM node:(\d+\.\d+\.\d+)(?![\d.])/gm)].map(
+    (m) => m[1],
+  );
   assert.ok(versions.length >= 2, "expected the dependencies and production stages");
   assert.equal(new Set(versions).size, 1, `Dockerfile stages differ: ${versions.join(", ")}`);
   assert.match(versions[0], /^22\.\d+\.\d+$/);
