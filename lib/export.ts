@@ -6,13 +6,16 @@ import type { WorkspaceData } from "./workspace";
 // Times are ISO 8601 (UTC). Bump EXPORT_VERSION when the shape changes.
 export const EXPORT_FORMAT = "vocabulary.training export";
 // 2: profile.aiEnabled (#113). 3: review.*.fsrs (#2). 4: answerTiming (#2).
-export const EXPORT_VERSION = 4;
+// 5: account.googleAccountId (#152).
+export const EXPORT_VERSION = 5;
 
 type ExportAccount = {
   email: string;
   createdAt: Date;
   accountType: string;
   lastSignInAt: Date | null;
+  // The account ID Google gave this site, for an account that signs in with Google (#152).
+  googleAccountId: string | null;
 };
 // One checked answer from the answer log (review_events).
 export type ExportReviewEvent = {
@@ -94,6 +97,7 @@ export function exportDocument(
       createdAt: account.createdAt.toISOString(),
       accountType: account.accountType,
       lastSignInAt: account.lastSignInAt?.toISOString() ?? null,
+      googleAccountId: account.googleAccountId,
     },
     profile: {
       baseLanguage: data.baseLanguage,

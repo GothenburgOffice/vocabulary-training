@@ -61,6 +61,12 @@ the full browser suite on every PR.
   design: never store a user id with a report; only the tier comes from the session.
   `lib/reports.ts` holds the reasons and schema shared with the browser.
 - `lib/server/**`: server-only (`import "server-only"`). DB, sessions, Requesty clients.
+- Google sign-in (#152): `lib/google-oidc.ts` (pure: the authorization URL, PKCE, ID-token
+  claims; unit-tested), `lib/server/google.ts` (the token request), `signInWithGoogle` in
+  `lib/server/accounts.ts` (link, create, and removing the password and, on linking, every
+  session) and `app/api/auth/google/`. Tests never call Google: `compose.test.yaml` runs
+  `tests/support/fake-google.mjs` as the token endpoint (`TEST_GOOGLE_TOKEN_URL`, honoured
+  only on a plain-HTTP loopback `APP_ORIGIN`).
 - `app/api/*/route.ts`: signed-in and admin routes are built with `lib/server/route.ts`,
   which runs the guards in order:
   `userRead` (`requireUser`), `userWrite` (`requireOrigin`, `requireUser`, `limitWrites`, then the
@@ -124,6 +130,12 @@ the full browser suite on every PR.
 - A feature without a key and a model is hidden. Speech is configured per language (six
   settings); plus falls back to basic. Tests use dummy keys and never call Requesty.
 - Languages are hidden, never deleted or renamed: saved lists store the name.
+- Google sign-in (#152): one account per address and one sign-in method per account. Never
+  link or create from an address Google hasn't verified; a Google sign-in removes the
+  password, and linking an existing address ends all its sessions (nobody verified who
+  registered it). New Google accounts follow the Registration setting and its blockers;
+  locked or trashed accounts are refused. Store Google's account ID and the address only:
+  no name, photo or tokens.
 - Registration is a site setting (Admin → Registration). A real site starts closed with no
   privacy details; only `compose.dev.yaml` and `compose.test.yaml` seed it open with fake
   ones. Sign-up also needs every item of `registrationBlockers()` done: the privacy controller and contact, and HTTPS except on a local address. Never fill

@@ -155,3 +155,59 @@ test("the write limit is saved, and reset to the defaults", async ({ page }) => 
   await expect(section.getByRole("status")).toHaveText("Saved.");
   expect(saves[1]).toEqual(defaults);
 });
+
+test("the Google client is saved with a write-only secret, and removed", async ({ page }) => {
+  // Answered here: the client is a site setting, so tests never change the real one.
+  const redirectUri = "http://127.0.0.1:3013/api/auth/google/callback";
+  let view = {
+    encryptionReady: true,
+    clientId: "",
+    secret: { state: "unset" },
+    redirectUri,
+    enabled: false,
+  };
+  const saves: unknown[] = [];
+  await page.route("/api/admin/google", async (route) => {
+    if (route.request().method() === "PUT") {
+      const update = route.request().postDataJSON();
+      saves.push(update);
+      const secret =
+        update.clientSecret === null
+          ? { state: "unset" }
+          : update.clientSecret
+            ? { state: "set", hint: update.clientSecret.slice(-4) }
+            : view.secret;
+      view = {
+        ...view,
+        clientId: update.clientId,
+        secret,
+        enabled: Boolean(update.clientId) && secret.state === "set",
+      };
+    }
+    await route.fulfill({ json: view });
+  });
+  await page.goto("/admin/registration");
+  const card = page.getByRole("form", { name: "Google sign-in" });
+  await expect(card.getByRole("status")).toHaveText(
+    "Off: save a client ID and secret to offer it.",
+  );
+  await expect(card.getByLabel("Authorized redirect URI")).toHaveValue(redirectUri);
+  await card.getByLabel("Client ID").fill("1234-test.apps.googleusercontent.com");
+  await card.getByLabel("Client secret").fill("e2e-test-only-secret");
+  await card.getByRole("button", { name: "Save" }).click();
+  await expect(card.getByRole("status").first()).toHaveText(
+    "On: the sign-in page offers Continue with Google.",
+  );
+  // The secret field empties; only its last characters are shown.
+  await expect(card.getByLabel("Client secret")).toHaveValue("");
+  await expect(card.getByText("Saved, ending in …cret")).toBeVisible();
+
+  await card.getByRole("button", { name: "Remove client" }).click();
+  await expect(card.getByRole("status").first()).toHaveText(
+    "Off: save a client ID and secret to offer it.",
+  );
+  expect(saves).toEqual([
+    { clientId: "1234-test.apps.googleusercontent.com", clientSecret: "e2e-test-only-secret" },
+    { clientId: "", clientSecret: null },
+  ]);
+});

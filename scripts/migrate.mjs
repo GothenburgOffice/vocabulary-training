@@ -24,6 +24,11 @@ try {
   const admin = await bootstrapAdmin(client);
   if (admin === "created" || admin === "promoted")
     console.log(`Admin account ${admin}: ${process.env.ADMIN_EMAIL?.trim().toLowerCase()}`);
+  if (admin === "restored")
+    console.log(
+      `Admin ${process.env.ADMIN_EMAIL?.trim().toLowerCase()} had no password (Google sign-in): ` +
+        "gave it ADMIN_PASSWORD. Empty ADMIN_PASSWORD in .env again once signed in.",
+    );
   const seeded = await seedSiteSettings(client);
   if (seeded) console.log(`Seeded ${seeded} site settings (registration, privacy) from .env.`);
   await client.query("COMMIT");

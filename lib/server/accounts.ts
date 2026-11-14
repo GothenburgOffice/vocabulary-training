@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import {
   canRemoveAccess,
   E2E_EMAIL_PATTERN,
@@ -9,6 +10,7 @@ import {
   type UserListQuery,
   type UserSort,
 } from "@/lib/admin/users";
+import type { GoogleIdentity } from "@/lib/google-oidc";
 import { db } from "./db";
 import { HttpError } from "./http";
 
@@ -38,16 +40,92 @@ export async function createAccount(id: string, email: string, passwordHash: str
     });
 }
 
-// What sign-in checks for an email, or undefined when there is no such account.
+// What sign-in checks for an email, or undefined when there is no such account. A Google
+// member has no password_hash, so a password never signs them in.
 export async function findAccountForSignIn(email: string) {
   const result = await db.query<{
     id: string;
-    password_hash: string;
+    password_hash: string | null;
     is_admin: boolean;
     locked_at: Date | null;
     deleted_at: Date | null;
   }>("SELECT id,password_hash,is_admin,locked_at,deleted_at FROM users WHERE email=$1", [email]);
   return result.rows[0];
+}
+
+// Why a Google sign-in was refused after Google proved who the person is.
+export class GoogleSignInRefused extends Error {
+  constructor(readonly reason: "closed" | "locked" | "linked") {
+    super(reason);
+  }
+}
+
+// The account a Google sign-in (#152) opens, following MoneyWorks: one account per address,
+// one sign-in method per account.
+// - Google's account ID (sub) already linked: that account.
+// - Otherwise the account with the address Google proved: it is linked, its password removed
+//   and every session ended. This app never verifies addresses, so a password account on that
+//   address may be a stranger's who registered it first; Google just showed who owns it.
+// - Otherwise a new account, only while registration is open (`registrationOpen`).
+// A locked or trashed account is refused before anything changes. Every Google sign-in
+// removes a password, also one the admin bootstrap gave back (scripts/admin-bootstrap.mjs).
+export async function signInWithGoogle(
+  identity: GoogleIdentity,
+  registrationOpen: () => Promise<boolean>,
+) {
+  type Row = {
+    id: string;
+    is_admin: boolean;
+    google_sub: string | null;
+    locked_at: Date | null;
+    deleted_at: Date | null;
+  };
+  const columns = "id,is_admin,google_sub,locked_at,deleted_at";
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    // One sign-in per address at a time, so two first sign-ins can't both link or create.
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [
+      `google:${identity.email}`,
+    ]);
+    let user = (
+      await client.query<Row>(`SELECT ${columns} FROM users WHERE google_sub=$1 FOR UPDATE`, [
+        identity.sub,
+      ])
+    ).rows[0];
+    const linking = !user;
+    if (!user)
+      user = (
+        await client.query<Row>(`SELECT ${columns} FROM users WHERE email=$1 FOR UPDATE`, [
+          identity.email,
+        ])
+      ).rows[0];
+    if (user) {
+      // The address belongs to an account linked to another Google account.
+      if (linking && user.google_sub) throw new GoogleSignInRefused("linked");
+      if (user.locked_at || user.deleted_at) throw new GoogleSignInRefused("locked");
+      await client.query("UPDATE users SET google_sub=$2, password_hash=NULL WHERE id=$1", [
+        user.id,
+        identity.sub,
+      ]);
+      if (linking) await client.query("DELETE FROM sessions WHERE user_id=$1", [user.id]);
+    } else {
+      if (!(await registrationOpen())) throw new GoogleSignInRefused("closed");
+      user = (
+        await client.query<Row>(
+          `INSERT INTO users(id,email,google_sub) VALUES($1,$2,$3) RETURNING ${columns}`,
+          [randomUUID(), identity.email, identity.sub],
+        )
+      ).rows[0];
+    }
+    await client.query("COMMIT");
+    return { userId: user.id, isAdmin: user.is_admin };
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
 }
 
 export async function recordSignIn(userId: string) {

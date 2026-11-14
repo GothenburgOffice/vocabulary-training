@@ -6,7 +6,7 @@ Built with Next.js, TypeScript and PostgreSQL, and run with Docker Compose.
 
 ## Features
 
-- Email/password accounts with server-side sessions.
+- Email/password accounts, or Google sign-in, with server-side sessions.
 - Word-pair lists per language pair, with paired and bulk editing and CSV import/export.
 - Practice in either direction with independent review statistics per direction.
 - Three practice modes (Weighted mix, Spaced review with FSRS scheduling, Random order),
@@ -59,6 +59,17 @@ account with that email without changing its password. Admins get an **Admin**
 link in the account dialog (the sidebar's **Your account**), leading to `/admin`;
 everyone else gets a 404 there. The flag is `users.is_admin`, so you can also set
 it directly in the database.
+
+**Google sign-in (optional).** In Google Cloud, create an OAuth client of type Web
+application with the authorized redirect URI `<APP_ORIGIN>/api/auth/google/callback`, then
+save its client ID and secret at **Admin → Registration** (the page shows the exact URI;
+the secret needs `SETTINGS_ENCRYPTION_KEY`). Google sign-in is offered only on
+`APP_ORIGIN`, while both are saved. A Google sign-in joins the account with that address,
+removes its password and, the first time, ends its other sessions, since this app never
+verified who registered it. New accounts need registration open. There is no password
+recovery, so if you remove the client, Google members can't sign in until it is back. An
+admin can always get back in: set `ADMIN_PASSWORD` again and restart, and an admin with no
+password gets it (then empty it again). The design is in #152.
 
 The app listens on localhost only and PostgreSQL has no published port. Data lives
 in a named volume that survives `docker compose down`. **Never use `down -v` on

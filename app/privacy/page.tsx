@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { BookMark } from "@/lib/brand";
 import { privacyReady } from "@/lib/admin/registration";
-import { readPrivacy } from "@/lib/server/site-settings";
+import { readGoogleClient, readPrivacy } from "@/lib/server/site-settings";
 import { SHARE_IMAGE, SITE_NAME, openGraph } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +26,8 @@ export const metadata: Metadata = {
 export default async function PrivacyPage() {
   const privacy = await readPrivacy();
   const ready = privacyReady(privacy);
+  // Described only while this site offers Google sign-in (#152).
+  const google = Boolean(await readGoogleClient());
   return (
     <main className="auth-screen">
       <article className="auth-content privacy-page">
@@ -58,6 +60,8 @@ export default async function PrivacyPage() {
         <ul>
           <li>
             Your email address and a hash of your password. The password itself is never stored.
+            {google &&
+              " If you sign in with Google, instead of a password: the account ID Google gives this site."}
           </li>
           <li>
             Your word lists, your profile languages and appearance (light, dark or your
@@ -113,10 +117,25 @@ export default async function PrivacyPage() {
           signing out clears them. Reports are never sent to the AI provider.
         </p>
 
+        {google && (
+          <>
+            <h2>Signing in with Google</h2>
+            <p>
+              If you choose Continue with Google, you sign in at Google, and Google tells this site
+              your email address, that Google has verified it, and an account ID for this site.
+              Nothing else from Google is kept: not your name, your photo or any Google token.
+              Signing in with Google replaces your password, so from then on you sign in with
+              Google. Google&apos;s own privacy policy covers what happens at Google.
+            </p>
+          </>
+        )}
+
         <h2>The cookie and your browser</h2>
         <p>
           <code>vocabulary_session</code> keeps you signed in. It can&apos;t be read by scripts, is
           only sent to this site, and expires after 14 days or when you sign out.
+          {google &&
+            " While a Google sign-in is under way, vocabulary_google holds a one-time check that the answer coming back from Google is for the sign-in this browser started; it can't be read by scripts and is removed when Google sends you back, or after 10 minutes."}
         </p>
         <p>
           Your practice settings (direction, practice mode, session size, case and accents) are

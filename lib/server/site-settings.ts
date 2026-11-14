@@ -12,6 +12,8 @@ import {
   type Privacy,
   type RegistrationView,
 } from "@/lib/admin/registration";
+import type { GoogleUpdate, GoogleView } from "@/lib/admin/google";
+import { callbackUrl } from "@/lib/google-oidc";
 import type { AiSettings, LanguageSettings } from "./ai-config";
 import { db } from "./db";
 import { decryptSecret, encryptionReady, encryptSecret } from "./secrets";
@@ -25,6 +27,9 @@ const MONITOR_LABEL = "requesty.monitor.app_label";
 const PRIVACY_NAME = "privacy.controller_name";
 const PRIVACY_EMAIL = "privacy.contact_email";
 const REGISTRATION_OPEN = "registration.open";
+// The Google sign-in client (#152); the secret is encrypted like the Requesty keys.
+const GOOGLE_CLIENT_ID = "google.client_id";
+const GOOGLE_CLIENT_SECRET = "google.client_secret";
 
 // Read on most requests, so cached briefly. Saves clear this process's cache at once; other
 // processes pick changes up within CACHE_MS.
@@ -265,4 +270,32 @@ export async function saveRegistration(update: Privacy & { open: boolean }) {
       String(update.open),
     ],
   );
+}
+
+// The Google client for signing in, or null while Google sign-in is off: no client ID, or no
+// readable secret (unset, or saved under another SETTINGS_ENCRYPTION_KEY).
+export async function readGoogleClient() {
+  const settings = await readSettingsMap();
+  const clientId = settings.get(GOOGLE_CLIENT_ID) ?? "";
+  const stored = settings.get(GOOGLE_CLIENT_SECRET);
+  const clientSecret = (stored && decryptSecret(stored)) || "";
+  return clientId && clientSecret ? { clientId, clientSecret } : null;
+}
+export async function readGoogleView(): Promise<GoogleView> {
+  const settings = await readSettingsMap();
+  const clientId = settings.get(GOOGLE_CLIENT_ID) ?? "";
+  const secret = keyStatus(settings.get(GOOGLE_CLIENT_SECRET));
+  return {
+    encryptionReady: encryptionReady(),
+    clientId,
+    secret,
+    redirectUri: callbackUrl(process.env.APP_ORIGIN ?? ""),
+    enabled: Boolean(clientId) && secret.state === "set",
+  };
+}
+export async function saveGoogle(update: GoogleUpdate) {
+  await setSetting(GOOGLE_CLIENT_ID, update.clientId);
+  if (update.clientSecret)
+    await setSetting(GOOGLE_CLIENT_SECRET, encryptSecret(update.clientSecret));
+  else if (update.clientSecret === null) await setSetting(GOOGLE_CLIENT_SECRET, "");
 }

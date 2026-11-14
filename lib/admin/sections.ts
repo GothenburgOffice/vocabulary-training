@@ -37,6 +37,6 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   {
     href: "/admin/registration",
     title: "Registration",
-    description: "Open or close sign-up, and the privacy details it needs first.",
+    description: "Open or close sign-up, the privacy details it needs first, and Google sign-in.",
   },
 ];
