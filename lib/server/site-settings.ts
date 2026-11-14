@@ -364,8 +364,12 @@ export async function readEmailView(): Promise<EmailView> {
 export async function saveEmail(update: EmailUpdate) {
   // The user name and password go together: check what the settings will be after this save.
   const stored = (await readSettingsMap()).get(SMTP.password);
+  // A saved password counts only if it can be read: one saved under another
+  // SETTINGS_ENCRYPTION_KEY would be sent as an empty one, so it has to be entered again.
   const hasPassword =
-    update.password === null ? false : Boolean(update.password) || Boolean(stored);
+    update.password === null
+      ? false
+      : Boolean(update.password) || Boolean(stored && decryptSecret(stored));
   const problem = smtpProblem(
     { user: update.user, hasPassword, security: update.security },
     plaintextAllowed(),
