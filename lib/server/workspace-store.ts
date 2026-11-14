@@ -459,7 +459,7 @@ export function loadExport(userId: string) {
   return transaction(async (c) => {
     const { data } = await readWorkspace(c, userId);
     const account = await c.query(
-      "SELECT email, created_at, ai_tier, last_sign_in_at FROM users WHERE id=$1",
+      "SELECT email, created_at, ai_tier, last_sign_in_at, google_sub FROM users WHERE id=$1",
       [userId],
     );
     const events = await c.query(
@@ -483,6 +483,7 @@ export function loadExport(userId: string) {
         createdAt: row.created_at,
         accountType: row.ai_tier,
         lastSignInAt: row.last_sign_in_at,
+        googleAccountId: row.google_sub,
       },
       reviewEvents: events.rows.map((e) => ({
         wordId: e.word_id,

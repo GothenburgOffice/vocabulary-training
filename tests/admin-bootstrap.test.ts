@@ -5,13 +5,18 @@ import { verifyPassword } from "../lib/server/password.ts";
 import { credentialsSchema } from "../lib/validation.ts";
 
 // Answers the bootstrap's queries from a list of users and records the writes.
-function fakeClient(users: { email: string; is_admin: boolean }[]) {
+function fakeClient(users: { email: string; is_admin: boolean; password?: string | null }[]) {
   const writes: { sql: string; params: unknown[] }[] = [];
   return {
     writes,
     async query(sql: string, params: unknown[] = []) {
       if (sql.startsWith("SELECT 1 FROM users WHERE is_admin"))
         return { rowCount: users.filter((u) => u.is_admin).length };
+      if (sql.startsWith("UPDATE users SET password_hash=$2")) {
+        const user = users.find((u) => u.email === params[0] && u.is_admin && u.password === null);
+        if (user) user.password = params[1] as string;
+        return { rowCount: user ? 1 : 0 };
+      }
       if (sql.startsWith("UPDATE users SET is_admin=true")) {
         const user = users.find((u) => u.email === params[0]);
         if (user) user.is_admin = true;
@@ -51,6 +56,30 @@ test("bootstrap promotes an existing account without touching its password", asy
   assert.equal(await bootstrapAdmin(client, { ...env, ADMIN_PASSWORD: "" }), "promoted");
   assert.equal(users[0].is_admin, true);
   assert.equal(client.writes.length, 0);
+});
+
+test("bootstrap gives a Google-only admin ADMIN_PASSWORD, and never replaces a password", async () => {
+  // Signs in with Google: no password, and no recovery in this app (#152).
+  const google = [{ email: "admin@example.test", is_admin: true, password: null }];
+  assert.equal(await bootstrapAdmin(fakeClient(google), env), "restored");
+  assert(await verifyPassword(env.ADMIN_PASSWORD, google[0].password as unknown as string));
+
+  const withPassword = [{ email: "admin@example.test", is_admin: true, password: "scrypt:old" }];
+  assert.equal(await bootstrapAdmin(fakeClient(withPassword), env), "exists");
+  assert.equal(withPassword[0].password, "scrypt:old");
+
+  // Only an admin: a learner's Google account on that address is not given a password.
+  const learner = [
+    { email: "admin@example.test", is_admin: false, password: null },
+    { email: "other@example.test", is_admin: true, password: "scrypt:other" },
+  ];
+  assert.equal(await bootstrapAdmin(fakeClient(learner), env), "exists");
+  assert.equal(learner[0].password, null);
+
+  // Without ADMIN_PASSWORD nothing changes.
+  const none = [{ email: "admin@example.test", is_admin: true, password: null }];
+  assert.equal(await bootstrapAdmin(fakeClient(none), { ...env, ADMIN_PASSWORD: "" }), "exists");
+  assert.equal(none[0].password, null);
 });
 
 test("bootstrap accepts exactly the emails that can sign in", () => {

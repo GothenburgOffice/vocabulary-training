@@ -10,6 +10,7 @@ const account = {
   createdAt: new Date("2026-10-01T12:00:00Z"),
   accountType: "basic",
   lastSignInAt: null,
+  googleAccountId: null,
 };
 const due = Date.parse("2026-11-04T00:00:00Z");
 const data: WorkspaceData = {
@@ -117,6 +118,7 @@ test("the data export holds the account, lists with review history, sessions and
     createdAt: "2026-10-01T12:00:00.000Z",
     accountType: "basic",
     lastSignInAt: null,
+    googleAccountId: null,
   });
   assert.deepEqual(doc.profile, {
     baseLanguage: "Swedish",
