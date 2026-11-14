@@ -103,6 +103,3 @@ test("reports list newest first by page, sort by a heading, show the request, an
   expect(prunes).toEqual([{ olderThanDays: 15 }]);
   await expect(page.getByText("No reports yet.")).toBeVisible();
 });
-
-// Requesty usage (#121): the monitor key's card, and the usage block once a key is saved. The
-// AI settings and usage routes are faked: saving a key would ask Requesty for its permissions.
