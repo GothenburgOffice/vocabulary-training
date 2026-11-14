@@ -77,8 +77,12 @@ the full browser suite on every PR.
   queue; unit-test changes there). None of these may import server code.
 - `e2e/`: Playwright browser tests. `fixtures.ts` signs each test in as a fresh account and
   has the shared steps; AI routes are mocked there, never called.
-  `admin.spec.ts` needs `TEST_ADMIN_EMAIL`/`TEST_ADMIN_PASSWORD` (skipped otherwise) and fakes
+  The `admin-*.spec.ts` files call `signedInAsAdmin()` (`admin-fixtures.ts`): they need
+  `TEST_ADMIN_EMAIL`/`TEST_ADMIN_PASSWORD` (skipped otherwise). `admin-languages.spec.ts` fakes
   the languages API, since languages are shared and can't be deleted.
+- `tests/integration/`: the HTTP and PostgreSQL tests against a live stack, one file per area
+  with `helpers.mts`. They run one file at a time (`--test-concurrency=1`), because some change
+  site-wide settings.
 - `db/migrations/NNN_name.sql`: **append-only**. Never edit an applied migration; add a new file.
 
 ## Rules that must not regress

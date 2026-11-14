@@ -16,7 +16,7 @@
     "db:migrate": "node scripts/migrate.mjs",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "test:integration": "tsx --test tests/integration.mts",
+    "test:integration": "tsx --test --test-concurrency=1 tests/integration/*.test.mts",
     "test:e2e": "playwright test",
     "lint": "eslint .",
     "format": "prettier --write .",
