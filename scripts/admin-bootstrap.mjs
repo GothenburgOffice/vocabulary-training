@@ -1,6 +1,9 @@
 // Creates the first admin from ADMIN_EMAIL / ADMIN_PASSWORD. Runs inside the migration
 // transaction on every start, but only acts while no admin exists, and never changes the
-// password of an existing account.
+// password of an existing account. One exception keeps the site from losing its admin: an
+// admin who signs in with Google has no password (#152), and this app has no password
+// recovery, so an ADMIN_EMAIL admin without a password gets ADMIN_PASSWORD. Their next Google
+// sign-in removes it again.
 import { randomBytes, randomUUID, scrypt as nodeScrypt } from "node:crypto";
 import { promisify } from "node:util";
 const scrypt = promisify(nodeScrypt);
@@ -29,6 +32,14 @@ export async function bootstrapAdmin(client, env = process.env) {
   // Fail the migration rather than commit an account that can never sign in.
   if (!validAdminEmail(email))
     throw new Error("ADMIN_EMAIL must be a valid email address of at most 254 characters.");
+  const given = env.ADMIN_PASSWORD ?? "";
+  if (given.length >= 12 && given.length <= 4096) {
+    const restored = await client.query(
+      "UPDATE users SET password_hash=$2 WHERE email=$1 AND is_admin AND password_hash IS NULL",
+      [email, await hashPassword(given)],
+    );
+    if (restored.rowCount) return "restored";
+  }
   if ((await client.query("SELECT 1 FROM users WHERE is_admin")).rowCount) return "exists";
   const promoted = await client.query("UPDATE users SET is_admin=true WHERE email=$1", [email]);
   if (promoted.rowCount) return "promoted";

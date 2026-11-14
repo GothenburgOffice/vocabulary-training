@@ -8,3 +8,18 @@ services:
       ALLOW_REGISTRATION: "true"
       PRIVACY_CONTROLLER_NAME: Automated test stack, not a real operator
       PRIVACY_CONTACT_EMAIL: test-privacy@example.test
+  app:
+    environment:
+      # Google sign-in (#152) against tests/support/fake-google.mjs instead of Google. The app
+      # honours it only while APP_ORIGIN is plain HTTP on a loopback address.
+      TEST_GOOGLE_TOKEN_URL: http://fake-google:4500/token
+    depends_on:
+      fake-google:
+        condition: service_started
+  fake-google:
+    # The same Node as the app image (tests/toolchain.test.ts checks they match).
+    image: node:22.23.4-trixie-slim
+    command: ["node", "/fake-google.mjs"]
+    volumes:
+      - ./tests/support/fake-google.mjs:/fake-google.mjs:ro
+    restart: "no"

@@ -12,7 +12,18 @@ Intended for controlled self-hosting. This is not a security audit.
   without Secure, share the same session cookie.
 - The admin area (`/admin`, `/api/admin/*`) answers 404 to anyone who isn't an
   admin (`users.is_admin`), signed in or not. `ADMIN_PASSWORD` is only used to
-  create the first admin and never overwrites an existing password.
+  create the first admin, or to give an admin without a password (a Google member) one,
+  and never overwrites an existing password.
+- Google sign-in (#152) is OpenID Connect with the authorization code, PKCE, `state` and
+  `nonce`. The state and verifier live in a 10-minute HttpOnly, SameSite Lax cookie scoped
+  to `/api/auth/google`, so a callback only works in the browser that started it. The ID
+  token comes straight from Google's token endpoint over TLS, so its signature isn't
+  checked; its issuer, audience, expiry, nonce and `email_verified` are. Only Google's
+  account ID and the verified address are stored. The client secret is encrypted like the
+  Requesty keys. A Google sign-in to an existing address removes its password and, the
+  first time, every session, so whoever registered the address with a password before
+  (this app never verifies addresses) loses access. `TEST_GOOGLE_TOKEN_URL` replaces
+  Google's token endpoint only while `APP_ORIGIN` is plain HTTP on a loopback address.
 - Every workspace read/write derives its owner from the authenticated session.
   The API accepts no client-supplied owner ID.
 - Mutation endpoints require JSON Content-Type and an Origin that exactly matches
@@ -74,7 +85,8 @@ can set, such as an unrewritten `X-Forwarded-For`. All limits store hashes only.
 
 Keep registration closed unless it is intentionally needed. Registration has no
 email verification, invite mechanism or automated password recovery. A user can
-register an unverified email address; do not treat that as identity proof.
+register an unverified email address; do not treat that as identity proof. Only Google
+sign-in proves an address, and it takes such an account over from whoever registered it.
 No raw form passwords, cookies, email lists or production dumps belong in GitHub.
 
 Dependencies and base images are updated through Dependabot. Password reset, MFA, account

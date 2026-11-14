@@ -36,6 +36,11 @@ updates:
       interval: weekly
     allow:
       - dependency-name: pgvector/pgvector
+      # The fake Google token endpoint in compose.test.yaml, on the app image's Node.
+      - dependency-name: node
+    ignore:
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
     # Tags look like 0.8.6-pg18-trixie: updates move the pgvector version and keep the pg18
     # suffix. A major PostgreSQL upgrade (pg19) needs pg_upgrade or dump/restore, so it is
     # done by hand.
