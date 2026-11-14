@@ -59,9 +59,9 @@ export default async function PrivacyPage() {
         <h2>What is stored</h2>
         <ul>
           <li>
-            Your email address and a hash of your password. The password itself is never stored.
-            {google &&
-              " If you sign in with Google, instead of a password: the account ID Google gives this site."}
+            {google
+              ? "Your email address, and either a hash of your password (the password itself is never stored) or, if you sign in with Google, the account ID Google gives this site instead."
+              : "Your email address and a hash of your password. The password itself is never stored."}
           </li>
           <li>
             Your word lists, your profile languages and appearance (light, dark or your

@@ -99,6 +99,17 @@ test(
       assert.deepEqual(view.secret, { state: "set", hint: "cret" });
       assert.equal(view.redirectUri, `${origin}/api/auth/google/callback`);
       assert.equal((await api("/api/admin/google")).status, 404, "admins only");
+      // A new client ID needs its own secret: the old one would belong to the old client.
+      response = await api(
+        "/api/admin/google",
+        "PUT",
+        { clientId: "5678-other.apps.googleusercontent.com" },
+        admin,
+      );
+      assert.equal(response.status, 400);
+      // The same ID without a secret keeps the saved one.
+      response = await api("/api/admin/google", "PUT", { clientId }, admin);
+      assert.equal((await response.json()).enabled, true);
       status = await (await api("/api/auth/google")).json();
       assert.deepEqual(status, { enabled: true, origin });
       assert.match(await (await api("/privacy")).text(), /Signing in with Google/);

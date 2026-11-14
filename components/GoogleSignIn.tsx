@@ -15,9 +15,11 @@ const MESSAGES: Record<string, string> = {
   limited: "Too many sign-in attempts. Try again in 15 minutes.",
 };
 
-// Only rendered in the browser (AccountApp shows a loading screen until it knows the session),
-// so the reason can be read from the address when it first renders.
+// AccountApp renders this only in the browser (the server's render is its loading screen), so
+// the reason is read from the address on the first render. The guard keeps a server render,
+// should one ever happen, from reaching for window.
 function reasonFromAddress() {
+  if (typeof window === "undefined") return "";
   const reason = new URL(window.location.href).searchParams.get("google");
   return reason ? (MESSAGES[reason] ?? MESSAGES.failed) : "";
 }

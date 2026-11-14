@@ -74,12 +74,27 @@ test("the ID token gives Google's account ID and the verified address, lower-cas
     ).ok,
     true,
   );
+  // Several audiences are fine when this client is the authorized party.
+  assert.equal(
+    identityFromIdToken(
+      token({ aud: [clientId, "5678-other.apps.googleusercontent.com"], azp: clientId }),
+      expected,
+    ).ok,
+    true,
+  );
 });
 
 test("an ID token for another app, issuer, sign-in or time is refused", () => {
   const invalid = { ok: false, reason: "invalid" };
   for (const overrides of [
     { aud: "9999-other.apps.googleusercontent.com" },
+    // Issued to another client that lists this one as an audience.
+    { aud: [clientId, "5678-other.apps.googleusercontent.com"] },
+    {
+      aud: [clientId, "5678-other.apps.googleusercontent.com"],
+      azp: "5678-other.apps.googleusercontent.com",
+    },
+    { azp: "5678-other.apps.googleusercontent.com" },
     { iss: "https://attacker.example" },
     { nonce: "m".repeat(43) },
     { exp: now / 1000 - 1 },

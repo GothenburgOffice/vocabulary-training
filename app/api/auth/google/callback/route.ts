@@ -44,10 +44,11 @@ export async function GET(request: Request) {
     if (!result.ok)
       return backToApp(home, result.reason === "email_not_verified" ? "not-verified" : "failed");
     await limitAuth(result.identity.email, clientIp(request));
-    const { userId, isAdmin } = await signInWithGoogle(result.identity, async () => {
-      const registration = await readRegistration();
-      return registration.open && !registration.blockers.length;
-    });
+    const registration = await readRegistration();
+    const { userId, isAdmin } = await signInWithGoogle(
+      result.identity,
+      registration.open && !registration.blockers.length,
+    );
     // As with a password sign-in: no scheduler runs, so an admin's sign-in purges the trash.
     if (isAdmin)
       await purgeTrashedAccounts().catch((e) =>

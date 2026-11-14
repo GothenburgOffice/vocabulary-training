@@ -80,6 +80,10 @@ export function identityFromIdToken(
   const audience = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
   if (!ISSUERS.has(String(claims.iss))) return invalid;
   if (!audience.includes(expected.clientId)) return invalid;
+  // With several audiences, or an authorized party at all, it must be this client
+  // (OpenID Connect Core 3.1.3.7): a token Google issued to another client never signs in here.
+  if ((audience.length > 1 || claims.azp !== undefined) && claims.azp !== expected.clientId)
+    return invalid;
   if (typeof claims.exp !== "number" || claims.exp * 1000 <= expected.now) return invalid;
   if (claims.nonce !== expected.nonce) return invalid;
   const sub = claims.sub;

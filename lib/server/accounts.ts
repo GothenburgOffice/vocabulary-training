@@ -66,13 +66,11 @@ export class GoogleSignInRefused extends Error {
 // - Otherwise the account with the address Google proved: it is linked, its password removed
 //   and every session ended. This app never verifies addresses, so a password account on that
 //   address may be a stranger's who registered it first; Google just showed who owns it.
-// - Otherwise a new account, only while registration is open (`registrationOpen`).
+// - Otherwise a new account, only while registration is open (`registrationOpen`, read by the
+//   caller before this takes a connection, so a sign-in never waits on a second one).
 // A locked or trashed account is refused before anything changes. Every Google sign-in
 // removes a password, also one the admin bootstrap gave back (scripts/admin-bootstrap.mjs).
-export async function signInWithGoogle(
-  identity: GoogleIdentity,
-  registrationOpen: () => Promise<boolean>,
-) {
+export async function signInWithGoogle(identity: GoogleIdentity, registrationOpen: boolean) {
   type Row = {
     id: string;
     is_admin: boolean;
@@ -110,7 +108,7 @@ export async function signInWithGoogle(
       ]);
       if (linking) await client.query("DELETE FROM sessions WHERE user_id=$1", [user.id]);
     } else {
-      if (!(await registrationOpen())) throw new GoogleSignInRefused("closed");
+      if (!registrationOpen) throw new GoogleSignInRefused("closed");
       user = (
         await client.query<Row>(
           `INSERT INTO users(id,email,google_sub) VALUES($1,$2,$3) RETURNING ${columns}`,

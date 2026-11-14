@@ -16,6 +16,7 @@ import type { GoogleUpdate, GoogleView } from "@/lib/admin/google";
 import { callbackUrl } from "@/lib/google-oidc";
 import type { AiSettings, LanguageSettings } from "./ai-config";
 import { db } from "./db";
+import { HttpError } from "./http";
 import { decryptSecret, encryptionReady, encryptSecret } from "./secrets";
 
 const keyName = (tier: Tier) => `requesty.${tier}.api_key`;
@@ -293,7 +294,12 @@ export async function readGoogleView(): Promise<GoogleView> {
     enabled: Boolean(clientId) && secret.state === "set",
   };
 }
+// The ID and secret are a pair: a new client ID needs its secret in the same save, or the old
+// client's secret would go with it and every sign-in would fail at Google.
 export async function saveGoogle(update: GoogleUpdate) {
+  const stored = (await readSettingsMap()).get(GOOGLE_CLIENT_ID) ?? "";
+  if (update.clientId && update.clientId !== stored && !update.clientSecret)
+    throw new HttpError(400, "Enter the client secret that belongs to the new client ID.");
   await setSetting(GOOGLE_CLIENT_ID, update.clientId);
   if (update.clientSecret)
     await setSetting(GOOGLE_CLIENT_SECRET, encryptSecret(update.clientSecret));
