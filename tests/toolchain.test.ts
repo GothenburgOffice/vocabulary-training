@@ -21,6 +21,13 @@ it("uses one Node version in every Dockerfile stage, on Node 22", () => {
   );
 });
 
+it("runs the test stack's fake Google on the app's Node version", () => {
+  const compose = readFileSync(new URL("../compose.test.yaml", import.meta.url), "utf8");
+  const node = dockerfile.match(/^FROM node:(\d+\.\d+\.\d+)(?![\d.])/m)?.[1];
+  assert.ok(node);
+  assert.ok(compose.includes(`image: node:${node}-`), `compose.test.yaml should use node:${node}`);
+});
+
 it("pins npm only in package.json", () => {
   assert.match(pkg.packageManager, /^npm@\d+\.\d+\.\d+$/);
   assert.doesNotMatch(dockerfile, /npm@\d/, "the Dockerfile should read packageManager instead");

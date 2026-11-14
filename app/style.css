@@ -2117,6 +2117,9 @@ nav button {
   width: 100%;
   margin-top: 4px;
 }
+.auth-content form.google-sign-in {
+  margin-top: 12px;
+}
 .auth-switch {
   margin: 16px 0;
 }

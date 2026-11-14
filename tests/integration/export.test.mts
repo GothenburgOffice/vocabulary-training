@@ -65,7 +65,7 @@ test("real HTTP: the data export downloads only this account's data, as JSON", a
   );
   assert.equal(res.headers.get("cache-control"), "no-store");
   const doc = await res.json();
-  assert.equal(doc.version, 4);
+  assert.equal(doc.version, 5);
   assert.match(doc.account.email, /^export-/);
   assert.deepEqual(
     doc.lists.map((l: { title: string }) => l.title),

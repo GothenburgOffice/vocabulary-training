@@ -15,6 +15,7 @@ import type { History, List } from "@/lib/learning";
 import { NO_AI, type AiFeatures, type Language } from "@/lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
 import { AiActionLogProvider } from "./AiActionLog";
+import GoogleSignIn from "./GoogleSignIn";
 import { PASSWORD_MAX, PASSWORD_MIN } from "@/lib/validation";
 import { applyTheme, type Theme } from "@/lib/theme";
 import type { InputType } from "@/lib/timing";
@@ -394,6 +395,7 @@ export default function AccountApp() {
               <ArrowRight size={17} />
             </button>
           </form>
+          <GoogleSignIn busy={busy} />
           <button
             className="text-button auth-switch"
             onClick={() => {
