@@ -67,6 +67,13 @@ the full browser suite on every PR.
   session) and `app/api/auth/google/`. Tests never call Google: `compose.test.yaml` runs
   `tests/support/fake-google.mjs` as the token endpoint (`TEST_GOOGLE_TOKEN_URL`, honoured
   only on a plain-HTTP loopback `APP_ORIGIN`).
+- Outgoing mail: SMTP settings live in `site_settings` (Admin → Email, password encrypted).
+  `lib/server/mailer.ts` `sendMail()` is the only way mail leaves the app; `lib/smtp.ts` (pure,
+  unit-tested) holds the rules: TLS required, plain SMTP only on a test stack
+  (`TEST_SMTP_PLAINTEXT` on a plain-HTTP loopback `APP_ORIGIN`), user and password together, and
+  fixed failure texts (the mail server's own words never reach the page). Tests never send
+  real mail: `compose.test.yaml` runs `tests/support/fake-smtp.mjs`, which captures mail and
+  lists it at `GET :8025/messages`.
 - `app/api/*/route.ts`: signed-in and admin routes are built with `lib/server/route.ts`,
   which runs the guards in order:
   `userRead` (`requireUser`), `userWrite` (`requireOrigin`, `requireUser`, `limitWrites`, then the
