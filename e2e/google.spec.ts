@@ -30,15 +30,17 @@ test("Continue with Google shows only while the site offers it", async ({ page }
 test("a Google sign-in that didn't happen says why, once", async ({ page }) => {
   await offerGoogle(page, true);
   await page.goto("/?google=closed");
-  await expect(page.getByRole("alert")).toHaveText(
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText(
     "Registration is closed, so no account was created. Contact the site owner.",
   );
   // The reason leaves the address, so a reload or bookmark doesn't show it again.
   await expect(page).toHaveURL((url) => !url.searchParams.has("google"));
   await page.reload();
   await expect(page.getByRole("heading", { name: "Sign in to your workspace" })).toBeVisible();
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 
   await page.goto("/?google=something-else");
-  await expect(page.getByRole("alert")).toHaveText("Google sign-in didn't work. Try again.");
+  await expect(page.getByRole("main").getByRole("alert")).toHaveText(
+    "Google sign-in didn't work. Try again.",
+  );
 });
