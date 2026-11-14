@@ -445,7 +445,7 @@ export async function readWordForAi(userId: string, wordId: string): Promise<AiW
   return row
     ? {
         native: row.native_text,
-        nativeLanguage: row.native_language,
+        baseLanguage: row.native_language,
         learningLanguage: row.learning_language,
         answers: row.answers,
       }

@@ -43,6 +43,22 @@ query seeks straight to one user's data for one pair. The pair copies on `words`
 keys with `ON UPDATE CASCADE`. Sessions and results keep the pair they were
 practised in.
 
+### Names for the language pair
+
+The same two languages go by different names in different layers. The columns keep their
+names (renaming them isn't worth a migration); the TypeScript names follow the UI.
+
+| Meaning                                | Database            | Workspace, UI, `AiWord` | Lists and runs |
+| -------------------------------------- | ------------------- | ----------------------- | -------------- |
+| The language the learner already knows | `native_language`   | `baseLanguage`          | `from`         |
+| The language being learned             | `learning_language` | `learningLanguage`      | `to`           |
+
+A word's own text follows the database: `native_text` (`native` on `AiWord`, the "native"
+speech part) and its accepted answers in the learning language. The AI inputs
+(`lib/feedback.ts`) use `sourceLanguage` and `targetLanguage` for something else: the
+direction of one answer, so in reverse practice the source is the learning language.
+`explanationLanguage` there is always the base language.
+
 `answer_timing` holds, per account and input type (keyboard or touchscreen), only the
 running averages of answer hesitation (#2); it has no language pair. `answer_timing_buckets`
 counts scored answers per score step site-wide, with no account, for Admin → Answer timing.

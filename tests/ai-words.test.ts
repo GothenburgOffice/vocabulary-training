@@ -4,7 +4,7 @@ import { letterCount, MAX_SPEECH_TEXT, noteInput, speechText } from "../lib/ai-w
 
 const word = {
   native: "vacker",
-  nativeLanguage: "Swedish",
+  baseLanguage: "Swedish",
   learningLanguage: "English",
   answers: ["beautiful", "pretty", "lovely"],
 };
