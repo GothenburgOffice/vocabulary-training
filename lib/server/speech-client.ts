@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { SPEECH_TIMEOUT_MS, type SpeechInput } from "../speech";
+import { SPEECH_TIMEOUT_MS, type SpeechInput } from "@/lib/speech";
 import { speechSchema } from "./speech-input";
 import { FeedbackUnavailable } from "./requesty-client";
 
@@ -96,7 +96,7 @@ const CACHE_MS = 60 * 60_000;
 // refused as "busy", so the first one plays instead of being dropped for the latest click,
 // unless the first has waited `blockMs`: then it is abandoned (aborted, so it stops costing)
 // and the new one goes ahead. A cooldown between requests catches scripted use.
-export class SpeechGate {
+class SpeechGate {
   private running = new Map<string, { started: number; controller: AbortController }>();
   private last = new Map<string, number>();
   acquire(user: string, now: number, blockMs: number, cooldownMs: number) {

@@ -1,32 +1,22 @@
-import { registrationBlockers, registrationUpdateSchema } from "../../../../lib/admin/registration";
-import { requireAdmin } from "../../../../lib/server/auth";
-import { body, fail, HttpError, json, requireOrigin } from "../../../../lib/server/http";
-import { readRegistration, saveRegistration } from "../../../../lib/server/site-settings";
+import { registrationBlockers, registrationUpdateSchema } from "@/lib/admin/registration";
+import { adminRead, adminWrite } from "@/lib/server/route";
+import { HttpError, json } from "@/lib/server/http";
+import { readRegistration, saveRegistration } from "@/lib/server/site-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  try {
-    await requireAdmin();
-    return json(await readRegistration());
-  } catch (e) {
-    return fail(e);
-  }
-}
+export const GET = adminRead(async () => {
+  return json(await readRegistration());
+});
 // Registration can only be switched on once its checklist is complete for the values saved.
-export async function PUT(request: Request) {
-  try {
-    requireOrigin(request);
-    await requireAdmin();
-    const parsed = registrationUpdateSchema.safeParse(await body(request, 4096));
-    if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
-    const blockers = registrationBlockers(parsed.data, process.env.APP_ORIGIN ?? "");
-    if (parsed.data.open && blockers.length)
+export const PUT = adminWrite(
+  { maxBytes: 4096, schema: registrationUpdateSchema },
+  async ({ data }) => {
+    const blockers = registrationBlockers(data, process.env.APP_ORIGIN ?? "");
+    if (data.open && blockers.length)
       throw new HttpError(400, `Registration can't open yet. ${blockers.join(" ")}`);
-    await saveRegistration(parsed.data);
+    await saveRegistration(data);
     return json(await readRegistration());
-  } catch (e) {
-    return fail(e);
-  }
-}
+  },
+);

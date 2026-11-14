@@ -1,5 +1,5 @@
 import { ArrowRight, History as HistoryIcon } from "lucide-react";
-import type { Run } from "../../lib/workspace";
+import type { Run } from "@/lib/workspace";
 import Button from "./Button";
 
 export default function HistoryView({

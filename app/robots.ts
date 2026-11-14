@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { connection } from "next/server";
-import { siteOrigin } from "../lib/site";
+import { siteOrigin } from "@/lib/site";
 
 // Only the front page and the privacy page are public. The workspace behind sign-in, the
 // admin area and the API are not for search engines (the admin layout is noindex too).

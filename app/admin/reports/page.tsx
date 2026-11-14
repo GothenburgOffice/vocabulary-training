@@ -1,5 +1,5 @@
-import Reports from "../../../components/admin/Reports";
-import { adminPage } from "../../../lib/server/auth";
+import Reports from "@/components/admin/Reports";
+import { adminPage } from "@/lib/server/auth";
 
 export default async function ReportsPage() {
   await adminPage();

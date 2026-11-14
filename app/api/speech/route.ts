@@ -1,27 +1,24 @@
-import { speechHeaders } from "../../../lib/ai-actions";
-import { speechText } from "../../../lib/ai-words";
-import { requireUser } from "../../../lib/server/auth";
-import { aiConfig } from "../../../lib/server/ai-config";
-import { chargeLetters, readLimits } from "../../../lib/server/ai-limits";
-import { loadAiSettings } from "../../../lib/server/site-settings";
-import { body, fail, json, requireOrigin } from "../../../lib/server/http";
-import { FeedbackUnavailable } from "../../../lib/server/requesty-client";
-import { SpeechService } from "../../../lib/server/speech-client";
-import { speechRequestSchema } from "../../../lib/server/speech-input";
-import { readWordForAi } from "../../../lib/server/workspace-store";
-import { limitWrites } from "../../../lib/server/write-limits";
+import { speechHeaders } from "@/lib/ai-actions";
+import { speechText } from "@/lib/ai-words";
+import { aiConfig } from "@/lib/server/ai-config";
+import { chargeLetters, readLimits } from "@/lib/server/ai-limits";
+import { loadAiSettings } from "@/lib/server/site-settings";
+import { json } from "@/lib/server/http";
+import { userWrite } from "@/lib/server/route";
+import { FeedbackUnavailable } from "@/lib/server/requesty-client";
+import { SpeechService } from "@/lib/server/speech-client";
+import { speechRequestSchema } from "@/lib/server/speech-input";
+import { readWordForAi } from "@/lib/server/workspace-store";
 
 export const runtime = "nodejs";
 const speech = new SpeechService();
 
 // Reads one of the account's words aloud. The client names the word and which text of it;
 // the text comes from the database (#82).
-export async function POST(request: Request) {
+// The body is parsed here, not by userWrite: an invalid one answers a status, not a message.
+export const POST = userWrite({ maxBytes: 2_000 }, async ({ user, data }) => {
   try {
-    requireOrigin(request);
-    const user = await requireUser();
-    await limitWrites(user.id);
-    const parsed = speechRequestSchema.safeParse(await body(request, 2_000));
+    const parsed = speechRequestSchema.safeParse(data);
     if (!parsed.success) return json({ status: "invalid" }, 400);
     const word = await readWordForAi(user.id, parsed.data.wordId);
     if (!word) return json({ status: "not-found" }, 404);
@@ -51,6 +48,6 @@ export async function POST(request: Request) {
       const status = error.reason === "configuration" ? "unavailable" : error.reason;
       return json({ status }, status === "unavailable" ? 503 : 429);
     }
-    return fail(error);
+    throw error;
   }
-}
+});

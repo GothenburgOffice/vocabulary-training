@@ -4,7 +4,7 @@ import {
   WriteLimiter,
   writeLimitsToSettings,
   type WriteLimits,
-} from "../write-limits";
+} from "@/lib/write-limits";
 import { db } from "./db";
 import { HttpError } from "./http";
 

@@ -1,15 +1,15 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { dailyLetters, type AiLimits } from "../../lib/ai-limits";
-import type { Sort } from "../../lib/admin/sort";
+import { dailyLetters, type AiLimits } from "@/lib/ai-limits";
+import type { Sort } from "@/lib/admin/sort";
 import {
   accountState,
   accountUsage,
   purgeDate,
   type AdminAccount as Account,
   type UserSort,
-} from "../../lib/admin/users";
-import Dialog from "../workspace/Dialog";
+} from "@/lib/admin/users";
+import Dialog from "@/components/workspace/Dialog";
 import { adminRequest } from "./request";
 import SortHeader from "./SortHeader";
 import UsageCell from "./UsageCell";

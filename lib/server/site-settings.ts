@@ -6,8 +6,12 @@ import {
   type LanguageView,
   type Speech,
   type Tier,
-} from "../admin/ai-settings";
-import { registrationBlockers, type Privacy, type RegistrationView } from "../admin/registration";
+} from "@/lib/admin/ai-settings";
+import {
+  registrationBlockers,
+  type Privacy,
+  type RegistrationView,
+} from "@/lib/admin/registration";
 import type { AiSettings, LanguageSettings } from "./ai-config";
 import { db } from "./db";
 import { decryptSecret, encryptionReady, encryptSecret } from "./secrets";
@@ -26,7 +30,7 @@ const REGISTRATION_OPEN = "registration.open";
 // processes pick changes up within CACHE_MS.
 const CACHE_MS = 30_000;
 let cache: { at: number; value: Promise<AiSettings> } | null = null;
-export function invalidateAiSettings() {
+function invalidateAiSettings() {
   cache = null;
 }
 export function loadAiSettings(): Promise<AiSettings> {

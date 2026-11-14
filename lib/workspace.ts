@@ -3,7 +3,7 @@ import type { Theme } from "./theme";
 import type { TimingSample } from "./timing";
 
 // A result keeps only the word's text, not its review history (issue #7).
-export type ResultWord = Pick<Word, "id" | "front" | "back">;
+type ResultWord = Pick<Word, "id" | "front" | "back">;
 export type Result = {
   word: ResultWord;
   answer: string;

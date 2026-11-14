@@ -6,7 +6,7 @@ import {
   FEEDBACK_TIMEOUT_MS,
   shouldRequestFeedback,
   type FeedbackInput,
-} from "../feedback";
+} from "@/lib/feedback";
 
 const endpoint = "https://router.requesty.ai/v1";
 export class FeedbackUnavailable extends Error {

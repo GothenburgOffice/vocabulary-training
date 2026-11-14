@@ -4,8 +4,8 @@ import {
   DEFAULT_MONITOR_NAME,
   type AiSettingsView,
   type MonitorCreated,
-} from "../../lib/admin/ai-settings";
-import type { UsageView } from "../../lib/admin/requesty-usage";
+} from "@/lib/admin/ai-settings";
+import type { UsageView } from "@/lib/admin/requesty-usage";
 import { adminRequest } from "./request";
 
 const SETUP = "docs/ai-features.md, “Requesty usage in the admin area”";

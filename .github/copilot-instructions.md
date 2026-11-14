@@ -35,6 +35,7 @@ Docker-first. The host has no Node, so run everything in the dev container
 npm run lint            # ESLint (flat config, eslint-config-next)
 npm run format          # Prettier; CI runs format:check
 npm run typecheck
+npm run knip            # unused files, exports and dependencies (knip.json)
 npm test                # unit tests: tsx --test tests/*.test.ts
 npm run test:integration  # needs the running stack; uses TEST_BASE_URL
 npm run test:e2e        # Playwright browser tests (e2e/); same stack and TEST_BASE_URL
@@ -43,7 +44,7 @@ npm run build
 
 While iterating, run only typecheck and lint, and keep a note of which tests the
 changes call for. Run the rest before a commit or a PR, or when asked: lint,
-format:check, typecheck and the unit tests, plus the integration test when API,
+format:check, typecheck, knip and the unit tests, plus the integration test when API,
 auth or DB code changed and the browser tests covering any changed UI. CI runs
 the full browser suite on every PR.
 
@@ -60,22 +61,34 @@ the full browser suite on every PR.
   design: never store a user id with a report; only the tier comes from the session.
   `lib/reports.ts` holds the reasons and schema shared with the browser.
 - `lib/server/**`: server-only (`import "server-only"`). DB, sessions, Requesty clients.
-- `app/api/*/route.ts`: mutations call `requireOrigin` and then `requireUser`; a route that writes the
-  account's data then calls `limitWrites(user.id)` (`lib/server/write-limits.ts`). Errors go through `HttpError`/`fail`.
+- `app/api/*/route.ts`: signed-in and admin routes are built with `lib/server/route.ts`,
+  which runs the guards in order:
+  `userRead` (`requireUser`), `userWrite` (`requireOrigin`, `requireUser`, `limitWrites`, then the
+  body and its schema), `adminRead` and `adminWrite` (the same with `requireAdmin`, no write limit).
+  Two routes stay outside it on purpose: sign-in and sign-out (`/api/auth` POST and DELETE)
+  work without a session and run `requireOrigin` themselves, and `/api/health` is public and
+  answers `{ status: "unavailable" }` with 503 when the database is down, for the container
+  health check: don't add auth or `fail()` to it. Errors go through `HttpError`/`fail`.
 - `app/admin/`: the admin area, a shell (`layout.tsx`, `components/admin/AdminNav.tsx`)
   with one module per section. To add a section: `app/admin/<slug>/page.tsx` (calls
   `adminPage()`), components in `components/admin/`, API in `app/api/admin/<slug>/`
-  (`requireOrigin`, then `requireAdmin`), and an entry in `lib/admin/sections.ts`.
+  (`adminRead`/`adminWrite`), and an entry in `lib/admin/sections.ts`. Admin-only styles go in
+  `app/admin/admin.css` (loaded by the admin layout only), not `app/style.css`.
   A list of records (accounts, languages) is a compact `.admin-table`, one row per record
   with everything visible, like Languages and Users: no cards, no collapsed details.
 - `components/Workspace.tsx`: the signed-in UI, a client component. It holds the shared
-  state and every change it saves; the views and dialogs in `components/workspace/` render
-  and report back. A practice session is `lib/practice.ts` (a reducer, grading and the
+  state and every change it saves, through hooks it calls (`useAccountSettings`,
+  `usePracticeSettings`, `usePracticeActions`, `useListActions` in `components/workspace/`);
+  the views and dialogs there render and report back. A practice session is `lib/practice.ts` (a reducer, grading and the
   queue; unit-test changes there). None of these may import server code.
 - `e2e/`: Playwright browser tests. `fixtures.ts` signs each test in as a fresh account and
   has the shared steps; AI routes are mocked there, never called.
-  `admin.spec.ts` needs `TEST_ADMIN_EMAIL`/`TEST_ADMIN_PASSWORD` (skipped otherwise) and fakes
+  The `admin-*.spec.ts` files call `signedInAsAdmin()` (`admin-fixtures.ts`): they need
+  `TEST_ADMIN_EMAIL`/`TEST_ADMIN_PASSWORD` (skipped otherwise). `admin-languages.spec.ts` fakes
   the languages API, since languages are shared and can't be deleted.
+- `tests/integration/`: the HTTP and PostgreSQL tests against a live stack, one file per area
+  with `helpers.mts`. They run one file at a time (`--test-concurrency=1`), because some change
+  site-wide settings.
 - `db/migrations/NNN_name.sql`: **append-only**. Never edit an applied migration; add a new file.
 
 ## Rules that must not regress

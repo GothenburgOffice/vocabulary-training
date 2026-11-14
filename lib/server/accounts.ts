@@ -8,7 +8,7 @@ import {
   type AccountChange,
   type UserListQuery,
   type UserSort,
-} from "../admin/users";
+} from "@/lib/admin/users";
 import { db } from "./db";
 import { HttpError } from "./http";
 

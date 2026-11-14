@@ -7,7 +7,7 @@ import {
   timingToSettings,
   type InputType,
   type TimingSettings,
-} from "../timing";
+} from "@/lib/timing";
 import { db } from "./db";
 
 // The answer-timing settings (#2), site settings "timing.…"; defaults for anything missing.

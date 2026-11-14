@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import type { AiSettingsView, Tier } from "../../lib/admin/ai-settings";
+import type { AiSettingsView, Tier } from "@/lib/admin/ai-settings";
 import { adminRequest } from "./request";
 import { MonitorCard, UsagePanel } from "./RequestyUsage";
 import { useModels } from "./useModels";

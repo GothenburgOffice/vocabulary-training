@@ -22,7 +22,7 @@ That includes unsolicited fixes, refactors, dependency bumps and typo-only chang
 - Link the issue (`Closes #123`) and keep the change limited to it.
 - Branch from an up-to-date `main`. Merging needs passing CI and an up-to-date branch.
 - While iterating, `npm run typecheck` and `npm run lint` are enough. Before committing or
-  opening a PR, run `npm run format`, `npm run lint`, `npm run typecheck` and `npm test`, plus
+  opening a PR, run `npm run format`, `npm run lint`, `npm run typecheck`, `npm run knip` and `npm test`, plus
   `npm run test:integration` if you changed API, auth or database code and the `npm run test:e2e`
   tests covering any UI you changed. CI runs the full browser suite on every PR.
   The [dev container](README.md#development) has everything set up.

@@ -1,14 +1,22 @@
 "use client";
 import { useEffect, useState } from "react";
-import { newAiActionId } from "../lib/ai-actions";
+import { newAiActionId } from "@/lib/ai-actions";
 import { useAiActionLog } from "./AiActionLog";
 import {
   boundedComment,
   FEEDBACK_TIMEOUT_MS,
   shouldRequestFeedback,
   type FeedbackInput,
-} from "../lib/feedback";
-import type { Direction } from "../lib/learning";
+} from "@/lib/feedback";
+import type { Direction } from "@/lib/learning";
+import { apiRequest } from "@/lib/client/api";
+
+// What /api/feedback answers.
+type FeedbackResult = {
+  status: "ready" | "not-needed" | "disabled" | "limited" | "unavailable";
+  comment?: string;
+  activity?: { model: string; prompt: Record<string, unknown> };
+};
 
 type Note = { status: "loading" | "ready" | "unavailable"; text: string };
 // `input` decides here whether a note is needed at all; the request itself names the stored
@@ -40,16 +48,11 @@ function NoteRequest({ input, wordId, direction, skipped }: Props) {
     const timeout = setTimeout(() => controller.abort(), FEEDBACK_TIMEOUT_MS + 3_000);
     void (async () => {
       try {
-        const response = await fetch("/api/feedback", {
+        const result = await apiRequest<FeedbackResult>("/api/feedback", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           signal: controller.signal,
-          cache: "no-store",
-          credentials: "same-origin",
-          body: JSON.stringify({ wordId, direction, answer, requireAccents, caseSensitive }),
+          data: { wordId, direction, answer, requireAccents, caseSensitive },
         });
-        if (!response.ok) throw new Error("Unavailable");
-        const result = await response.json();
         if (active && result.status === "ready" && result.activity)
           record({
             id: newAiActionId(),

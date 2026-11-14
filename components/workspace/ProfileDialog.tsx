@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Download, LogOut, Settings, Shield, UserRound } from "lucide-react";
-import { pickerLanguages, type Language } from "../../lib/languages";
-import type { WorkspaceAccount } from "../../lib/workspace";
-import { THEMES, THEME_LABELS, isTheme, type Theme } from "../../lib/theme";
+import { pickerLanguages, type Language } from "@/lib/languages";
+import type { WorkspaceAccount } from "@/lib/workspace";
+import { THEMES, THEME_LABELS, isTheme, type Theme } from "@/lib/theme";
 
 // The account popup: who is signed in, links out, and the profile's base language.
 export default function ProfileDialog({

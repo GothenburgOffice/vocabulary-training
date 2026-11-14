@@ -26,7 +26,7 @@ export type TimingSample = {
   pauseMs: number;
 };
 // Longer than this is a learner who walked away, not one who hesitated.
-export const MAX_ACTIVE_MS = 120_000;
+const MAX_ACTIVE_MS = 120_000;
 const ms = z.number().int().min(0).max(600_000);
 export const timingSampleSchema = z
   .object({ input: z.enum(INPUT_TYPES), activeMs: ms, beforeMs: ms, pauseMs: ms })
@@ -41,7 +41,7 @@ export const DEFAULT_TIMING: TimingSettings = {
   cutoffMs: { keyboard: 1000, touch: 1500 },
   hardThreshold: 2,
 };
-export const TIMING_BOUNDS = {
+const TIMING_BOUNDS = {
   cutoffMs: { min: 200, max: 10_000 },
   hardThreshold: { min: 0.5, max: 5 },
 };
@@ -89,7 +89,7 @@ const ALPHA = 0.05;
 // Below this many answers there is no usual to compare with yet.
 export const MIN_SAMPLES = 20;
 
-export const hesitationScore = (s: TimingSample) => Math.log1p((s.beforeMs + s.pauseMs) / 1000);
+const hesitationScore = (s: TimingSample) => Math.log1p((s.beforeMs + s.pauseMs) / 1000);
 
 // Adds one answer: returns the new averages, and the answer's score against the person's
 // usual before it (null until there are MIN_SAMPLES answers to compare with).
@@ -111,7 +111,7 @@ export function observe(stats: TimingStats, sample: TimingSample) {
 
 // The site-wide count of scores, in quarter steps from -2 to 5 (the ends take the rest), so
 // admin can see how many answers a threshold would mark Hard. It holds no account.
-export const BUCKET_STEP = 0.25;
+const BUCKET_STEP = 0.25;
 export const MIN_BUCKET = -8;
 export const MAX_BUCKET = 20;
 export const bucketOf = (z: number) =>

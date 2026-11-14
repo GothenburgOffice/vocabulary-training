@@ -7,9 +7,9 @@ import {
   Plus,
   Settings2,
 } from "lucide-react";
-import { BookMark } from "../../lib/brand";
-import { listTitle, type List } from "../../lib/learning";
-import { isMode, MODE_LABELS, MODES, type PracticeSettings } from "../../lib/practice";
+import { BookMark } from "@/lib/brand";
+import { listTitle, type List } from "@/lib/learning";
+import { isMode, MODE_LABELS, MODES, type PracticeSettings } from "@/lib/practice";
 import Button from "./Button";
 
 // The library's side panel: how to practise the selected list.

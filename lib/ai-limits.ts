@@ -29,7 +29,7 @@ export const DEFAULT_LIMITS: AiLimits = {
 
 // The range each limit may take: what the database is read with, and what admin may save, so
 // any value shown can also be saved.
-export const LIMIT_BOUNDS = {
+const LIMIT_BOUNDS = {
   letters: { min: 0, max: 999_999_999 },
   cooldownMs: { min: 0, max: 600_000 },
   blockSeconds: { min: 1, max: 300 },

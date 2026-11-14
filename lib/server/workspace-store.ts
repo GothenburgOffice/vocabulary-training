@@ -8,19 +8,19 @@ import {
   reviewed,
   type History,
   type List,
-} from "../learning";
-import type { listSaveSchema, profileSchema, reviewSchema, runSaveSchema } from "../validation";
-import type { AiWord } from "../ai-words";
-import type { ExportSource } from "../export";
-import type { Run, WorkspaceData } from "../workspace";
-import type { Theme } from "../theme";
-import { bucketOf, observe, usableSample, type TimingSample, type TimingStats } from "../timing";
+} from "@/lib/learning";
+import type { listSaveSchema, profileSchema, reviewSchema, runSaveSchema } from "@/lib/validation";
+import type { AiWord } from "@/lib/ai-words";
+import type { ExportSource } from "@/lib/export";
+import type { Run, WorkspaceData } from "@/lib/workspace";
+import type { Theme } from "@/lib/theme";
+import { bucketOf, observe, usableSample, type TimingSample, type TimingStats } from "@/lib/timing";
 import { db } from "./db";
 import { HttpError } from "./http";
 
-export const MAX_LISTS = 100;
+const MAX_LISTS = 100;
 // Kept per account until the retention decision (#54).
-export const MAX_RUNS = 200;
+const MAX_RUNS = 200;
 
 async function transaction<T>(work: (client: pg.PoolClient) => Promise<T>, begin = "BEGIN") {
   const client = await db.connect();
@@ -445,7 +445,7 @@ export async function readWordForAi(userId: string, wordId: string): Promise<AiW
   return row
     ? {
         native: row.native_text,
-        nativeLanguage: row.native_language,
+        baseLanguage: row.native_language,
         learningLanguage: row.learning_language,
         answers: row.answers,
       }

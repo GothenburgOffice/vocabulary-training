@@ -54,7 +54,7 @@ export type MonitorCreated = {
 };
 
 export type KeyStatus = { state: "unset" | "set" | "unreadable"; hint?: string };
-export type TierView = { model: string; key: KeyStatus };
+type TierView = { model: string; key: KeyStatus };
 export type MonitorView = { key: KeyStatus; appLabel: string };
 export type AiSettingsView = {
   encryptionReady: boolean;

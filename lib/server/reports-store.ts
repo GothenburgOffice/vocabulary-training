@@ -1,8 +1,8 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { db } from "./db";
-import type { ReportListQuery, ReportSort } from "../admin/reports";
-import { REPORT_KIND_LABELS, REPORT_REASON_LABELS, type ReportInput } from "../reports";
+import type { ReportListQuery, ReportSort } from "@/lib/admin/reports";
+import { REPORT_KIND_LABELS, REPORT_REASON_LABELS, type ReportInput } from "@/lib/reports";
 
 // Saves one learner report, anonymously: only the tier comes from the session, no account is
 // stored, the result's id is hashed, and times are cut to the day (see migration 010). A second

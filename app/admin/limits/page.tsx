@@ -1,6 +1,6 @@
-import LimitsSettings from "../../../components/admin/LimitsSettings";
-import WriteLimitsSettings from "../../../components/admin/WriteLimitsSettings";
-import { adminPage } from "../../../lib/server/auth";
+import LimitsSettings from "@/components/admin/LimitsSettings";
+import WriteLimitsSettings from "@/components/admin/WriteLimitsSettings";
+import { adminPage } from "@/lib/server/auth";
 
 // Every limit per account: how much each may use the AI features, and how many changes it may
 // save, which stops a script long before a person would notice.

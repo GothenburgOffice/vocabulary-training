@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import AdminNav from "../../components/admin/AdminNav";
-import { BookMark } from "../../lib/brand";
-import { adminPage } from "../../lib/server/auth";
+import AdminNav from "@/components/admin/AdminNav";
+import "./admin.css";
+import { BookMark } from "@/lib/brand";
+import { adminPage } from "@/lib/server/auth";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Admin", robots: { index: false, follow: false } };

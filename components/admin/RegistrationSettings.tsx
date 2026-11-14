@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
-import type { Privacy, RegistrationView } from "../../lib/admin/registration";
+import type { Privacy, RegistrationView } from "@/lib/admin/registration";
 import { adminRequest } from "./request";
 
 type Draft = Privacy & { open: boolean };

@@ -7,7 +7,7 @@ import type { SpeechInput } from "./speech";
 
 export type AiWord = {
   native: string;
-  nativeLanguage: string;
+  baseLanguage: string;
   learningLanguage: string;
   // Accepted answers in the learning language, the primary one first.
   answers: string[];
@@ -19,7 +19,7 @@ export type SpeechPart = (typeof SPEECH_PARTS)[number];
 export const MAX_SPEECH_TEXT = 1000;
 
 export function speechText(word: AiWord, part: SpeechPart): SpeechInput {
-  if (part === "native") return { text: word.native, language: word.nativeLanguage };
+  if (part === "native") return { text: word.native, language: word.baseLanguage };
   if (part === "learning") return { text: word.answers[0], language: word.learningLanguage };
   // Semicolons make every speech model read them as separate words, not one sentence (#79).
   let text = word.answers[0];
@@ -42,9 +42,9 @@ export function noteInput(word: AiWord, request: NoteRequest): FeedbackInput {
   const forward = request.direction === "forward";
   const [primary, ...further] = word.answers;
   const input = {
-    sourceLanguage: forward ? word.nativeLanguage : word.learningLanguage,
-    targetLanguage: forward ? word.learningLanguage : word.nativeLanguage,
-    explanationLanguage: word.nativeLanguage,
+    sourceLanguage: forward ? word.baseLanguage : word.learningLanguage,
+    targetLanguage: forward ? word.learningLanguage : word.baseLanguage,
+    explanationLanguage: word.baseLanguage,
     source: forward ? word.native : primary,
     reference: forward ? primary : word.native,
     ...(forward && further.length ? { accepted: further } : {}),

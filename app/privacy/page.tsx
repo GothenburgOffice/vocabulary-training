@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { BookMark } from "../../lib/brand";
-import { privacyReady } from "../../lib/admin/registration";
-import { readPrivacy } from "../../lib/server/site-settings";
-import { SHARE_IMAGE, SITE_NAME, openGraph } from "../../lib/site";
+import { BookMark } from "@/lib/brand";
+import { privacyReady } from "@/lib/admin/registration";
+import { readPrivacy } from "@/lib/server/site-settings";
+import { SHARE_IMAGE, SITE_NAME, openGraph } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 const TITLE = "Privacy and cookies";

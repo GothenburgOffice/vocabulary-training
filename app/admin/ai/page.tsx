@@ -1,5 +1,5 @@
-import AiSettings from "../../../components/admin/AiSettings";
-import { adminPage } from "../../../lib/server/auth";
+import AiSettings from "@/components/admin/AiSettings";
+import { adminPage } from "@/lib/server/auth";
 
 // The Requesty keys and language-note models per tier. Speech models are set per language
 // (Admin → Languages), and the usage limits per account in Admin → Limits.

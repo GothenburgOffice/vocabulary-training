@@ -5,7 +5,7 @@ export const REPORT_RETENTION_DAYS = 15;
 export const REPORTS_PAGE_SIZE = 50;
 
 // The list's sortable columns. Ties fall back to newest first.
-export const REPORT_SORTS = [
+const REPORT_SORTS = [
   "reported",
   "activity",
   "kind",

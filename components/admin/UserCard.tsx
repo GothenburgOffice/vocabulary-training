@@ -1,12 +1,12 @@
 "use client";
-import { dailyLetters, type AiLimits } from "../../lib/ai-limits";
+import { dailyLetters, type AiLimits } from "@/lib/ai-limits";
 import {
   accountState,
   accountUsage,
   purgeDate,
   TRASH_DAYS,
   type AdminAccount,
-} from "../../lib/admin/users";
+} from "@/lib/admin/users";
 import { limitState, UsageBreakdown, UsageStat } from "./UsageCell";
 
 const KINDS = [

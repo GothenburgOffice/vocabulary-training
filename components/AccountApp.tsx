@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowRight } from "lucide-react";
-import { BookMark } from "../lib/brand";
+import { BookMark } from "@/lib/brand";
 import Workspace from "./Workspace";
 import type {
   Review,
@@ -10,14 +10,15 @@ import type {
   WorkspaceAccount,
   WorkspaceData,
   WorkspaceSync,
-} from "../lib/workspace";
-import type { History, List } from "../lib/learning";
-import { NO_AI, type AiFeatures, type Language } from "../lib/languages";
+} from "@/lib/workspace";
+import type { History, List } from "@/lib/learning";
+import { NO_AI, type AiFeatures, type Language } from "@/lib/languages";
 import { AiFeaturesContext } from "./AiFeatures";
 import { AiActionLogProvider } from "./AiActionLog";
-import { PASSWORD_MAX, PASSWORD_MIN } from "../lib/validation";
-import { applyTheme, type Theme } from "../lib/theme";
-import type { InputType } from "../lib/timing";
+import { PASSWORD_MAX, PASSWORD_MIN } from "@/lib/validation";
+import { applyTheme, type Theme } from "@/lib/theme";
+import type { InputType } from "@/lib/timing";
+import { apiRequest, RequestError } from "@/lib/client/api";
 
 type Account = { id: string; email: string; is_admin?: boolean };
 type Loaded = {
@@ -37,31 +38,14 @@ type Change =
   | { kind: "profile"; baseLanguage: string; learningLanguage: string }
   | { kind: "theme"; theme: Theme }
   | { kind: "aiEnabled"; enabled: boolean };
-class RequestError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
-  }
-}
-async function request(path: string, options?: RequestInit) {
-  const response = await fetch(path, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    cache: "no-store",
-  });
-  const result = await response.json();
-  if (!response.ok) throw new RequestError(result.error || "The request failed.", response.status);
-  return result;
-}
 // The signed-in account's workspace, or null when signed out.
 async function readWorkspace(): Promise<Loaded | null> {
-  const response = await fetch("/api/workspace", { cache: "no-store" });
-  if (response.status === 401) return null;
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error);
-  return result;
+  try {
+    return await apiRequest<Loaded>("/api/workspace");
+  } catch (e) {
+    if (e instanceof RequestError && e.status === 401) return null;
+    throw e;
+  }
 }
 
 export default function AccountApp() {
@@ -147,9 +131,9 @@ export default function AccountApp() {
   const send = useCallback(async (change: Change) => {
     if (change.kind === "list") {
       const { id, title, description, from, to, words } = change.list;
-      const result = await request(`/api/lists/${id}`, {
+      const result = await apiRequest<{ revision: number }>(`/api/lists/${id}`, {
         method: "PUT",
-        body: JSON.stringify({
+        data: {
           revision: revisions.current.get(id) ?? null,
           list: {
             title,
@@ -163,7 +147,7 @@ export default function AccountApp() {
               accepted: w.accepted ?? [],
             })),
           },
-        }),
+        },
       });
       revisions.current.set(id, result.revision);
     } else if (change.kind === "delete") {
@@ -172,9 +156,9 @@ export default function AccountApp() {
       // A list never saved has nothing on the server to delete.
       if (revision !== undefined) {
         try {
-          await request(`/api/lists/${listId}`, {
+          await apiRequest(`/api/lists/${listId}`, {
             method: "DELETE",
-            body: JSON.stringify({ revision }),
+            data: { revision },
           });
         } catch (e) {
           // Changed in another tab: not deleted. That is the server's answer, not a failure,
@@ -191,9 +175,9 @@ export default function AccountApp() {
       change.done(true);
     } else if (change.kind === "review") {
       try {
-        const result = await request("/api/reviews", {
+        const result = await apiRequest<{ history: History | null }>("/api/reviews", {
           method: "POST",
-          body: JSON.stringify(change.review),
+          data: change.review,
         });
         change.saved(result.history);
       } catch (e) {
@@ -203,9 +187,9 @@ export default function AccountApp() {
       }
     } else if (change.kind === "run") {
       const { run } = change;
-      await request("/api/runs", {
+      await apiRequest("/api/runs", {
         method: "POST",
-        body: JSON.stringify({
+        data: {
           id: run.id,
           listId: run.listId ?? null,
           title: run.title,
@@ -214,23 +198,23 @@ export default function AccountApp() {
           to: run.to,
           completedAt: run.completedAt,
           results: run.results.map((r) => ({ ...r, answeredAt: r.answeredAt ?? run.completedAt })),
-        }),
+        },
       });
     } else if (change.kind === "aiEnabled") {
-      await request("/api/profile", {
+      await apiRequest("/api/profile", {
         method: "PATCH",
-        body: JSON.stringify({ aiEnabled: change.enabled }),
+        data: { aiEnabled: change.enabled },
       });
     } else if (change.kind === "theme") {
-      await request("/api/profile", {
+      await apiRequest("/api/profile", {
         method: "PATCH",
-        body: JSON.stringify({ theme: change.theme }),
+        data: { theme: change.theme },
       });
     } else {
       const { baseLanguage, learningLanguage } = change;
-      await request("/api/profile", {
+      await apiRequest("/api/profile", {
         method: "PATCH",
-        body: JSON.stringify({ baseLanguage, learningLanguage }),
+        data: { baseLanguage, learningLanguage },
       });
     }
   }, []);
@@ -307,9 +291,9 @@ export default function AccountApp() {
     setBusy(true);
     setError("");
     try {
-      await request("/api/auth", {
+      await apiRequest("/api/auth", {
         method: "POST",
-        body: JSON.stringify({ action, email, password }),
+        data: { action, email, password },
       });
       setPassword("");
       await load();
@@ -334,7 +318,7 @@ export default function AccountApp() {
     }
     setBusy(true);
     try {
-      await request("/api/auth", { method: "DELETE", body: "{}" });
+      await apiRequest("/api/auth", { method: "DELETE", data: {} });
       // Signed out, the device decides again (as the server does for a signed-out page).
       applyTheme("system");
       setLoaded(null);

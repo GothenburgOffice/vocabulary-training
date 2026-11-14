@@ -15,8 +15,9 @@
     "start": "next start --hostname 0.0.0.0 --port 3000",
     "db:migrate": "node scripts/migrate.mjs",
     "typecheck": "tsc --noEmit",
+    "knip": "knip",
     "test": "tsx --test tests/*.test.ts",
-    "test:integration": "tsx --test tests/integration.mts",
+    "test:integration": "tsx --test --test-concurrency=1 tests/integration/*.test.mts",
     "test:e2e": "playwright test",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -42,6 +43,7 @@
     "eslint": "10.14.0",
     "eslint-config-next": "16.4.5",
     "eslint-config-prettier": "10.1.8",
+    "knip": "6.45.1",
     "prettier": "3.9.10",
     "tsx": "4.23.15",
     "typescript": "6.0.3"

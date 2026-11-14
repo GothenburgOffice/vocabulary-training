@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
-import type { Result } from "../../lib/workspace";
+import type { Result } from "@/lib/workspace";
 import Button from "./Button";
 
 export default function ResultsView({

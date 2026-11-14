@@ -1,5 +1,5 @@
-import TimingSettings from "../../../components/admin/TimingSettings";
-import { adminPage } from "../../../lib/server/auth";
+import TimingSettings from "@/components/admin/TimingSettings";
+import { adminPage } from "@/lib/server/auth";
 
 export default async function TimingSettingsPage() {
   await adminPage();

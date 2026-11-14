@@ -22,15 +22,7 @@ export type AccountChange = z.infer<typeof accountChangeSchema>;
 export const testAccountsDeleteSchema = z.object({ testAccounts: z.literal(true) }).strict();
 
 // The account list's sortable columns; speech and note sort by letters in the last 90 days.
-export const USER_SORTS = [
-  "email",
-  "tier",
-  "status",
-  "created",
-  "lastSignIn",
-  "speech",
-  "note",
-] as const;
+const USER_SORTS = ["email", "tier", "status", "created", "lastSignIn", "speech", "note"] as const;
 export type UserSort = (typeof USER_SORTS)[number];
 
 export const userListQuerySchema = z.object({
@@ -71,7 +63,7 @@ export function dailyLimitReached(lettersToday: number, dailyBudget: number) {
 // One account as the admin list returns it: its details and its AI usage per feature and period
 // (bigint sums arrive as strings).
 export type UsageKind = "speech" | "note";
-export type UsagePeriod = "day" | "week" | "90";
+type UsagePeriod = "day" | "week" | "90";
 export type AdminAccount = {
   id: string;
   email: string;

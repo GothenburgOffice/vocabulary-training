@@ -1,5 +1,5 @@
 import { Check, CircleAlert, CircleDot, LoaderCircle } from "lucide-react";
-import type { SaveState } from "../../lib/workspace";
+import type { SaveState } from "@/lib/workspace";
 
 const LABELS: Record<SaveState, string> = {
   saved: "All changes saved",

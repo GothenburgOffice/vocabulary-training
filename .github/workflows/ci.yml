@@ -19,21 +19,13 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-node@v7.1.0
-        with:
-          node-version: 22.23.4
-      - run: npm install --global npm@12.2.1
-      - name: Restore node_modules
-        id: node-modules
-        uses: actions/cache@v6.1.0
-        with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-node22.23.4-${{ hashFiles('package-lock.json') }}
-      - if: steps.node-modules.outputs.cache-hit != 'true'
-        run: npm ci
+      # Node and npm versions come from the Dockerfile and package.json (see the action).
+      - uses: ./.github/actions/setup
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
+      # Unused files, exports and dependencies (knip.json).
+      - run: npm run knip
       - run: npm test
       - run: npm run build
       - run: npm audit --audit-level=high
@@ -56,18 +48,8 @@ jobs:
       SETTINGS_ENCRYPTION_KEY: Y2ktb25seS1kaXNwb3NhYmxlLWVuY3J5cHRpb24ta2U=
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-node@v7.1.0
-        with:
-          node-version: 22.23.4
-      - run: npm install --global npm@12.2.1
-      - name: Restore node_modules
-        id: node-modules
-        uses: actions/cache@v6.1.0
-        with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-node22.23.4-${{ hashFiles('package-lock.json') }}
-      - if: steps.node-modules.outputs.cache-hit != 'true'
-        run: npm ci
+      # Node and npm versions come from the Dockerfile and package.json (see the action).
+      - uses: ./.github/actions/setup
       - name: Start container stack
         run: docker compose up --build -d --wait --wait-timeout 240
       - run: npm run test:integration
@@ -125,18 +107,8 @@ jobs:
       VOCABULARY_IMAGE: vocabulary-training:publish
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: actions/setup-node@v7.1.0
-        with:
-          node-version: 22.23.4
-      - run: npm install --global npm@12.2.1
-      - name: Restore node_modules
-        id: node-modules
-        uses: actions/cache@v6.1.0
-        with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-node22.23.4-${{ hashFiles('package-lock.json') }}
-      - if: steps.node-modules.outputs.cache-hit != 'true'
-        run: npm ci
+      # Node and npm versions come from the Dockerfile and package.json (see the action).
+      - uses: ./.github/actions/setup
       - name: Build release candidate
         run: docker build --target production --label "org.opencontainers.image.revision=$GITHUB_SHA" --tag "$VOCABULARY_IMAGE" .
       - name: Test image-only Compose deployment

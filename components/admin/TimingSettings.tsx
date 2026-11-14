@@ -6,7 +6,7 @@ import {
   MIN_SAMPLES,
   shareAtOrAbove,
   type TimingSettings as Settings,
-} from "../../lib/timing";
+} from "@/lib/timing";
 import { adminRequest } from "./request";
 
 type Summary = Record<

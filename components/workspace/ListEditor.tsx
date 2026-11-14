@@ -10,7 +10,7 @@ import {
   Undo2,
   X,
 } from "lucide-react";
-import { csvAnswers, makeWord, splitCSVAnswers, type List, type Word } from "../../lib/learning";
+import { csvAnswers, makeWord, splitCSVAnswers, type List, type Word } from "@/lib/learning";
 import Button from "./Button";
 
 // How long the editor waits after the last change before saving.
