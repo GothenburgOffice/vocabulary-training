@@ -7,6 +7,12 @@
   color: var(--red);
 }
 
+/* Admin area: a shell (header and section navigation) around one page per section. */
+.admin {
+  min-height: 100dvh;
+  background: var(--bg);
+}
+
 .admin-header {
   display: flex;
   flex-wrap: wrap;
@@ -767,6 +773,14 @@ dialog:has(.detail-card) .dialog-head h2 {
    keeps its normal width instead of shrinking to the tables like a list page. */
 .admin-main:has(.requesty-usage) {
   width: auto;
+}
+
+.requesty-usage {
+  margin-top: 24px;
+}
+
+.requesty-usage h3 {
+  margin: 20px 0 8px;
 }
 
 .admin-card h3 {
