@@ -1,20 +1,9 @@
 "use client";
 import Link from "next/link";
-import { useContext, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, CircleAlert, X } from "lucide-react";
 import { BookMark } from "@/lib/brand";
-import { encodeCSV, listTitle, reviewed, type List } from "@/lib/learning";
-import {
-  DEFAULT_SETTINGS,
-  NO_PRACTICE,
-  grade,
-  isLastWord,
-  practiceQueue,
-  practiceReducer,
-  readSettings,
-  SETTINGS_KEY,
-  type PracticeSettings,
-} from "@/lib/practice";
+import { listTitle, type List } from "@/lib/learning";
 import type { WorkspaceAccount, WorkspaceData, Run, WorkspaceSync } from "@/lib/workspace";
 import {
   DEFAULT_LANGUAGES,
@@ -44,8 +33,11 @@ import SaveStatus from "./workspace/SaveStatus";
 import Sidebar from "./workspace/Sidebar";
 import { useNow } from "./workspace/useNow";
 import type { Modal, View } from "./workspace/views";
-import { applyTheme, type Theme } from "@/lib/theme";
-import { DEFAULT_TIMING, type InputType, type TimingSample } from "@/lib/timing";
+import { DEFAULT_TIMING, type InputType } from "@/lib/timing";
+import { useAccountSettings } from "./workspace/useAccountSettings";
+import { useListActions } from "./workspace/useListActions";
+import { usePracticeActions } from "./workspace/usePracticeActions";
+import { usePracticeSettings } from "./workspace/usePracticeSettings";
 
 const DIALOG_TITLES: Record<Modal, string> = {
   account: "Your account",
@@ -80,13 +72,9 @@ export default function Workspace({
   // What the site offers this account; while the account's AI switch is off (#113), the
   // workspace's views see no AI features at all.
   const offeredAi = useContext(AiFeaturesContext);
-  const [aiEnabled, setAiEnabled] = useState(initial.aiEnabled ?? true);
+  const { aiEnabled, chooseAiEnabled, theme, chooseTheme } = useAccountSettings(initial, sync);
   const ai = aiEnabled ? offeredAi : NO_AI;
   const aiOffered = offeredAi.languageNotes || offeredAi.speech.length > 0;
-  function chooseAiEnabled(next: boolean) {
-    setAiEnabled(next);
-    sync?.saveAiEnabled(next);
-  }
   // Visible languages and Other; hidden ones only where already in use (added below).
   const languages = pickerLanguages(languageList);
   const codes = languageCodes(languageList);
@@ -99,47 +87,12 @@ export default function Workspace({
   const [previewPages, setPreviewPages] = useState<Record<string, number>>({});
   const [baseLanguage, setBaseLanguage] = useState(initial.baseLanguage ?? "Swedish");
   const [learningLanguage, setLearningLanguage] = useState(initial.learningLanguage ?? "French");
-  // The Appearance setting: shown at once, saved with the account.
-  const [theme, setTheme] = useState<Theme>(initial.theme ?? "system");
-  // Before paint, so a change never shows a frame in the old scheme.
-  useLayoutEffect(() => applyTheme(theme), [theme]);
-  function chooseTheme(next: Theme) {
-    applyTheme(next);
-    setTheme(next);
-    sync?.saveTheme(next);
-  }
-  // Remembered in this browser only (#67); private windows or blocked storage use the defaults.
-  const [settings, setSettings] = useState<PracticeSettings>(() => {
-    try {
-      return readSettings(localStorage.getItem(SETTINGS_KEY));
-    } catch {
-      return DEFAULT_SETTINGS;
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    } catch {}
-  }, [settings]);
-  const [practice, dispatch] = useReducer(practiceReducer, NO_PRACTICE);
-  // The list open in the editor, as it was when opened.
-  const [editing, setEditing] = useState<List | null>(null);
+  const [settings, setSettings] = usePracticeSettings();
   const [modal, setModal] = useState<Modal | null>(null);
   const { actions: aiActions } = useAiActionLog();
-  // Whether leaving the list editor would lose edits, and where leaving it was headed.
-  const [editorLost, setEditorLost] = useState<string[]>([]);
-  // The editor's latest draft, so every way out of it (Done, the sidebar, the logo) shows it.
-  const editorDraft = useRef<List | null>(null);
-  // Lists being deleted: a save the editor still had waiting must not recreate them.
-  const deletedIds = useRef(new Set<string>());
-  const [leaving, setLeaving] = useState<{ to: View | "practice"; list?: List } | null>(null);
-  // The list the delete dialog asks about.
-  const [deleting, setDeleting] = useState<List | null>(null);
   const [nav, setNav] = useState(false);
   // A short message under the page; a warning when something didn't happen as asked.
   const [notice, setNotice] = useState<{ text: string; warning?: boolean } | null>(null);
-  // The id of the newest answer per word and direction (see check).
-  const latestReview = useRef(new Map<string, string>());
   // The profile languages change in several places; save whenever the pair changes.
   const savedProfile = useRef(`${initial.baseLanguage}
 ${initial.learningLanguage}`);
@@ -167,7 +120,47 @@ ${learningLanguage}`;
   const pairLists = lists.filter((l) => l.from === baseLanguage && l.to === learningLanguage);
   const pairRuns = runs.filter((r) => r.from === baseLanguage && r.to === learningLanguage);
   const list = pairLists.find((l) => l.id === selected) || pairLists[0];
-  const current = list?.words.find((w) => w.id === practice.queue[practice.index]);
+  const { practice, current, startTest, check, next, typeAnswer } = usePracticeActions({
+    list,
+    settings,
+    setLists,
+    setRuns,
+    setView,
+    setNav,
+    setNotice,
+    sync,
+  });
+  const {
+    editing,
+    editorLost,
+    deleting,
+    edit,
+    editDraft,
+    saveList,
+    leaveEditor,
+    stayInEditor,
+    leaveAnyway,
+    changePending,
+    changeDraft,
+    askDelete,
+    deleteList,
+    exportList,
+  } = useListActions({
+    lists,
+    setLists,
+    list,
+    baseLanguage,
+    learningLanguage,
+    setSelected,
+    setLearningLanguage,
+    setQuery,
+    setView,
+    setNav,
+    setNotice,
+    setModal,
+    startTest,
+    sync,
+  });
 
   function navigate(next: View) {
     if (view === "test" && next !== "test") {
@@ -226,175 +219,6 @@ ${learningLanguage}`;
     setModal(null);
     setNav(false);
     setNotice({ text: "Profile updated. Existing lists have not been changed." });
-  }
-  function edit(target?: List) {
-    setEditing(
-      target
-        ? structuredClone(target)
-        : {
-            id: crypto.randomUUID(),
-            title: "",
-            description: "",
-            from: baseLanguage,
-            to: learningLanguage,
-            words: [],
-          },
-    );
-    setView("editor");
-    setNotice(null);
-  }
-  // The editor autosaves through this; it never leaves the editor.
-  function saveList(saved: List) {
-    if (deletedIds.current.has(saved.id)) return;
-    setLists((ls) =>
-      ls.some((l) => l.id === saved.id)
-        ? ls.map((l) => (l.id === saved.id ? saved : l))
-        : [...ls, saved],
-    );
-    sync?.saveList(saved);
-  }
-  // Leaving the editor saves what's waiting (ListEditor does that as it closes), but would drop
-  // unfinished rows or pasted text, so it asks first when there are any.
-  function leaveEditor(to: View | "practice", edited = editorDraft.current ?? undefined) {
-    if (editorLost.length) {
-      setLeaving({ to, list: edited });
-      setModal("leave");
-      return;
-    }
-    goFromEditor(to, edited);
-  }
-  function goFromEditor(to: View | "practice", edited?: List) {
-    // Show the edited list in the library, under its (possibly changed) language.
-    if (edited && lists.some((l) => l.id === edited.id)) {
-      setSelected(edited.id);
-      setLearningLanguage(edited.to);
-      setQuery("");
-    }
-    if (to === "practice") startTest(false, edited);
-    else {
-      setView(to);
-      setNav(false);
-      setNotice(null);
-    }
-  }
-  function changePending(pending: boolean, lost: string[]) {
-    setEditorLost(lost);
-    sync?.pending(pending);
-  }
-  function askDelete(target: List) {
-    setDeleting(target);
-    setModal("delete");
-  }
-  function deleteList(target: List) {
-    deletedIds.current.add(target.id);
-    setLists((ls) => ls.filter((l) => l.id !== target.id));
-    void sync?.deleteList(target.id).then((deleted) => {
-      if (deleted) return;
-      deletedIds.current.delete(target.id);
-      // This tab's copy is stale, so saving it would get 409 too; a reload shows the newer one.
-      setLists((ls) => (ls.some((l) => l.id === target.id) ? ls : [...ls, target]));
-      setNotice({
-        text: `Another tab changed “${listTitle(target)}”, so it wasn't deleted. Reload this tab to see the latest version.`,
-        warning: true,
-      });
-    });
-    setSelected("");
-    setView("library");
-    setModal(null);
-    setNotice({ text: "List deleted." });
-  }
-  // Practises the selected list, or `target` (the list just edited, not selected yet).
-  function startTest(onlyMistakes = false, target = list) {
-    if (!target?.words.length) {
-      setView("library");
-      setNav(false);
-      return;
-    }
-    const mistakes = onlyMistakes ? practice.results : undefined;
-    dispatch({
-      type: "start",
-      queue: practiceQueue(target.words, settings, Date.now(), mistakes),
-    });
-    setView("test");
-    setNotice(null);
-    setNav(false);
-  }
-  function check(skipped: boolean, timing: TimingSample | null = null) {
-    if (!list || !current || practice.feedback || (!practice.answer.trim() && !skipped)) return;
-    const { direction } = settings;
-    const answeredAt = Date.now();
-    const result = grade(current, practice.answer, skipped, settings, answeredAt);
-    dispatch({ type: "check", result, skipped });
-    setLists((ls) =>
-      ls.map((l) =>
-        l.id !== list.id
-          ? l
-          : {
-              ...l,
-              words: l.words.map((w) =>
-                w.id !== current.id
-                  ? w
-                  : { ...w, [direction]: reviewed(w[direction], result.correct, answeredAt) },
-              ),
-            },
-      ),
-    );
-    // Take the server's state once saved, so answers from other tabs show here too, unless a
-    // later answer for the same word and direction is still on its way.
-    const review = {
-      id: crypto.randomUUID(),
-      wordId: current.id,
-      direction,
-      correct: result.correct,
-      // Only a right, typed answer is timed.
-      ...(result.correct && !skipped && timing ? { timing } : {}),
-    };
-    const key = `${review.wordId}:${direction}`;
-    latestReview.current.set(key, review.id);
-    void sync?.review(review).then((history) => {
-      if (!history || latestReview.current.get(key) !== review.id) return;
-      setLists((ls) =>
-        ls.map((l) => ({
-          ...l,
-          words: l.words.map((w) => (w.id === review.wordId ? { ...w, [direction]: history } : w)),
-        })),
-      );
-    });
-  }
-  function next() {
-    if (!list) return;
-    if (!isLastWord(practice)) {
-      dispatch({ type: "next" });
-      return;
-    }
-    const run: Run = {
-      id: crypto.randomUUID(),
-      completedAt: Date.now(),
-      listId: list.id,
-      mode: settings.mode,
-      title: listTitle(list),
-      from: list.from,
-      to: list.to,
-      results: practice.results,
-    };
-    setRuns((r) => [run, ...r].slice(0, 200));
-    sync?.completeRun(run);
-    setView("results");
-  }
-  function exportList() {
-    if (!list) return;
-    const blob = new Blob(["﻿" + encodeCSV(list)], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${listTitle(list).toLowerCase().replace(/\s+/g, "-")}.csv`;
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setNotice({
-      text: "CSV exported. It includes language names and word pairs, not review history.",
-    });
   }
   const shell = (
     <div className="app-shell">
@@ -490,9 +314,7 @@ ${learningLanguage}`;
             onSave={saveList}
             onDone={(edited) => leaveEditor("library", edited)}
             onPending={changePending}
-            onDraft={(draft) => {
-              editorDraft.current = draft;
-            }}
+            onDraft={changeDraft}
             onDelete={() => {
               const saved = lists.find((l) => l.id === editing.id);
               if (saved) askDelete(saved);
@@ -506,7 +328,7 @@ ${learningLanguage}`;
             practice={practice}
             settings={settings}
             baseLanguage={baseLanguage}
-            onAnswer={(answer) => dispatch({ type: "type", answer })}
+            onAnswer={typeAnswer}
             onCheck={check}
             timingCutoffs={timingCutoffs}
             onNext={next}
@@ -582,8 +404,7 @@ ${learningLanguage}`;
             baseLanguage={baseLanguage}
             codes={codes}
             onImport={(draft) => {
-              setEditing(draft);
-              setView("editor");
+              editDraft(draft);
               setModal(null);
             }}
           />
@@ -602,18 +423,7 @@ ${learningLanguage}`;
           <ReportDialog actions={[...aiActions].reverse()} onClose={() => setModal(null)} />
         )}
         {modal === "leave" && (
-          <LeaveDialog
-            lost={editorLost}
-            onStay={() => {
-              setModal(null);
-              setLeaving(null);
-            }}
-            onLeave={() => {
-              setModal(null);
-              setLeaving(null);
-              if (leaving) goFromEditor(leaving.to, leaving.list);
-            }}
-          />
+          <LeaveDialog lost={editorLost} onStay={stayInEditor} onLeave={leaveAnyway} />
         )}
         {modal === "exit" && (
           <ExitDialog

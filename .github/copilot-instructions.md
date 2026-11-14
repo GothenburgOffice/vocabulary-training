@@ -71,8 +71,9 @@ the full browser suite on every PR.
   A list of records (accounts, languages) is a compact `.admin-table`, one row per record
   with everything visible, like Languages and Users: no cards, no collapsed details.
 - `components/Workspace.tsx`: the signed-in UI, a client component. It holds the shared
-  state and every change it saves; the views and dialogs in `components/workspace/` render
-  and report back. A practice session is `lib/practice.ts` (a reducer, grading and the
+  state and every change it saves, through hooks it calls (`useAccountSettings`,
+  `usePracticeSettings`, `usePracticeActions`, `useListActions` in `components/workspace/`);
+  the views and dialogs there render and report back. A practice session is `lib/practice.ts` (a reducer, grading and the
   queue; unit-test changes there). None of these may import server code.
 - `e2e/`: Playwright browser tests. `fixtures.ts` signs each test in as a fresh account and
   has the shared steps; AI routes are mocked there, never called.
