@@ -5,6 +5,9 @@ import { signedInAsAdmin } from "./admin-fixtures";
 
 signedInAsAdmin();
 
+// Requesty usage (#121): the monitor key's card, and the usage block once a key is saved. The
+// AI settings and usage routes are faked: saving a key would ask Requesty for its permissions.
+
 async function fakeAiSettings(page: Page, usage: UsageView) {
   const tier = { model: "", key: { state: "unset" } };
   let monitor: MonitorView = { key: { state: "unset" }, appLabel: "vocabulary-training" };
