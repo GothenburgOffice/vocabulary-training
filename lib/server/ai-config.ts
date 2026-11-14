@@ -4,9 +4,7 @@
 // so is every feature for an account that turned AI features off (users.ai_enabled, #113).
 import { NO_AI, type AiFeatures, type Language } from "@/lib/languages";
 
-export const AI_TIERS = ["basic", "plus"] as const;
-export type AiTier = (typeof AI_TIERS)[number];
-export type TierSettings = { apiKey: string; model: string };
+type TierSettings = { apiKey: string; model: string };
 export type SpeechSettings = { model: string; voice: string; instructions: string };
 export type LanguageSettings = Language & { speech: SpeechSettings; plusSpeech: SpeechSettings };
 export type AiSettings = { basic: TierSettings; plus: TierSettings; languages: LanguageSettings[] };

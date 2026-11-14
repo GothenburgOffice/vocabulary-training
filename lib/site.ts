@@ -1,6 +1,6 @@
 // Public site details shared by the metadata, manifest, robots and sitemap.
 export const SITE_NAME = "vocabulary.training";
-export const SITE_TAGLINE = "Your own word lists, practised by typing";
+const SITE_TAGLINE = "Your own word lists, practised by typing";
 export const SITE_DESCRIPTION =
   "Make your own word lists and learn them by typing the answers, with spaced review of the words you miss. No AI required.";
 // The page background (--bg in app/style.css).

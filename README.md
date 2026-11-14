@@ -91,6 +91,7 @@ dependencies. In the integrated terminal:
 npm run lint
 npm run format:check      # npm run format to fix
 npm run typecheck
+npm run knip              # unused files, exports and dependencies
 npm test                  # unit tests
 npm run test:integration  # HTTP + PostgreSQL against TEST_BASE_URL
 npm run test:e2e          # browser tests (Playwright) against TEST_BASE_URL
@@ -171,7 +172,7 @@ The VS Code workspace file has tasks for these. If dependencies change, rebuild
 and recreate the `node_modules` volume. Never remove the database volume to do it.
 
 **CI** ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs format, lint,
-typecheck, unit tests, build and `npm audit`, then starts the Docker Compose stack and runs
+typecheck, knip, unit tests, build and `npm audit`, then starts the Docker Compose stack and runs
 the integration test, a restart test and the browser tests against it. Draft PRs skip it.
 Passing `main` pushes build, re-test and publish the image to GHCR.
 A `@claude` mention in an issue runs

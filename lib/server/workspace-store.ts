@@ -18,9 +18,9 @@ import { bucketOf, observe, usableSample, type TimingSample, type TimingStats } 
 import { db } from "./db";
 import { HttpError } from "./http";
 
-export const MAX_LISTS = 100;
+const MAX_LISTS = 100;
 // Kept per account until the retention decision (#54).
-export const MAX_RUNS = 200;
+const MAX_RUNS = 200;
 
 async function transaction<T>(work: (client: pg.PoolClient) => Promise<T>, begin = "BEGIN") {
   const client = await db.connect();

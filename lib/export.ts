@@ -8,7 +8,7 @@ export const EXPORT_FORMAT = "vocabulary.training export";
 // 2: profile.aiEnabled (#113). 3: review.*.fsrs (#2). 4: answerTiming (#2).
 export const EXPORT_VERSION = 4;
 
-export type ExportAccount = {
+type ExportAccount = {
   email: string;
   createdAt: Date;
   accountType: string;
@@ -22,9 +22,9 @@ export type ExportReviewEvent = {
   at: Date;
 };
 // One AI request that reached the provider: what kind, how many letters, when (no text).
-export type ExportAiUsage = { kind: string; letters: number; at: Date };
+type ExportAiUsage = { kind: string; letters: number; at: Date };
 // The running averages of answer hesitation per input type (#2); no single answer's times.
-export type ExportAnswerTiming = { input: string; samples: number; mean: number; variance: number };
+type ExportAnswerTiming = { input: string; samples: number; mean: number; variance: number };
 // What loadExport reads, from one database snapshot.
 export type ExportSource = {
   account: ExportAccount;

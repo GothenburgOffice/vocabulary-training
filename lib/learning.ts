@@ -3,8 +3,8 @@ import { createEmptyCard, fsrs, Rating, State, type Card } from "ts-fsrs";
 export type Direction = "forward" | "reverse";
 // FSRS's card states (#2): a new word, its first short steps, day-long reviews, and the short
 // steps again after a lapse.
-export const FSRS_STATES = ["new", "learning", "review", "relearning"] as const;
-export type FsrsState = (typeof FSRS_STATES)[number];
+const FSRS_STATES = ["new", "learning", "review", "relearning"] as const;
+type FsrsState = (typeof FSRS_STATES)[number];
 // One direction of a word: answer counts, the correct streak (for the library's labels), the
 // next review, and the FSRS memory state that sets it.
 export type History = {

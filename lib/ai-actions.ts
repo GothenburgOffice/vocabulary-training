@@ -48,8 +48,8 @@ export function newAiActionId() {
 
 // Audio is binary, so the speech route sends the model and voice in headers instead of a body.
 // Values are URL-encoded so any character survives a header.
-export const SPEECH_MODEL_HEADER = "X-AI-Model";
-export const SPEECH_VOICE_HEADER = "X-AI-Voice";
+const SPEECH_MODEL_HEADER = "X-AI-Model";
+const SPEECH_VOICE_HEADER = "X-AI-Voice";
 
 export function speechHeaders(settings: { model: string; voice: string }) {
   return {

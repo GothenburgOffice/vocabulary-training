@@ -30,7 +30,7 @@ const REGISTRATION_OPEN = "registration.open";
 // processes pick changes up within CACHE_MS.
 const CACHE_MS = 30_000;
 let cache: { at: number; value: Promise<AiSettings> } | null = null;
-export function invalidateAiSettings() {
+function invalidateAiSettings() {
   cache = null;
 }
 export function loadAiSettings(): Promise<AiSettings> {

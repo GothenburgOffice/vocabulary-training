@@ -7,7 +7,7 @@ import { z } from "zod";
 
 export type WriteLimits = { perHour: number; perDay: number };
 export const DEFAULT_WRITE_LIMITS: WriteLimits = { perHour: 20_000, perDay: 300_000 };
-export const WRITE_LIMIT_BOUNDS = { min: 0, max: 99_999_999 };
+const WRITE_LIMIT_BOUNDS = { min: 0, max: 99_999_999 };
 
 const limit = z.number().int().min(WRITE_LIMIT_BOUNDS.min).max(WRITE_LIMIT_BOUNDS.max);
 export const writeLimitsSchema = z.object({ perHour: limit, perDay: limit }).strict();

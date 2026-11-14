@@ -64,7 +64,7 @@ export function readSettings(stored: string | null): PracticeSettings {
 
 // One practice session: the words to ask (ids, in order), the current one, the answer being
 // typed, the feedback once checked, and every checked answer so far.
-export type Feedback = Result & { skipped?: boolean };
+type Feedback = Result & { skipped?: boolean };
 export type Practice = {
   queue: string[];
   index: number;

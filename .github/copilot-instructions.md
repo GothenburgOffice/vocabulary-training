@@ -35,6 +35,7 @@ Docker-first. The host has no Node, so run everything in the dev container
 npm run lint            # ESLint (flat config, eslint-config-next)
 npm run format          # Prettier; CI runs format:check
 npm run typecheck
+npm run knip            # unused files, exports and dependencies (knip.json)
 npm test                # unit tests: tsx --test tests/*.test.ts
 npm run test:integration  # needs the running stack; uses TEST_BASE_URL
 npm run test:e2e        # Playwright browser tests (e2e/); same stack and TEST_BASE_URL
@@ -43,7 +44,7 @@ npm run build
 
 While iterating, run only typecheck and lint, and keep a note of which tests the
 changes call for. Run the rest before a commit or a PR, or when asked: lint,
-format:check, typecheck and the unit tests, plus the integration test when API,
+format:check, typecheck, knip and the unit tests, plus the integration test when API,
 auth or DB code changed and the browser tests covering any changed UI. CI runs
 the full browser suite on every PR.
 

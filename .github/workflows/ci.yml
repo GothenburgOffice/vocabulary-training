@@ -24,6 +24,8 @@ jobs:
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
+      # Unused files, exports and dependencies (knip.json).
+      - run: npm run knip
       - run: npm test
       - run: npm run build
       - run: npm audit --audit-level=high
