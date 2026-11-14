@@ -39,4 +39,9 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     title: "Registration",
     description: "Open or close sign-up, the privacy details it needs first, and Google sign-in.",
   },
+  {
+    href: "/admin/email",
+    title: "Email",
+    description: "The SMTP server for sign-up and password reset mail, with a test mail button.",
+  },
 ];

@@ -12,8 +12,16 @@ import {
   type Privacy,
   type RegistrationView,
 } from "@/lib/admin/registration";
+import {
+  DEFAULT_PORT,
+  SMTP_SECURITY,
+  type EmailUpdate,
+  type EmailView,
+  type SmtpSecurity,
+} from "@/lib/admin/email";
 import type { GoogleUpdate, GoogleView } from "@/lib/admin/google";
 import { callbackUrl } from "@/lib/google-oidc";
+import { plaintextAllowed, smtpProblem } from "@/lib/smtp";
 import type { AiSettings, LanguageSettings } from "./ai-config";
 import { db } from "./db";
 import { HttpError } from "./http";
@@ -304,4 +312,74 @@ export async function saveGoogle(update: GoogleUpdate) {
   if (update.clientSecret)
     await setSetting(GOOGLE_CLIENT_SECRET, encryptSecret(update.clientSecret));
   else if (update.clientSecret === null) await setSetting(GOOGLE_CLIENT_SECRET, "");
+}
+
+// Outgoing mail (SMTP); the password is encrypted like the Requesty keys.
+const SMTP = {
+  host: "smtp.host",
+  port: "smtp.port",
+  security: "smtp.security",
+  user: "smtp.user",
+  password: "smtp.password",
+  from: "smtp.from",
+};
+function smtpSecurity(value: string | undefined): SmtpSecurity {
+  return SMTP_SECURITY.find((s) => s === value) ?? "starttls";
+}
+// The settings for sending, or null while mail is off: no host or from address. password is
+// empty for a server without sign-in, or one saved under another SETTINGS_ENCRYPTION_KEY.
+export async function readSmtpConfig() {
+  const settings = await readSettingsMap();
+  const host = settings.get(SMTP.host) ?? "";
+  const from = settings.get(SMTP.from) ?? "";
+  if (!host || !from) return null;
+  const security = smtpSecurity(settings.get(SMTP.security));
+  const stored = settings.get(SMTP.password);
+  return {
+    host,
+    from,
+    security,
+    port: Number(settings.get(SMTP.port)) || DEFAULT_PORT[security],
+    user: settings.get(SMTP.user) ?? "",
+    password: (stored && decryptSecret(stored)) || "",
+  };
+}
+export async function readEmailView(): Promise<EmailView> {
+  const settings = await readSettingsMap();
+  const security = smtpSecurity(settings.get(SMTP.security));
+  const host = settings.get(SMTP.host) ?? "";
+  const from = settings.get(SMTP.from) ?? "";
+  return {
+    encryptionReady: encryptionReady(),
+    host,
+    port: Number(settings.get(SMTP.port)) || DEFAULT_PORT[security],
+    security,
+    user: settings.get(SMTP.user) ?? "",
+    password: keyStatus(settings.get(SMTP.password)),
+    from,
+    plaintextAllowed: plaintextAllowed(),
+    enabled: Boolean(host && from),
+  };
+}
+export async function saveEmail(update: EmailUpdate) {
+  // The user name and password go together: check what the settings will be after this save.
+  const stored = (await readSettingsMap()).get(SMTP.password);
+  // A saved password counts only if it can be read: one saved under another
+  // SETTINGS_ENCRYPTION_KEY would be sent as an empty one, so it has to be entered again.
+  const hasPassword =
+    update.password === null
+      ? false
+      : Boolean(update.password) || Boolean(stored && decryptSecret(stored));
+  const problem = smtpProblem(
+    { user: update.user, hasPassword, security: update.security },
+    plaintextAllowed(),
+  );
+  if (update.host && problem) throw new HttpError(400, problem);
+  await setSetting(SMTP.host, update.host);
+  await setSetting(SMTP.port, String(update.port));
+  await setSetting(SMTP.security, update.security);
+  await setSetting(SMTP.user, update.user);
+  await setSetting(SMTP.from, update.from);
+  if (update.password) await setSetting(SMTP.password, encryptSecret(update.password));
+  else if (update.password === null) await setSetting(SMTP.password, "");
 }
