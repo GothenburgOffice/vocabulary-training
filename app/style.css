@@ -2205,12 +2205,6 @@ nav button {
   }
 }
 
-/* Admin area: a shell (header and section navigation) around one page per section. */
-.admin {
-  min-height: 100dvh;
-  background: var(--bg);
-}
-
 /* No top bar: the save status sits in the sidebar (or the phone header), the account links in
    the account dialog, and save errors at the top of the page. */
 .visually-hidden {
@@ -2366,11 +2360,4 @@ main > .save-error {
   .make-primary-label {
     display: none;
   }
-}
-
-.requesty-usage {
-  margin-top: 24px;
-}
-.requesty-usage h3 {
-  margin: 20px 0 8px;
 }
