@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:22.23.4-trixie-slim AS dependencies
+FROM node:22.23.5-trixie-slim AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
 # The npm version is package.json's packageManager, the one place it is pinned.
@@ -45,7 +45,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-FROM node:22.23.4-trixie-slim AS production
+FROM node:22.23.5-trixie-slim AS production
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
 COPY --from=builder --chown=node:node /app/.next/standalone ./
