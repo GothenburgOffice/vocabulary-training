@@ -71,3 +71,10 @@ COPY scripts/migrate.mjs scripts/admin-bootstrap.mjs scripts/settings-bootstrap.
 COPY db ./db
 USER node
 CMD ["node", "scripts/migrate.mjs"]
+
+# Test stacks only (compose.test.yaml): the fake Google token endpoint and the fake mail
+# server. A stage of their own so they run on the app's Node without a second version pin,
+# which Dependabot would bump in a separate PR.
+FROM node:22.23.4-trixie-slim AS test-fakes
+WORKDIR /fakes
+COPY tests/support/fake-google.mjs tests/support/fake-smtp.mjs ./
