@@ -21,11 +21,12 @@ it("uses one Node version in every Dockerfile stage, on Node 22", () => {
   );
 });
 
-it("runs the test stack's fake Google on the app's Node version", () => {
+it("builds the test stack's fakes from the Dockerfile, so Node has one pin", () => {
   const compose = readFileSync(new URL("../compose.test.yaml", import.meta.url), "utf8");
-  const node = dockerfile.match(/^FROM node:(\d+\.\d+\.\d+)(?![\d.])/m)?.[1];
-  assert.ok(node);
-  assert.ok(compose.includes(`image: node:${node}-`), `compose.test.yaml should use node:${node}`);
+  // A node image of its own would be a second pin, bumped by Dependabot in a separate PR.
+  assert.doesNotMatch(compose, /image: node:/);
+  assert.match(dockerfile, /^FROM node:\S+ AS test-fakes$/m);
+  assert.equal(compose.match(/target: test-fakes/g)?.length, 2);
 });
 
 it("pins npm only in package.json", () => {
